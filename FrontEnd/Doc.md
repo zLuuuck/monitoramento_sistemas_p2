@@ -1,0 +1,1 @@
+Criar o frontend, conectar com o backend e mostrar as métricas

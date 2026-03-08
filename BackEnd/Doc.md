@@ -1,0 +1,1 @@
+Inicializar backend com o Flask
