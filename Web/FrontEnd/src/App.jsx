@@ -29,6 +29,8 @@ function App() {
         </button>
       </section>
 
+      <h1> teste </h1>
+
       <div className="ticks"></div>
 
       <section id="next-steps">
