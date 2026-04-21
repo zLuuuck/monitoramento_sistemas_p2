@@ -1,0 +1,28 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Arquivos do Docker
+*.log
+.env
+
+# Ambientes virtuais Python
+.venv/
+.ambienteVirtual/
+venv/
+env/
+
+# Frontend
+FrontEnd/node_modules/
+FrontEnd/dist/
+FrontEnd/.cache/
+
+# Banco de dados
+database/*.db
+
+# Arquivos de configuração do editor (opcional)
+.vscode/
+.idea/
+*.swp
+*.swo

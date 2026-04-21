@@ -29,7 +29,7 @@ function App() {
         </button>
       </section>
 
-      <h1> teste </h1>
+      <h1 class="fonrt-bold underline"> teste </h1>
 
       <div className="ticks"></div>
 
