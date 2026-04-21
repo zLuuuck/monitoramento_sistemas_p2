@@ -36,5 +36,21 @@ services:
     depends_on:
       - backend
 
+  frontend:
+    build: ./FrontEnd
+    volumes:
+      - ./FrontEnd:/app           # Sincroniza código local com contêiner
+      - /app/node_modules         # Mantém node_modules do contêiner
+    ports:
+      - "5173:5173"               # Mapeia porta do host para o contêiner
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true  # Hot Reload no Windows
+      - WATCHPACK_POLLING=true
+    stdin_open: true
+    tty: true
+    depends_on:
+      - backend                   # Opcional, só espera o backend iniciar
+
 volumes:
   postgres_data:
