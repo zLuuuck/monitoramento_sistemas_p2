@@ -9,6 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+#cometário teste
 RUN chmod +x entrypoint.sh
 
 ENV FLASK_APP=app/app.py
