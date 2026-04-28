@@ -3,16 +3,17 @@ from utils.sysfs import read_sysfs_khz_to_mhz
 
 def get_virtual_cpu_info(lscpu, cpuinfo, cpu0, hypervisor_vendor):
     """
-    Retorna dicionário com informações da CPU para ambiente virtualizado.
-    hypervisor_vendor: string com o nome do hypervisor (ex: "VMware").
+    Retorna informações da CPU para ambiente virtualizado.
+    Usa lscpu, com fallback para /proc/cpuinfo.
     """
-    # Máxima – comum vir de "CPU MHz" fixo em VMs
+    # Máxima – prioridade: lscpu (max oficial) → lscpu (CPU MHz) → /proc/cpuinfo
     max_mhz = (
         safe_float(lscpu.get("cpu_max_mhz")) or
-        safe_float(lscpu.get("cpu_mhz"))  # fallback: campo "CPU MHz" do lscpu
+        safe_float(lscpu.get("cpu_mhz")) or           # "CPU MHz" do lscpu
+        safe_float(cpu0.get("cpu MHz"))                # fallback do /proc/cpuinfo
     )
 
-    # Mínima – rara em VMs, mas tenta
+    # Mínima – rara em VMs
     min_mhz = (
         read_sysfs_khz_to_mhz(
             "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq"
@@ -26,7 +27,7 @@ def get_virtual_cpu_info(lscpu, cpuinfo, cpu0, hypervisor_vendor):
             "/sys/devices/system/cpu/cpu0/cpufreq/base_frequency"
         ) or
         safe_float(lscpu.get("base_frequency"))
-        # se desejar, pode usar max_mhz como base se for None
+        # opcional: usar max_mhz como base se ainda for None
         # or max_mhz
     )
 
