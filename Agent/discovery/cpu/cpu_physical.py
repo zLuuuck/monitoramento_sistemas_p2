@@ -1,5 +1,5 @@
 # discovery/cpu_physical.py
-from utils.sysfs import read_sysfs_khz_to_mhz
+from Agent.utils.sysfs import read_sysfs_khz_to_mhz
 
 def get_physical_cpu_info(lscpu, cpuinfo, cpu0):
     """

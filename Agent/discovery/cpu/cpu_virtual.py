@@ -1,5 +1,5 @@
 # discovery/cpu_virtual.py
-from utils.sysfs import read_sysfs_khz_to_mhz
+from Agent.utils.sysfs import read_sysfs_khz_to_mhz
 
 def get_virtual_cpu_info(lscpu, cpuinfo, cpu0, hypervisor_vendor):
     """
