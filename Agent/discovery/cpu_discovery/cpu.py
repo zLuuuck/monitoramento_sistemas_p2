@@ -1,8 +1,8 @@
 # discovery/cpu.py
 from Agent.utils.shell import run
 from Agent.utils.parser import parse_lscpu, parse_cpuinfo
-from Agent.discovery.cpu.cpu_physical import get_physical_cpu_info
-from Agent.discovery.cpu.cpu_virtual import get_virtual_cpu_info
+from Agent.discovery.cpu_discovery.cpu_physical import get_physical_cpu_info
+from Agent.discovery.cpu_discovery.cpu_virtual import get_virtual_cpu_info
 
 def get_cpu_info():
     # Coleta comum
