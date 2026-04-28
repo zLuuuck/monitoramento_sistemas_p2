@@ -28,8 +28,8 @@ def get_cpu_info():
     # - min_mhz      → do lscpu (CPU min MHz)
     # ------------------------------------------------------------------
     current_mhz = safe_float(cpu0.get("cpu MHz"))
-    max_mhz = safe_float(lscpu.get("CPU max MHz"))
-    min_mhz = safe_float(lscpu.get("CPU min MHz"))
+    max_mhz = safe_float(lscpu.get("cpu_max_mhz"))
+    min_mhz = safe_float(lscpu.get("cpu_min_mhz"))
 
     # ------------------------------------------------------------------
     # Modelo, vendor, arquitetura
@@ -58,7 +58,7 @@ def get_cpu_info():
             "is_virtualized": is_virtualized,
             "hypervisor": hypervisor_vendor if is_virtualized else None
         },
-        "flags": cpu0.get("flags", "").split() if cpu0.get("flags") else []
+        #"flags": cpu0.get("flags", "").split() if cpu0.get("flags") else []
     }
 
 
