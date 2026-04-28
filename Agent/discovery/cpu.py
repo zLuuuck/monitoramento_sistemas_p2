@@ -15,16 +15,22 @@ def get_cpu_info():
         "model_name": lscpu.get("model_name") or cpu0.get("model name"),
         "vendor": lscpu.get("vendor_id") or cpu0.get("vendor_id"),
         "architecture": lscpu.get("architecture"),
-        "cores_logical": len(cpuinfo) if cpuinfo else lscpu.get("cpu(s)"),
-        "threads_per_core": lscpu.get("thread(s)_per_core"),
+        "threads_per_core": safe_int(lscpu.get("thread(s)_per_core")),
+        "cores_logical": safe_int(lscpu.get("cpu(s)")) or len(cpuinfo),
         "frequency_mhz": safe_float(cpu0.get("cpu MHz")),
-        "hypervisor": lscpu.get("hypervisor_vendor"),
-        "flags": cpu0.get("flags")
+        "is_virtualized": True if lscpu.get("hypervisor_vendor") else False,
+        "flags": cpu0.get("flags", "").split()
     }
 
 
 def safe_float(value):
     try:
         return float(value)
+    except:
+        return None
+    
+def safe_int(value):
+    try:
+        return int(value)
     except:
         return None
