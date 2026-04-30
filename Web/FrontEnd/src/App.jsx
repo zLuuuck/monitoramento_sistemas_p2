@@ -1,123 +1,88 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
 import './App.css'
+import { useEffect } from 'react';
+import { Layout } from './shared/components/Layout';
+import { Card } from './shared/components/Card';
+import { LogsPlaceholder } from './features/logs_feat/components/LogsPlaceholder';
+import { mockApi, mockHosts } from './shared/services/mockApi';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [selectedHost, setSelectedHost] = useState('1');
+  const [metrics, setMetrics] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Carregar métricas quando mudar o host
+  useEffect(() => {
+    const carregarMetricas = async () => {
+      setLoading(true);
+      const dados = await mockApi.getMetrics(selectedHost);
+      setMetrics(dados);
+      setLoading(false);
+    };
+    carregarMetricas();
+  }, [selectedHost]);
+
+  // Pega a última métrica (mais recente)
+  const ultimaMetrica = metrics[metrics.length - 1];
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <Layout>
+      {/* Seletor de Host */}
+      <div className="flex justify-end mb-6">
+        <div className="flex items-center gap-3">
+          <label className="text-gray-600 text-sm font-medium">Host:</label>
+          <select
+            value={selectedHost}
+            onChange={(e) => setSelectedHost(e.target.value)}
+            className="border border-gray-300 rounded-lg px-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {mockHosts.map((host) => (
+              <option key={host.id} value={host.id}>
+                {host.name} {host.status === 'offline' && '(Offline)'}
+              </option>
+            ))}
+          </select>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
+      </div>
+
+      {/* Loading */}
+      {loading && (
+        <div className="flex justify-center py-20">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
         </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+      )}
 
-      <h1 class="fonrt-bold underline"> teste </h1>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      {/* Cards de Métricas */}
+      {!loading && ultimaMetrica && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card 
+            title="CPU" 
+            value={ultimaMetrica.cpu_percent.toFixed(1)} 
+            unit="%" 
+            icon="⚡" 
+            color="blue" 
+          />
+          <Card 
+            title="Memória" 
+            value={ultimaMetrica.memory_percent.toFixed(1)} 
+            unit="%" 
+            icon="🧠" 
+            color="green" 
+          />
+          <Card 
+            title="Status" 
+            value={mockHosts.find(h => h.id === selectedHost)?.status === 'online' ? "Online" : "Offline"} 
+            unit="" 
+            icon={mockHosts.find(h => h.id === selectedHost)?.status === 'online' ? "🟢" : "🔴"} 
+            color={mockHosts.find(h => h.id === selectedHost)?.status === 'online' ? "green" : "red"} 
+          />
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {/* Logs */}
+      <LogsPlaceholder />
+    </Layout>
+  );
 }
 
-export default App
+export default App;
