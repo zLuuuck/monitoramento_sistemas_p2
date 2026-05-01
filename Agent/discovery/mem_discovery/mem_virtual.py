@@ -10,9 +10,8 @@ def get_virtual_mem_info(meminfo, hypervisor_vendor):
     """
     Retorna informações de memória RAM para ambientes virtualizados.
 
-    Os valores de total/disponível refletem a memória alocada à VM
-    pelo hipervisor — não a RAM física do host. dmidecode não é usado
-    pois retorna dados fictícios ou está bloqueado em VMs.
+    Unidade base: bytes. Campos 'gb' são display helpers.
+    Notas contextuais centralizadas em metadata.notes no __main__.
     """
     total_kb      = parse_meminfo_kb(meminfo.get("memtotal"))
     available_kb  = parse_meminfo_kb(meminfo.get("memavailable"))
@@ -23,29 +22,34 @@ def get_virtual_mem_info(meminfo, hypervisor_vendor):
     swap_free_kb  = parse_meminfo_kb(meminfo.get("swapfree"))
 
     return {
-        # Contexto explícito: esses valores são da VM, não do host físico
-        "allocated_note": (
-            "Values represent memory allocated to this VM by the hypervisor, "
-            "not the total physical RAM of the host"
-        ),
-        "total_mb":     kb_to_mb(total_kb),
-        "total_gb":     kb_to_gb(total_kb),
-        "available_mb": kb_to_mb(available_kb),
-        "available_gb": kb_to_gb(available_kb),
-        "free_mb":      kb_to_mb(free_kb),
-        "free_gb":      kb_to_gb(free_kb),
-        "buffers_mb":   kb_to_mb(buffers_kb),
-        "cached_mb":    kb_to_mb(cached_kb),
+        "total":     _size(total_kb),
+        "available": _size(available_kb),
+        "free":      _size(free_kb),
+        "buffers":   _size(buffers_kb),
+        "cached":    _size(cached_kb),
         "swap": {
-            "total_mb": kb_to_mb(swap_total_kb),
-            "free_mb":  kb_to_mb(swap_free_kb),
+            "total": _size(swap_total_kb),
+            "free":  _size(swap_free_kb),
         },
+        # slots indisponíveis em VM — sem nota inline (vai em metadata.notes)
         "slots": {
             "total":   None,
             "used":    None,
             "free":    None,
             "modules": [],
-            "note":    "Slot information unavailable in virtualized environments",
         },
-        # bloco virtualization removido — centralizado em environment no __main__
+    }
+
+
+def _size(kb):
+    """
+    Retorna objeto de tamanho com bytes como unidade base e gb como display.
+    Derivado de kB (fonte: /proc/meminfo).
+    """
+    if kb is None:
+        return {"bytes": None, "gb": None}
+    bytes_val = kb * 1024
+    return {
+        "bytes": bytes_val,
+        "gb":    kb_to_gb(kb),
     }

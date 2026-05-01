@@ -11,12 +11,14 @@ from Agent.discovery.mem_discovery.mem import get_mem_info
 from Agent.discovery.disk_discovery.disk import get_disk_info
 from Agent.utils.serializer import to_json
 
+# Versão do schema — incrementar quando houver quebra de compatibilidade
+SCHEMA_VERSION = "1.0"
+
 
 def get_environment():
     """
     Detecta o ambiente de execução diretamente via lscpu.
-    Centraliza a informação de virtualização no topo do payload,
-    evitando redundância nos sub-módulos.
+    Retorna bloco centralizado com origem explícita dos dados.
     """
     lscpu_raw = run("lscpu")
     lscpu = parse_lscpu(lscpu_raw) if lscpu_raw else {}
@@ -26,15 +28,42 @@ def get_environment():
 
     return {
         "is_virtualized": is_virtualized,
-        "hypervisor": hypervisor or None,
+        "hypervisor":     hypervisor or None,
+        "source":         "lscpu",
+    }
+
+
+def build_metadata(is_virtualized):
+    """
+    Centraliza todas as notas contextuais do payload.
+    Substitui os campos 'note' espalhados pelos sub-módulos.
+    """
+    notes = []
+
+    if is_virtualized:
+        notes += [
+            "cpu.topology reflects vCPU allocation by the hypervisor, not physical CPU topology",
+            "cpu.frequency fields may reflect hypervisor-reported values, not actual hardware clocks",
+            "memory values represent allocation to this VM, not total physical RAM of the host",
+            "memory.slots is unavailable in virtualized environments",
+            "disk.type is reported as 'Virtual' — physical media type is unknown from inside a VM",
+            "disk.health (SMART) is unavailable in virtualized environments",
+        ]
+
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "notes": notes,
     }
 
 
 if __name__ == "__main__":
+    env = get_environment()
+
     payload = {
-        "environment": get_environment(),
-        "cpu":    get_cpu_info(),
-        "memory": get_mem_info(),
-        "disk":   get_disk_info(),
+        "metadata":    build_metadata(env["is_virtualized"]),
+        "environment": env,
+        "cpu":         get_cpu_info(),
+        "memory":      get_mem_info(),
+        "disk":        get_disk_info(),
     }
     print(to_json(payload))

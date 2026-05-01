@@ -209,4 +209,4 @@ def resolve_partition_role(name, mountpoint, size_bytes):
     if any(k in name_lower for k in ("lvm", "vg", "pv")):
         return "lvm_pv"
 
-    return "unmounted"
+    return "unknown"
