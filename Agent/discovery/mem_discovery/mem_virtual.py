@@ -10,44 +10,42 @@ def get_virtual_mem_info(meminfo, hypervisor_vendor):
     """
     Retorna informações de memória RAM para ambientes virtualizados.
 
-    Em VMs, dmidecode geralmente não é acessível ou retorna dados fictícios,
-    por isso usamos apenas /proc/meminfo como fonte confiável.
-
-    Parâmetros:
-        meminfo (dict): saída já parseada de /proc/meminfo
-        hypervisor_vendor (str): nome do hipervisor detectado (ex: "KVM", "VMware")
+    Os valores de total/disponível refletem a memória alocada à VM
+    pelo hipervisor — não a RAM física do host. dmidecode não é usado
+    pois retorna dados fictícios ou está bloqueado em VMs.
     """
-    total_kb = parse_meminfo_kb(meminfo.get("memtotal"))
-    available_kb = parse_meminfo_kb(meminfo.get("memavailable"))
-    free_kb = parse_meminfo_kb(meminfo.get("memfree"))
-    buffers_kb = parse_meminfo_kb(meminfo.get("buffers"))
-    cached_kb = parse_meminfo_kb(meminfo.get("cached"))
+    total_kb      = parse_meminfo_kb(meminfo.get("memtotal"))
+    available_kb  = parse_meminfo_kb(meminfo.get("memavailable"))
+    free_kb       = parse_meminfo_kb(meminfo.get("memfree"))
+    buffers_kb    = parse_meminfo_kb(meminfo.get("buffers"))
+    cached_kb     = parse_meminfo_kb(meminfo.get("cached"))
     swap_total_kb = parse_meminfo_kb(meminfo.get("swaptotal"))
-    swap_free_kb = parse_meminfo_kb(meminfo.get("swapfree"))
+    swap_free_kb  = parse_meminfo_kb(meminfo.get("swapfree"))
 
     return {
-        "total_mb": kb_to_mb(total_kb),
-        "total_gb": kb_to_gb(total_kb),
+        # Contexto explícito: esses valores são da VM, não do host físico
+        "allocated_note": (
+            "Values represent memory allocated to this VM by the hypervisor, "
+            "not the total physical RAM of the host"
+        ),
+        "total_mb":     kb_to_mb(total_kb),
+        "total_gb":     kb_to_gb(total_kb),
         "available_mb": kb_to_mb(available_kb),
         "available_gb": kb_to_gb(available_kb),
-        "free_mb": kb_to_mb(free_kb),
-        "free_gb": kb_to_gb(free_kb),
-        "buffers_mb": kb_to_mb(buffers_kb),
-        "cached_mb": kb_to_mb(cached_kb),
+        "free_mb":      kb_to_mb(free_kb),
+        "free_gb":      kb_to_gb(free_kb),
+        "buffers_mb":   kb_to_mb(buffers_kb),
+        "cached_mb":    kb_to_mb(cached_kb),
         "swap": {
             "total_mb": kb_to_mb(swap_total_kb),
-            "free_mb": kb_to_mb(swap_free_kb),
+            "free_mb":  kb_to_mb(swap_free_kb),
         },
-        # Em VMs não há acesso confiável a slots físicos
         "slots": {
-            "total": None,
-            "used": None,
-            "free": None,
+            "total":   None,
+            "used":    None,
+            "free":    None,
             "modules": [],
-            "note": "Slot information unavailable in virtualized environments",
+            "note":    "Slot information unavailable in virtualized environments",
         },
-        "virtualization": {
-            "is_virtualized": True,
-            "hypervisor": hypervisor_vendor,
-        },
+        # bloco virtualization removido — centralizado em environment no __main__
     }

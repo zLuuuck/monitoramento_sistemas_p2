@@ -11,9 +11,26 @@ from Agent.discovery.disk_discovery.disk import get_disk_info
 from Agent.utils.serializer import to_json
 
 if __name__ == "__main__":
+    cpu  = get_cpu_info()
+    mem  = get_mem_info()
+    disk = get_disk_info()
+
+    # Bloco de ambiente centralizado — extraído de qualquer um dos módulos
+    # (todos detectam via lscpu, resultado é idêntico)
+    environment = (
+        cpu.pop("virtualization", None)
+        or mem.pop("virtualization", None)
+        or disk.pop("virtualization", None)
+    )
+
+    # Remove bloco redundante dos demais caso ainda exista
+    for block in (cpu, mem, disk):
+        block.pop("virtualization", None)
+
     payload = {
-        "cpu": get_cpu_info(),
-        "memory": get_mem_info(),
-        "disk": get_disk_info(),
+        "environment": environment,
+        "cpu": cpu,
+        "memory": mem,
+        "disk": disk,
     }
     print(to_json(payload))
