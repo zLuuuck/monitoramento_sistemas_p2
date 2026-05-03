@@ -1,25 +1,32 @@
-# Agent/__main__.py
 import sys
+import time
 from pathlib import Path
 
+# Ajusta o path para permitir imports absolutos (Agent.*)
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 
 from Agent.utils.shell import run
 from Agent.utils.parser import parse_lscpu
 from Agent.discovery.cpu_discovery.cpu import get_cpu_info
 from Agent.discovery.mem_discovery.mem import get_mem_info
 from Agent.discovery.disk_discovery.disk import get_disk_info
-from Agent.utils.serializer import to_json
+from Agent.coleta.collector import collect_all
+from Agent.sender import send_data
 
-# Versão do schema — incrementar quando houver quebra de compatibilidade
+# Versão do schema (controle de compatibilidade do payload)
 SCHEMA_VERSION = "1.0"
 
 
 def get_environment():
     """
-    Detecta o ambiente de execução diretamente via lscpu.
-    Retorna bloco centralizado com origem explícita dos dados.
+    Detecta se o sistema está virtualizado usando o comando 'lscpu'.
+
+    Retorna:
+        - se está virtualizado
+        - nome do hypervisor (se existir)
     """
+
     lscpu_raw = run("lscpu")
     lscpu = parse_lscpu(lscpu_raw) if lscpu_raw else {}
 
@@ -28,26 +35,25 @@ def get_environment():
 
     return {
         "is_virtualized": is_virtualized,
-        "hypervisor":     hypervisor or None,
-        "source":         "lscpu",
+        "hypervisor": hypervisor or None,
+        "source": "lscpu",
     }
 
 
 def build_metadata(is_virtualized):
     """
-    Centraliza todas as notas contextuais do payload.
-    Substitui os campos 'note' espalhados pelos sub-módulos.
+    Cria metadados do payload.
+
+    Inclui observações importantes quando o sistema está virtualizado.
     """
+
     notes = []
 
     if is_virtualized:
         notes += [
-            "cpu.topology reflects vCPU allocation by the hypervisor, not physical CPU topology",
-            "cpu.frequency fields may reflect hypervisor-reported values, not actual hardware clocks",
-            "memory values represent allocation to this VM, not total physical RAM of the host",
-            "memory.slots is unavailable in virtualized environments",
-            "disk.type is reported as 'Virtual' — physical media type is unknown from inside a VM",
-            "disk.health (SMART) is unavailable in virtualized environments",
+            "cpu topology may reflect VM",
+            "memory is VM allocated",
+            "disk is virtual",
         ]
 
     return {
@@ -56,14 +62,68 @@ def build_metadata(is_virtualized):
     }
 
 
-if __name__ == "__main__":
+def run_discovery():
+    """
+    Executa a coleta inicial (discovery).
+
+    Essa coleta ocorre apenas uma vez e define
+    a "linha de base" do sistema.
+    """
+
     env = get_environment()
 
-    payload = {
-        "metadata":    build_metadata(env["is_virtualized"]),
+    return {
+        "type": "discovery",
+        "metadata": build_metadata(env["is_virtualized"]),
         "environment": env,
-        "cpu":         get_cpu_info(),
-        "memory":      get_mem_info(),
-        "disk":        get_disk_info(),
+        "cpu": get_cpu_info(),
+        "memory": get_mem_info(),
+        "disk": get_disk_info(),
     }
-    print(to_json(payload))
+
+
+def main():
+    print("🚀 Agent iniciado")
+
+    # =========================
+    # 🔎 DISCOVERY (uma vez)
+    # =========================
+    try:
+        print("🔍 Executando discovery...")
+        discovery = run_discovery()
+
+        print("📤 Enviando discovery...")
+        send_data(discovery)
+
+    except Exception as e:
+        print("Erro no discovery:", e)
+
+    # =========================
+    # 🔄 COLETA CONTÍNUA
+    # =========================
+    print("📊 Coleta contínua iniciada...")
+
+    while True:
+        try:
+            # Coleta todas as métricas e logs
+            metrics = collect_all()
+
+            # Estrutura do payload enviada ao backend
+            payload = {
+                "type": "metrics",
+                "timestamp": time.time(),  # timestamp atual
+                "data": metrics,
+            }
+
+            print("📤 Enviando métricas...")
+            send_data(payload)
+
+        except Exception as e:
+            print("Erro na coleta:", e)
+
+        # Intervalo de coleta (5 segundos conforme projeto)
+        time.sleep(5)
+
+
+if __name__ == "__main__":
+    main()
