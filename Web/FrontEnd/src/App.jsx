@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState } from 'react';
 import './App.css'
 import { useEffect } from 'react';
 import { Layout } from './shared/components/Layout';
 import { Card } from './shared/components/Card';
 import { LogsPlaceholder } from './features/logs_feat/components/LogsPlaceholder';
+import { MetricsChart } from './features/metrics/components/MetricsChart';
 import { mockApi, mockHosts } from './shared/services/mockApi';
 
 function App() {
@@ -44,6 +45,16 @@ function App() {
           </select>
         </div>
       </div>
+
+      {/* GRÁFICO - NOVO! */}
+      {!loading && metrics.length > 0 && (
+        <div className="mb-8">
+          <MetricsChart 
+            metrics={metrics} 
+            title={`Métricas - ${mockHosts.find(h => h.id === selectedHost)?.name}`}
+          />
+        </div>
+      )}
 
       {/* Loading */}
       {loading && (
