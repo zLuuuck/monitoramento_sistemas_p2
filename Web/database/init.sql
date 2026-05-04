@@ -118,7 +118,7 @@ CREATE INDEX idx_conn_dst_ip_ts ON active_connections (dst_ip, timestamp DESC);
 CREATE INDEX idx_conn_duration ON active_connections (duration_sec) WHERE duration_sec > 3600;
 
 -- ============================================================
--- POLÍTICA DE RETENÇÃO (opcional, 7 dias)
+-- POLÍTICA DE RETENÇÃO (7 dias)
 -- ============================================================
 CREATE OR REPLACE FUNCTION cleanup_old_data(days_to_keep INTEGER DEFAULT 7)
 RETURNS VOID AS $$
