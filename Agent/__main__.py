@@ -1,5 +1,6 @@
 import sys
 import time
+import json 
 from pathlib import Path
 
 # Ajusta o path para permitir imports absolutos (Agent.*)
@@ -93,7 +94,8 @@ def main():
         discovery = run_discovery()
 
         print("📤 Enviando discovery...")
-        send_data(discovery)
+        print(json.dumps(discovery, indent=2, default=str))
+#        send_data(discovery)
 
     except Exception as e:
         print("Erro no discovery:", e)
@@ -116,7 +118,8 @@ def main():
             }
 
             print("📤 Enviando métricas...")
-            send_data(payload)
+            print(json.dumps(payload, indent=2, default=str))
+            #send_data(payload)
 
         except Exception as e:
             print("Erro na coleta:", e)
