@@ -21,7 +21,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 # Importa e registra os modelos
-from models import registrar_modelos
+from .models import registrar_modelos
 HostModel, HostDiscoveryModel, MetricModel = registrar_modelos(db)
 
 
