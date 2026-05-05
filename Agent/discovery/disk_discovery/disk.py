@@ -5,10 +5,22 @@ from Agent.discovery.disk_discovery.disk_physical import get_physical_disk_info
 from Agent.discovery.disk_discovery.disk_virtual import get_virtual_disk_info
 
 # Campos solicitados ao lsblk via JSON
-# NAME, SIZE (bytes), TYPE, ROTA (rotacional?), MOUNTPOINT,
-# MODEL, VENDOR, SERIAL, TRAN (interface), RM (removível)
+# NAME      → nome do device (sda, sda1, nvme0n1…)
+# SIZE      → tamanho em bytes (-b)
+# TYPE      → disk | part | lvm | md | loop | crypt
+# ROTA      → 1=rotacional (HDD), 0=SSD
+# MOUNTPOINT→ ponto de montagem atual
+# FSTYPE    → filesystem (ext4, xfs, swap, vfat…)
+# LABEL     → label da partição
+# UUID      → UUID do filesystem
+# MODEL     → modelo (discos raiz)
+# VENDOR    → fabricante (discos raiz)
+# SERIAL    → número de série (discos raiz)
+# TRAN      → interface (sata, nvme, usb…)
+# RM        → 1=removível
 _LSBLK_CMD = (
-    "lsblk -J -b -o NAME,SIZE,TYPE,ROTA,MOUNTPOINT,MODEL,VENDOR,SERIAL,TRAN,RM"
+    "lsblk -J -b "
+    "-o NAME,SIZE,TYPE,ROTA,MOUNTPOINT,FSTYPE,LABEL,UUID,MODEL,VENDOR,SERIAL,TRAN,RM"
 )
 
 
@@ -24,11 +36,11 @@ def get_disk_info():
     # ── Coleta comum ──────────────────────────────────────────────────────────
     lsblk_raw = run(_LSBLK_CMD)
     lscpu_raw = run("lscpu")
-    lscpu = parse_lscpu(lscpu_raw) if lscpu_raw else {}
+    lscpu     = parse_lscpu(lscpu_raw) if lscpu_raw else {}
 
     # ── Detecção de virtualização (mesmo critério do cpu.py) ──────────────────
     hypervisor_vendor = lscpu.get("hypervisor_vendor")
-    is_virtualized = bool(hypervisor_vendor)
+    is_virtualized    = bool(hypervisor_vendor)
 
     if is_virtualized:
         return get_virtual_disk_info(lsblk_raw, hypervisor_vendor)
