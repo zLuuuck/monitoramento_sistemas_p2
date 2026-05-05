@@ -4,9 +4,6 @@ import time
 import json
 from pathlib import Path
 
-# Ajusta o path para permitir imports absolutos (Agent.*)
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 from Agent.utils.shell import run
 from Agent.utils.parser import parse_lscpu
 from Agent.discovery.cpu_discovery.cpu import get_cpu_info
