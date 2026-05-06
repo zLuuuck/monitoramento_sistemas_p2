@@ -14,6 +14,8 @@ Identidade fixa do agente e do host.
 import os
 import random
 import socket
+import json
+import subprocess
 from pathlib import Path
 
 # Diretório onde os IDs persistidos ficam guardados
@@ -67,17 +69,47 @@ def _get_primary_ip() -> str | None:
 
 
 def _get_all_ipv4() -> list[str]:
-    """Retorna todos os IPv4 do host, excluindo loopback (127.x.x.x)."""
+    """
+    Retorna todos os IPv4 do host, excluindo loopback (127.x.x.x).
+    Método principal: ip -j -4 addr show.
+    Fallback: gethostbyname_ex + getaddrinfo.
+    """
+    # ── Método principal: ip addr (confiável) ─────────────────────────────
+    try:
+        result = subprocess.run(
+            ["ip", "-j", "-4", "addr", "show"],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+            ips = []
+            for iface in data:
+                # Ignora loopback
+                if iface.get("ifname") == "lo":
+                    continue
+                for addr_info in iface.get("addr_info", []):
+                    local = addr_info.get("local")
+                    if local and not local.startswith("127."):
+                        ips.append(local)
+            # Remove duplicatas mantendo ordem
+            seen = set()
+            unique = [ip for ip in ips if ip not in seen and not seen.add(ip)]
+            if unique:
+                return unique
+    except Exception:
+        pass
+
+    # ── Fallback: resolução de hostname ───────────────────────────────────
     ips = []
     try:
-        # Método 1: gethostbyname_ex retorna (hostname, aliases, ips)
         _, _, ip_list = socket.gethostbyname_ex(socket.gethostname())
-        ips = [ip for ip in ip_list if not ip.startswith("127.")]
+        for ip in ip_list:
+            if not ip.startswith("127.") and ip not in ips:
+                ips.append(ip)
     except Exception:
         pass
 
     if not ips:
-        # Método 2: fallback via getaddrinfo
         try:
             for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
                 ip = info[4][0]
@@ -86,14 +118,7 @@ def _get_all_ipv4() -> list[str]:
         except Exception:
             pass
 
-    # Remove duplicatas mantendo ordem
-    seen = set()
-    unique = []
-    for ip in ips:
-        if ip not in seen:
-            unique.append(ip)
-            seen.add(ip)
-    return unique
+    return ips
 
 
 # ── Ponto de entrada público ──────────────────────────────────────────────────
