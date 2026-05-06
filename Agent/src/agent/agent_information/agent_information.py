@@ -16,10 +16,16 @@ import random
 import socket
 import json
 import subprocess
+# Diretório onde os IDs persistidos ficam guardados
 from pathlib import Path
 
-# Diretório onde os IDs persistidos ficam guardados
-_BASE_DIR = Path(__file__).resolve().parent
+def get_data_dir():
+    return Path.home() / ".agent"
+
+DATA_DIR = get_data_dir()
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+file_path = DATA_DIR
 
 
 # ── ID persistido ────────────────────────────────────────────────────────────
@@ -27,15 +33,15 @@ _BASE_DIR = Path(__file__).resolve().parent
 def _load_or_create_id(filename: str) -> str:
     """
     Lê o ID do arquivo filename dentro de _BASE_DIR.
-    Se não existir, gera um número aleatório de 10 dígitos e salva.
+    Se não existir, gera um número aleatório de 5 dígitos e salva.
     """
-    id_path = _BASE_DIR / filename
+    id_path = DATA_DIR / filename
     if id_path.exists():
         value = id_path.read_text().strip()
-        if value.isdigit() and len(value) == 10:
+        if value.isdigit() and len(value) == 5:
             return value
 
-    # Gera garantindo 10 dígitos (sem zeros à esquerda)
+    # Gera garantindo 5 dígitos (sem zeros à esquerda)
     new_id = str(random.randint(10_000, 99_999))
     id_path.write_text(new_id)
     return new_id
