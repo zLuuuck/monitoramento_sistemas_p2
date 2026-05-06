@@ -27,6 +27,14 @@ HostModel, HostDiscoveryModel, MetricModel = registrar_modelos(db)
 
 # ==================== ENDPOINTS ====================
 
+
+# Mudar para uma pasta de rotas específica
+# Dar um git clone no hackathon_startup para pegar a base do backend
+# E depois criar rotas específicas para cada funcionalidade (discovery, metrics, etc)
+# criar models para implentar o banco de dados e salvar os dados recebidos do agente
+
+
+
 @app.route('/api/status', methods=['GET'])
 def status():
     """Verificação de saúde da API"""
