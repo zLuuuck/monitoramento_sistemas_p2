@@ -14,7 +14,7 @@ from agent.discovery.network_discovery.network import get_network_info
 from agent.discovery.motherboard_discovery.motherboard import get_motherboard_info
 from agent.agent_information.agent_information import get_agent_information
 from agent.coleta.collector import collect_all
-from agent.sender import send_data
+from agent.utils.sender import send_data
 
 # Versão do schema (controle de compatibilidade do payload)
 SCHEMA_VERSION = "1.0"

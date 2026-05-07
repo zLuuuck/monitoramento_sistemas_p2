@@ -14,7 +14,10 @@ app = Flask(__name__)
 CORS(app)
 
 # Configuração do banco de dados PostgreSQL
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://monitor:monitor@localhost:5432/monitor'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
+    'DATABASE_URL',
+    'postgresql://monitor:monitor@localhost:5432/monitor'
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Inicialização do SQLAlchemy
@@ -22,7 +25,9 @@ db = SQLAlchemy(app)
 
 # Importa e registra os modelos
 from .models import registrar_modelos
-HostModel, HostDiscoveryModel, MetricModel = registrar_modelos(db)
+HostModel, AgentModel, HostDiscoveryModel, MetricModel = registrar_modelos(db)
+from .routes import register_discovery_routes
+register_discovery_routes(app, db, HostModel, AgentModel, HostDiscoveryModel)
 
 
 # ==================== ENDPOINTS ====================
@@ -56,60 +61,6 @@ def hello():
 def health():
     """Endpoint para verificações de saúde do container"""
     return jsonify({"status": "ok"}), 200
-
-
-# ==================== SEMANA 1 - DISCOVERY ====================
-
-@app.route('/api/discovery', methods=['POST'])
-def discovery():
-    """Endpoint para receber dados de descoberta de hardware (Semana 1)"""
-    try:
-        dados = request.get_json()
-        
-        if dados is None:
-            return jsonify({'erro': 'Payload JSON é obrigatório'}), 400
-        
-        if 'environment' not in dados:
-            return jsonify({
-                'erro': 'Campo "environment" é obrigatório',
-                'mensagem': 'Adicione "environment": "producao" ou "desenvolvimento" ao JSON enviado'
-            }), 400
-        
-        ip_cliente = request.remote_addr
-        hostname = dados.get('hostname', f'host-{ip_cliente.replace(".", "-")}')
-        
-        host = HostModel.query.filter_by(ip_address=ip_cliente).first()
-        
-        if not host:
-            host = HostModel(hostname=hostname, ip_address=ip_cliente)
-            db.session.add(host)
-            db.session.flush()
-        
-        discovery = HostDiscoveryModel(
-            host_id=host.id,
-            is_virtualized=dados.get('is_virtualized', False),
-            hypervisor=dados.get('hypervisor'),
-            cpu_model=dados.get('cpu_model'),
-            cpu_vcpus=dados.get('cpu_vcpus'),
-            memory_total_gb=dados.get('memory_total_gb'),
-            disk_total_gb=dados.get('disk_total_gb'),
-            raw_data=dados
-        )
-        
-        db.session.add(discovery)
-        db.session.commit()
-        
-        return jsonify({
-            'message': 'discovery recebido e salvo com sucesso',
-            'discovery_id': discovery.id,
-            'host_id': host.id,
-            'ip_host': ip_cliente,
-            'is_virtualized': discovery.is_virtualized
-        }), 201
-        
-    except Exception as erro:
-        db.session.rollback()
-        return jsonify({'erro': f'Erro interno ao processar discovery: {str(erro)}'}), 500
 
 
 @app.route('/api/hosts', methods=['GET'])
