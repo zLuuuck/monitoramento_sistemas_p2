@@ -1,22 +1,50 @@
-export function Layout({ children }) {
+import { useState } from 'react';
+import { Sidebar } from './Sidebar';
+import { TopTabs } from './TopTabs';
+
+export function Layout({ children, hostType = 'physical' }) {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeSubTab, setActiveSubTab] = useState('overview');
+
+  // Conteúdo diferente baseado na aba ativa
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return children;
+      case 'metrics':
+        return <div className="p-6">📊 Página de Métricas (em breve)</div>;
+      case 'logs':
+        return <div className="p-6">📋 Página de Logs (em breve)</div>;
+      case 'alerts':
+        return <div className="p-6">🚨 Página de Alertas (em breve)</div>;
+      case 'endpoints':
+        return <div className="p-6">🖥️ Página de Endpoints (em breve)</div>;
+      case 'config':
+        return <div className="p-6">⚙️ Configurações (em breve)</div>;
+      default:
+        return children;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Cabeçalho */}
-      <header className="bg-white shadow-md p-4 border-b border-gray-200">
-        <div className="container mx-auto">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">📊</span>
-            <h1 className="text-2xl font-bold text-gray-800">
-              Dashboard de Monitoramento
-            </h1>
-          </div>
-        </div>
-      </header>
+    <div className="flex h-screen bg-gray-100">
+      {/* Sidebar (aba lateral) */}
+      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Conteúdo principal */}
-      <main className="container mx-auto p-6">
-        {children}
-      </main>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Tabs (aba superior) */}
+        <TopTabs 
+          activeSubTab={activeSubTab}
+          onSubTabChange={setActiveSubTab}
+          hostType={hostType}
+        />
+
+        {/* Conteúdo rolável */}
+        <main className="flex-1 overflow-y-auto p-6">
+          {renderContent()}
+        </main>
+      </div>
     </div>
   );
 }

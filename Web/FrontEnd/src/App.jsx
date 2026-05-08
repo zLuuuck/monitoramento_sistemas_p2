@@ -12,6 +12,12 @@ function App() {
   const [metrics, setMetrics] = useState([]);
   const [loading, setLoading] = useState(true);
 
+ // Determina tipo de hardware do host selecionado
+  const getHostType = (hostId) => {
+    const physicalHosts = ['1', '2'];  // Servidor Principal, Web
+    return physicalHosts.includes(hostId) ? 'physical' : 'virtual';
+  };
+
   // Carregar métricas quando mudar o host
   useEffect(() => {
     const carregarMetricas = async () => {
@@ -27,7 +33,7 @@ function App() {
   const ultimaMetrica = metrics[metrics.length - 1];
 
   return (
-    <Layout>
+   <Layout hostType={getHostType(selectedHost)}>
       {/* Seletor de Host */}
       <div className="flex justify-end mb-6">
         <div className="flex items-center gap-3">
@@ -46,7 +52,7 @@ function App() {
         </div>
       </div>
 
-      {/* GRÁFICO - NOVO! */}
+      {/* GRÁFICO */}
       {!loading && metrics.length > 0 && (
         <div className="mb-8">
           <MetricsChart 
@@ -64,27 +70,27 @@ function App() {
       )}
 
       {/* Cards de Métricas */}
-      {!loading && ultimaMetrica && (
+     {!loading && ultimaMetrica && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card 
             title="CPU" 
             value={ultimaMetrica.cpu_percent.toFixed(1)} 
             unit="%" 
-            icon="⚡" 
+            iconName="cpu" 
             color="blue" 
           />
           <Card 
             title="Memória" 
             value={ultimaMetrica.memory_percent.toFixed(1)} 
             unit="%" 
-            icon="🧠" 
+            iconName="memory" 
             color="green" 
           />
           <Card 
             title="Status" 
             value={mockHosts.find(h => h.id === selectedHost)?.status === 'online' ? "Online" : "Offline"} 
             unit="" 
-            icon={mockHosts.find(h => h.id === selectedHost)?.status === 'online' ? "🟢" : "🔴"} 
+            iconName={mockHosts.find(h => h.id === selectedHost)?.status === 'online' ? "online" : "offline"} 
             color={mockHosts.find(h => h.id === selectedHost)?.status === 'online' ? "green" : "red"} 
           />
         </div>
