@@ -84,7 +84,47 @@ def create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel):
                 'erro': f'Erro interno ao processar discovery: {str(erro)}'
             }), 500
 
+    @discovery_bp.route('/discovery', methods=['GET'])
+    def get_discovery():
+        """Retorna os dados de discovery cadastrados para exibicao no frontend."""
+        try:
+            host_id = request.args.get('host_id', type=int)
+
+            query = HostDiscoveryModel.query.join(HostModel)
+            if host_id is not None:
+                query = query.filter(HostDiscoveryModel.host_id == host_id)
+
+            discoveries = query.order_by(HostDiscoveryModel.discovery_date.desc()).all()
+
+            return jsonify({
+                'discoveries': [
+                    _discovery_to_response(discovery)
+                    for discovery in discoveries
+                ],
+                'total': len(discoveries),
+            }), 200
+
+        except Exception as erro:
+            return jsonify({
+                'erro': f'Erro ao buscar discovery: {str(erro)}'
+            }), 500
+
     return discovery_bp
+
+
+def _discovery_to_response(discovery):
+    dados = discovery.to_dict()
+    host = discovery.host
+
+    dados['host'] = {
+        'id': host.id,
+        'hostname': host.hostname,
+        'ip_address': host.ip_address,
+        'created_at': host.created_at.isoformat() if host.created_at else None,
+        'last_seen': host.last_seen.isoformat() if host.last_seen else None,
+    } if host else None
+
+    return dados
 
 
 def _extract_discovery_fields(dados, remote_addr):
