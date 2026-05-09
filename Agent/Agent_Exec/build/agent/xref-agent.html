@@ -1565,7 +1565,6 @@ imported by:
  &#8226;   <a href="#agent.agent_information">agent.agent_information</a>
  &#8226;   <a href="#agent.coleta">agent.coleta</a>
  &#8226;   <a href="#agent.discovery">agent.discovery</a>
- &#8226;   <a href="#agent.sender">agent.sender</a>
  &#8226;   <a href="#agent.utils">agent.utils</a>
 
   </div>
@@ -1586,8 +1585,8 @@ imports:
  &#8226;   <a href="#agent.discovery.motherboard_discovery.motherboard">agent.discovery.motherboard_discovery.motherboard</a>
  &#8226;   <a href="#agent.discovery.network_discovery.network">agent.discovery.network_discovery.network</a>
  &#8226;   <a href="#agent.discovery.system_discovery.system">agent.discovery.system_discovery.system</a>
- &#8226;   <a href="#agent.sender">agent.sender</a>
  &#8226;   <a href="#agent.utils.parser">agent.utils.parser</a>
+ &#8226;   <a href="#agent.utils.sender">agent.utils.sender</a>
  &#8226;   <a href="#agent.utils.shell">agent.utils.shell</a>
  &#8226;   <a href="#json">json</a>
  &#8226;   <a href="#pathlib">pathlib</a>
@@ -2305,23 +2304,6 @@ imported by:
 </div>
 
 <div class="node">
-  <a name="agent.sender"></a>
-  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/sender.py" type="text/plain"><tt>agent.sender</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#agent">agent</a>
- &#8226;   <a href="#requests">requests</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#agent.__main__">agent.__main__</a>
-
-  </div>
-
-</div>
-
-<div class="node">
   <a name="agent.utils"></a>
   <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/utils/__init__.py" type="text/plain"><tt>agent.utils</tt></a>
 <span class="moduletype">Package</span>  <div class="import">
@@ -2336,6 +2318,7 @@ imported by:
  &#8226;   <a href="#agent.utils.motherboard_discovery_parsers">agent.utils.motherboard_discovery_parsers</a>
  &#8226;   <a href="#agent.utils.network_discovery_parsers">agent.utils.network_discovery_parsers</a>
  &#8226;   <a href="#agent.utils.parser">agent.utils.parser</a>
+ &#8226;   <a href="#agent.utils.sender">agent.utils.sender</a>
  &#8226;   <a href="#agent.utils.shell">agent.utils.shell</a>
  &#8226;   <a href="#agent.utils.sysfs">agent.utils.sysfs</a>
  &#8226;   <a href="#agent.utils.system_discovery_parsers">agent.utils.system_discovery_parsers</a>
@@ -2434,6 +2417,23 @@ imported by:
  &#8226;   <a href="#agent.discovery.motherboard_discovery.motherboard">agent.discovery.motherboard_discovery.motherboard</a>
  &#8226;   <a href="#agent.discovery.network_discovery.network">agent.discovery.network_discovery.network</a>
  &#8226;   <a href="#agent.discovery.system_discovery.system">agent.discovery.system_discovery.system</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="agent.utils.sender"></a>
+  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/utils/sender.py" type="text/plain"><tt>agent.utils.sender</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#agent.utils">agent.utils</a>
+ &#8226;   <a href="#requests">requests</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#agent.__main__">agent.__main__</a>
 
   </div>
 
@@ -12447,7 +12447,7 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#agent.sender">agent.sender</a>
+    <a href="#agent.utils.sender">agent.utils.sender</a>
  &#8226;   <a href="#requests">requests</a>
  &#8226;   <a href="#requests.__version__">requests.__version__</a>
  &#8226;   <a href="#requests._internal_utils">requests._internal_utils</a>
