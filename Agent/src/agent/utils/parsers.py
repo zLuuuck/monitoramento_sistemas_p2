@@ -276,11 +276,14 @@ def resolve_disk_type(rotation_rate, rota_flag, is_virtual: bool = False) -> str
 
     Ordem de prioridade:
         1. is_virtual=True  → "Virtual"
-        2. rotation_rate=0  → "SSD" (smartctl)
+        2. rotation_rate=0  → "SSD" (smartctl — mais confiável)
         3. rotation_rate>0  → "HDD" (smartctl)
-        4. rota_flag="0"    → "SSD" (lsblk fallback)
-        5. rota_flag="1"    → "HDD" (lsblk fallback)
-        6. sem dados        → "Unknown"
+        4. rota_flag        → HDD se rotacional, SSD se não (lsblk fallback)
+        5. sem dados        → "Unknown"
+
+    Atenção: rota_flag pode vir como bool (True/False do JSON do lsblk)
+    ou como string ("0"/"1"). Ambos são normalizados aqui.
+    rota=True/"1" = rotacional (HDD). rota=False/"0" = não rotacional (SSD).
     """
     if is_virtual:
         return "Virtual"
@@ -289,7 +292,9 @@ def resolve_disk_type(rotation_rate, rota_flag, is_virtual: bool = False) -> str
         return "SSD" if rotation_rate == 0 else "HDD"
 
     if rota_flag is not None:
-        return "HDD" if str(rota_flag) == "1" else "SSD"
+        # Normaliza bool ou string para booleano
+        is_rotational = rota_flag is True or str(rota_flag) == "1"
+        return "HDD" if is_rotational else "SSD"
 
     return "Unknown"
 
