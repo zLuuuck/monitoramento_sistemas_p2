@@ -46,10 +46,13 @@ def get_physical_disk_info(lsblk_raw: str | None) -> dict:
         device_path = f"/dev/{name}"
 
         # ── smartctl — requer root ────────────────────────────────────────
+        # Flags usadas:
+        #   -a  → coleta tudo: identificação, atributos SMART, saúde e temperatura
+        #   -j  → saída em JSON (nativo do smartctl >= 7.0)
         # run_permissive: smartctl retorna exit code != 0 mesmo com dados
         # válidos quando detecta warnings no disco (ex: setores realocados).
         # run() descartaria a saída nesses casos — run_permissive preserva.
-        smartctl_raw = run_permissive(f"smartctl -i -j {device_path}")
+        smartctl_raw = run_permissive(f"smartctl -a -j {device_path}")
         smart        = parse_smartctl(smartctl_raw)
 
         # Tamanho: prioriza smartctl (bytes exatos), fallback lsblk
