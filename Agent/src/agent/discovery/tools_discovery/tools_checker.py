@@ -1,183 +1,325 @@
 # =============================================================================
 # discovery/tools_discovery/tools_checker.py
 #
-# Lógica central de verificação de ferramentas.
+# Lógica central de verificação e instalação de ferramentas.
 # Compartilhada entre tools_physical.py e tools_virtual.py.
 #
-# Para cada ferramenta, verifica:
-#   - installed   : se o binário existe no sistema (via `which`)
-#   - path        : caminho completo do binário
-#   - version     : versão extraída da saída do comando de versão
-#   - has_root    : se o processo atual tem permissão efetiva de root (uid=0)
+# Fluxo:
+#   1. Verifica quais ferramentas estão instaladas (shutil.which)
+#   2. Se alguma obrigatória estiver faltando:
+#      - Se rodando em terminal interativo: pergunta se deseja instalar
+#      - Se rodando como serviço/pipe (sem terminal): registra e segue
+#   3. Instala usando o gerenciador detectado (apt, dnf, pacman, zypper)
+#   4. Retorna o status final de cada ferramenta
 #
-# Nota sobre has_root:
-#   Verifica se o agente está rodando como root (os.geteuid() == 0).
-#   Não testa sudo — isso exigiria um comando real que pode pedir senha.
-#   Um agente rodando com sudo já tem uid=0 nesse contexto.
+# Limitações conhecidas (evoluções futuras):
+#   - Instalação requer root — sem root, falha silenciosamente
+#   - Não verifica atualizações — apenas presença do binário
+#   - Flag --install-deps no CLI instala sem perguntar (não-interativo)
 # =============================================================================
 
 import os
+import sys
 import shutil
-from agent.utils.shell import run
-
+import subprocess
 
 # =============================================================================
 # Definição das ferramentas
 # =============================================================================
 
-# Cada entrada: (nome, comando_de_versão, regex_ou_índice_para_extrair_versão)
-# version_flag: flag que o comando aceita para imprimir a versão
-# version_parser: função que recebe a saída e retorna a string de versão
-
-_TOOL_DEFINITIONS = {
-    # ── Ferramentas de hardware físico ────────────────────────────────────────
+# Nome do pacote por gerenciador para cada ferramenta.
+# Quando o pacote tem nome diferente do binário, cada gerenciador é explícito.
+_TOOL_PACKAGES = {
     "dmidecode": {
-        "version_flag":   "--version",
-        "requires_root":  True,   # dmidecode só funciona com root
+        "apt": "dmidecode",
+        "dnf": "dmidecode",
+        "pacman": "dmidecode",
+        "zypper": "dmidecode",
     },
     "smartctl": {
-        "version_flag":   "--version",
-        "requires_root":  True,   # smartctl precisa de root para acessar o disco
+        "apt": "smartmontools",
+        "dnf": "smartmontools",
+        "pacman": "smartmontools",
+        "zypper": "smartmontools",
     },
     "ethtool": {
-        "version_flag":   "--version",
-        "requires_root":  False,  # ethtool lê, não precisa de root para info básica
+        "apt": "ethtool",
+        "dnf": "ethtool",
+        "pacman": "ethtool",
+        "zypper": "ethtool",
     },
     "lspci": {
-        "version_flag":   "--version",
-        "requires_root":  False,
+        "apt": "pciutils",
+        "dnf": "pciutils",
+        "pacman": "pciutils",
+        "zypper": "pciutils",
     },
-
-    # ── Ferramentas comuns (físico e VM) ──────────────────────────────────────
     "lsblk": {
-        "version_flag":   "--version",
-        "requires_root":  False,
+        "apt": "util-linux",
+        "dnf": "util-linux",
+        "pacman": "util-linux",
+        "zypper": "util-linux",
     },
     "ip": {
-        "version_flag":   "-Version",   # ip usa -Version com V maiúsculo
-        "requires_root":  False,
+        "apt": "iproute2",
+        "dnf": "iproute",
+        "pacman": "iproute2",
+        "zypper": "iproute2",
     },
     "lscpu": {
-        "version_flag":   "--version",
-        "requires_root":  False,
+        "apt": "util-linux",
+        "dnf": "util-linux",
+        "pacman": "util-linux",
+        "zypper": "util-linux",
     },
     "journalctl": {
-        "version_flag":   "--version",
-        "requires_root":  False,
+        "apt": "systemd",
+        "dnf": "systemd",
+        "pacman": "systemd",
+        "zypper": "systemd",
     },
     "timedatectl": {
-        "version_flag":   "--version",
-        "requires_root":  False,
+        "apt": "systemd",
+        "dnf": "systemd",
+        "pacman": "systemd",
+        "zypper": "systemd",
     },
+}
+
+# Ferramentas que requerem root para funcionar corretamente
+_NEEDS_ROOT = {"dmidecode", "smartctl"}
+
+# Comandos de instalação por gerenciador
+_INSTALL_COMMANDS = {
+    "apt": "apt-get install -y {package}",
+    "dnf": "dnf install -y {package}",
+    "pacman": "pacman -S --noconfirm {package}",
+    "zypper": "zypper install -y {package}",
 }
 
 
 # =============================================================================
-# Função principal de verificação
+# Ponto de entrada público
 # =============================================================================
 
-def check_tool(name: str) -> dict:
+
+def check_tools(names: list, force_install: bool = False) -> dict:
     """
-    Verifica o status de uma ferramenta no sistema.
+    Verifica uma lista de ferramentas e oferece instalação das ausentes.
 
     Parâmetros:
-        name (str): nome do binário (ex: "smartctl", "lsblk")
+        names         (list): ferramentas a verificar
+        force_install (bool): se True, instala sem perguntar
+                              (equivalente à flag --install-deps)
+
+    Retorno:
+        dict[str, dict] com o status final de cada ferramenta.
+    """
+    # ── Primeira verificação ──────────────────────────────────────────────────
+    results = {name: _check_single(name) for name in names}
+    missing = [name for name, info in results.items() if not info["installed"]]
+
+    print("  Verificando dependências...")
+    _print_status(results)
+
+    if not missing:
+        return results
+
+    # ── Gerenciador de pacotes ────────────────────────────────────────────────
+    pkg_manager = _detect_package_manager()
+    if not pkg_manager:
+        print("  ⚠ Gerenciador de pacotes não identificado.")
+        print(f"  Instale manualmente: {', '.join(missing)}")
+        return results
+
+    # ── Decide se instala ─────────────────────────────────────────────────────
+    should_install = force_install or _ask_install(missing, pkg_manager)
+
+    if should_install:
+        _install_tools(missing, pkg_manager)
+        # Re-verifica após instalação para atualizar status no payload
+        for name in missing:
+            results[name] = _check_single(name)
+        print("  Status após instalação:")
+        _print_status({name: results[name] for name in missing})
+    else:
+        print("  Continuando sem as ferramentas ausentes.")
+        print("  Alguns campos do discovery ficarão incompletos.")
+
+    return results
+
+
+# =============================================================================
+# Verificação individual
+# =============================================================================
+
+
+def _check_single(name: str) -> dict:
+    """
+    Verifica o status de uma única ferramenta.
 
     Retorno:
         dict com:
-            installed  (bool)      : True se o binário existe no PATH
-            path       (str|None)  : caminho completo do binário
-            version    (str|None)  : versão extraída da saída do comando
-            has_root   (bool)      : True se o agente está rodando como root
-            needs_root (bool)      : True se a ferramenta requer root para funcionar
+            installed  (bool)     : True se o binário existe no PATH
+            path       (str|None) : caminho completo do binário
+            version    (str|None) : primeira linha da saída de --version
+            has_root   (bool)     : True se o agente roda como root (uid=0)
+            needs_root (bool)     : True se a ferramenta requer root
     """
-    definition  = _TOOL_DEFINITIONS.get(name, {})
-    needs_root  = definition.get("requires_root", False)
-    version_flag = definition.get("version_flag", "--version")
-
-    # ── Verifica se está instalado e localiza o binário ──────────────────────
     binary_path = shutil.which(name)
-    installed   = binary_path is not None
-
-    # ── Extrai versão ─────────────────────────────────────────────────────────
-    version = None
-    if installed:
-        version = _extract_version(name, binary_path, version_flag)
-
-    # ── Verifica permissão efetiva ────────────────────────────────────────────
-    # os.geteuid() == 0 significa que o processo está rodando como root,
-    # seja diretamente ou via sudo. Não testa sudo interativo.
-    has_root = (os.geteuid() == 0)
+    installed = binary_path is not None
 
     return {
-        "installed":   installed,
-        "path":        binary_path,
-        "version":     version,
-        "has_root":    has_root,
-        "needs_root":  needs_root,
+        "installed": installed,
+        "path": binary_path,
+        "version": _extract_version(name, binary_path) if installed else None,
+        "has_root": (os.geteuid() == 0),
+        "needs_root": name in _NEEDS_ROOT,
     }
 
 
-def check_tools(names: list[str]) -> dict:
-    """
-    Verifica uma lista de ferramentas e retorna um dict indexado por nome.
+# =============================================================================
+# Detecção de gerenciador de pacotes
+# =============================================================================
 
-    Parâmetros:
-        names (list[str]): lista de nomes de ferramentas a verificar
 
-    Retorno:
-        dict[str, dict] com o resultado de check_tool() para cada ferramenta.
+def _detect_package_manager() -> str | None:
     """
-    return {name: check_tool(name) for name in names}
+    Detecta o gerenciador de pacotes disponível no sistema.
+
+    Suporte atual:
+        apt     → Debian, Ubuntu, Mint, Pop!_OS
+        dnf     → Fedora, RHEL, CentOS Stream
+        pacman  → Arch, Manjaro, EndeavourOS
+        zypper  → openSUSE, SLES
+
+    Retorna o nome do primeiro encontrado, ou None.
+    """
+    for manager in ("apt", "dnf", "pacman", "zypper"):
+        if shutil.which(manager):
+            return manager
+    return None
+
+
+# =============================================================================
+# Interação com o usuário
+# =============================================================================
+
+
+def _ask_install(missing: list, pkg_manager: str) -> bool:
+    """
+    Pergunta ao usuário se deseja instalar as ferramentas faltantes.
+
+    Só pergunta se houver terminal interativo (sys.stdin.isatty()).
+    Em pipes, serviços ou cron, retorna False silenciosamente —
+    o agente não pode ficar travado esperando input que nunca virá.
+
+    Para forçar instalação sem terminal, use a flag --install-deps.
+    """
+    if not sys.stdin.isatty():
+        print("  ℹ Sem terminal interativo — instalação ignorada.")
+        print("  Use --install-deps para instalar automaticamente.")
+        return False
+
+    print("")
+    print("  As ferramentas abaixo são necessárias para o discovery completo:")
+    for name in missing:
+        pkg = _get_package_name(name, pkg_manager)
+        print(f"    ✗ {name}  (pacote: {pkg})")
+    print("")
+
+    try:
+        answer = input("  Deseja instalá-las agora? [s/N]: ").strip().lower()
+        return answer in ("s", "sim", "y", "yes")
+    except (EOFError, KeyboardInterrupt):
+        print("")
+        return False
+
+
+# =============================================================================
+# Instalação
+# =============================================================================
+
+
+def _install_tools(names: list, pkg_manager: str) -> None:
+    """
+    Instala ferramentas usando o gerenciador de pacotes detectado.
+
+    Instala uma por uma para que a falha de uma não impeça as outras.
+    Requer root — sem root, o gerenciador vai recusar e reportar o erro.
+    """
+    print("")
+    for name in names:
+        package = _get_package_name(name, pkg_manager)
+        cmd = _INSTALL_COMMANDS[pkg_manager].format(package=package)
+
+        print(f"  Instalando {name} ({package})...")
+        try:
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=60,  # instalações podem demorar em conexões lentas
+                env={**os.environ, "LC_ALL": "C", "DEBIAN_FRONTEND": "noninteractive"},
+            )
+            if result.returncode == 0:
+                print(f"  ✓ {name} instalado com sucesso")
+            else:
+                # Mostra a última linha do erro do gerenciador de pacotes
+                err_lines = (result.stderr or result.stdout or "").strip().splitlines()
+                err_msg = err_lines[-1] if err_lines else "erro desconhecido"
+                print(f"  ✗ Falha ao instalar {name}: {err_msg}")
+        except subprocess.TimeoutExpired:
+            print(f"  ✗ Timeout ao instalar {name} — verifique a conexão")
+        except Exception as e:
+            print(f"  ✗ Erro inesperado ao instalar {name}: {e}")
+    print("")
+
+
+def _get_package_name(tool_name: str, pkg_manager: str) -> str:
+    """Retorna o nome do pacote correto para o gerenciador informado."""
+    return _TOOL_PACKAGES.get(tool_name, {}).get(pkg_manager, tool_name)
 
 
 # =============================================================================
 # Extração de versão
 # =============================================================================
 
-def _extract_version(name: str, path: str, version_flag: str) -> str | None:
+
+def _extract_version(name: str, path: str) -> str | None:
     """
-    Extrai a string de versão de uma ferramenta.
+    Extrai a versão de uma ferramenta.
 
-    Tenta o comando com a flag de versão e pega a primeira linha não vazia.
-    Algumas ferramentas imprimem a versão no stderr (ex: smartctl),
-    então tenta stdout primeiro, depois stderr.
-
-    Parâmetros:
-        name         (str): nome da ferramenta
-        path         (str): caminho completo do binário
-        version_flag (str): flag para obter a versão (ex: "--version")
-
-    Retorno:
-        str com a versão, ou None se não conseguir extrair.
+    Usa --version para a maioria. Exceção: `ip` usa -Version (maiúsculo).
+    Captura stdout + stderr juntos pois ferramentas variam em onde imprimem.
+    Retorna a primeira linha não-vazia da saída, independente do exit code.
     """
-    # Ferramentas que precisam de root podem falhar sem ele —
-    # nesse caso retorna None sem travar
-    raw = _run_version_cmd(f"{path} {version_flag}")
-    if not raw:
-        # Algumas ferramentas usam stderr para versão (ex: ip)
-        raw = _run_version_cmd_stderr(f"{path} {version_flag}")
+    flag = "-Version" if name == "ip" else "--version"
+    raw = _run_capture(f"{path} {flag}")
     if not raw:
         return None
 
-    # Pega a primeira linha não vazia — geralmente contém a versão
     for line in raw.splitlines():
         line = line.strip()
         if line:
             return line
-
     return None
 
 
-def _run_version_cmd(cmd: str) -> str | None:
-    """Roda um comando e retorna stdout, mesmo com exit code != 0."""
-    import subprocess
-    import os
+def _run_capture(cmd: str) -> str | None:
+    """
+    Executa um comando e retorna stdout + stderr combinados.
+
+    Independente do exit code — usado para capturar versões de ferramentas
+    que retornam exit code != 0 mesmo em execução normal.
+    """
     try:
         result = subprocess.run(
             cmd,
             shell=True,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
             timeout=5,
             env={**os.environ, "LC_ALL": "C", "LANG": "C"},
@@ -187,22 +329,25 @@ def _run_version_cmd(cmd: str) -> str | None:
         return None
 
 
-def _run_version_cmd_stderr(cmd: str) -> str | None:
-    """Roda um comando e retorna stderr (para ferramentas que imprimem versão lá)."""
-    import subprocess
-    import os
-    try:
-        result = subprocess.run(
-            cmd,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=5,
-            env={**os.environ, "LC_ALL": "C", "LANG": "C"},
-        )
-        return result.stderr.strip() or None
-    except Exception:
-        return None
+# =============================================================================
+# Display
+# =============================================================================
+
+
+def _print_status(results: dict) -> None:
+    """
+    Imprime o status das ferramentas verificadas.
+
+    Agrupa as instaladas em uma linha e lista individualmente as ausentes.
+    """
+    ok = [n for n, i in results.items() if i["installed"]]
+    missing = [n for n, i in results.items() if not i["installed"]]
+
+    if ok:
+        print(f"  ✓ {', '.join(ok)}")
+    for name in missing:
+        print(f"  ✗ {name} — não encontrado")
+
 
 # =============================================================================
 # FIM discovery/tools_discovery/tools_checker.py

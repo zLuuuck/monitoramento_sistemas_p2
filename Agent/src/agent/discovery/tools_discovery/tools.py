@@ -15,24 +15,21 @@ from agent.discovery.tools_discovery.tools_physical import get_physical_tools_in
 from agent.discovery.tools_discovery.tools_virtual  import get_virtual_tools_info
 
 
-def get_tools_info(is_virtualized: bool) -> dict:
+def get_tools_info(is_virtualized: bool, force_install: bool = False) -> dict:
     """
     Ponto de entrada do discovery de ferramentas.
 
-    Em físico: verifica todas as ferramentas relevantes para bare-metal.
-    Em VM: verifica apenas as ferramentas relevantes em ambiente virtualizado
-           (omite dmidecode, smartctl, ethtool, lspci — não fazem sentido em VM).
-
     Parâmetros:
-        is_virtualized (bool): recebido do global_information
+        is_virtualized (bool): True se VM.
+        force_install (bool): instala sem prompt (ex: flag --install-deps).
 
     Retorno:
-        dict com o resultado da verificação de cada ferramenta.
+        dict com resultado da verificação/instalação.
     """
     if is_virtualized:
-        return get_virtual_tools_info()
+        return get_virtual_tools_info(force_install=force_install)
 
-    return get_physical_tools_info()
+    return get_physical_tools_info(force_install=force_install)
 
 # =============================================================================
 # FIM discovery/tools_discovery/tools.py

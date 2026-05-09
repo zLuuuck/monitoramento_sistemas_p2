@@ -30,15 +30,17 @@ _VIRTUAL_TOOLS = [
 ]
 
 
-def get_virtual_tools_info() -> dict:
+def get_virtual_tools_info(force_install: bool = False) -> dict:
     """
-    Verifica as ferramentas relevantes para ambiente virtualizado.
+    Verifica e, se necessário, instala ferramentas para ambiente virtualizado.
+
+    Parâmetros:
+        force_install (bool): se True, instala sem perguntar.
 
     Retorno:
-        dict com o status de cada ferramenta (installed, path, version,
-        has_root, needs_root).
+        dict com status de cada ferramenta.
     """
-    return check_tools(_VIRTUAL_TOOLS)
+    return check_tools(_VIRTUAL_TOOLS, force_install=force_install)
 
 # =============================================================================
 # FIM discovery/tools_discovery/tools_virtual.py
