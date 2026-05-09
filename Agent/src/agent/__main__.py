@@ -8,6 +8,7 @@ from agent.discovery.disk_discovery.disk import get_disk_info
 from agent.discovery.system_discovery.system import get_system_info
 from agent.discovery.network_discovery.network import get_network_info
 from agent.discovery.motherboard_discovery.motherboard import get_motherboard_info
+from agent.discovery.tools_discovery.tools import get_tools_info
 from agent.global_information.global_information import build_global_information
 from agent.coleta.collector import collect_all
 from agent.utils.sender import send_data
@@ -68,6 +69,7 @@ def run_discovery() -> dict:
         "disk":        _safe_collect("disk", get_disk_info, is_virtualized, kernel_release or ""),
         "network":     _normalize_network(_safe_collect("network", get_network_info, is_virtualized)),
         "motherboard": motherboard,
+        "tools":       _safe_collect("tools", get_tools_info, is_virtualized),
     }
 
 
