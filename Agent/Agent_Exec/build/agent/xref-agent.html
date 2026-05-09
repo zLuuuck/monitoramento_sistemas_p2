@@ -1562,10 +1562,9 @@ imported by:
 <span class="moduletype">Package</span>  <div class="import">
 imported by:
     <a href="#agent.__main__">agent.__main__</a>
- &#8226;   <a href="#agent.agent_information">agent.agent_information</a>
  &#8226;   <a href="#agent.coleta">agent.coleta</a>
  &#8226;   <a href="#agent.discovery">agent.discovery</a>
- &#8226;   <a href="#agent.sender">agent.sender</a>
+ &#8226;   <a href="#agent.global_information">agent.global_information</a>
  &#8226;   <a href="#agent.utils">agent.utils</a>
 
   </div>
@@ -1578,7 +1577,6 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#agent">agent</a>
- &#8226;   <a href="#agent.agent_information.agent_information">agent.agent_information.agent_information</a>
  &#8226;   <a href="#agent.coleta.collector">agent.coleta.collector</a>
  &#8226;   <a href="#agent.discovery.cpu_discovery.cpu">agent.discovery.cpu_discovery.cpu</a>
  &#8226;   <a href="#agent.discovery.disk_discovery.disk">agent.discovery.disk_discovery.disk</a>
@@ -1586,11 +1584,10 @@ imports:
  &#8226;   <a href="#agent.discovery.motherboard_discovery.motherboard">agent.discovery.motherboard_discovery.motherboard</a>
  &#8226;   <a href="#agent.discovery.network_discovery.network">agent.discovery.network_discovery.network</a>
  &#8226;   <a href="#agent.discovery.system_discovery.system">agent.discovery.system_discovery.system</a>
- &#8226;   <a href="#agent.sender">agent.sender</a>
- &#8226;   <a href="#agent.utils.parser">agent.utils.parser</a>
- &#8226;   <a href="#agent.utils.shell">agent.utils.shell</a>
+ &#8226;   <a href="#agent.discovery.tools_discovery.tools">agent.discovery.tools_discovery.tools</a>
+ &#8226;   <a href="#agent.global_information.global_information">agent.global_information.global_information</a>
+ &#8226;   <a href="#agent.utils.sender">agent.utils.sender</a>
  &#8226;   <a href="#json">json</a>
- &#8226;   <a href="#pathlib">pathlib</a>
  &#8226;   <a href="#sys">sys</a>
  &#8226;   <a href="#time">time</a>
 
@@ -1598,44 +1595,6 @@ imports:
   <div class="import">
 imported by:
     <a href="#main.py">main.py</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="agent.agent_information"></a>
-  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/agent_information/__init__.py" type="text/plain"><tt>agent.agent_information</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#agent">agent</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#agent.agent_information.agent_information">agent.agent_information.agent_information</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="agent.agent_information.agent_information"></a>
-  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/agent_information/agent_information.py" type="text/plain"><tt>agent.agent_information.agent_information</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#agent.agent_information">agent.agent_information</a>
- &#8226;   <a href="#json">json</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#pathlib">pathlib</a>
- &#8226;   <a href="#random">random</a>
- &#8226;   <a href="#socket">socket</a>
- &#8226;   <a href="#subprocess">subprocess</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#agent.__main__">agent.__main__</a>
 
   </div>
 
@@ -1863,6 +1822,7 @@ imported by:
  &#8226;   <a href="#agent.discovery.motherboard_discovery">agent.discovery.motherboard_discovery</a>
  &#8226;   <a href="#agent.discovery.network_discovery">agent.discovery.network_discovery</a>
  &#8226;   <a href="#agent.discovery.system_discovery">agent.discovery.system_discovery</a>
+ &#8226;   <a href="#agent.discovery.tools_discovery">agent.discovery.tools_discovery</a>
 
   </div>
 
@@ -1894,7 +1854,7 @@ imports:
     <a href="#agent.discovery.cpu_discovery">agent.discovery.cpu_discovery</a>
  &#8226;   <a href="#agent.discovery.cpu_discovery.cpu_physical">agent.discovery.cpu_discovery.cpu_physical</a>
  &#8226;   <a href="#agent.discovery.cpu_discovery.cpu_virtual">agent.discovery.cpu_discovery.cpu_virtual</a>
- &#8226;   <a href="#agent.utils.parser">agent.utils.parser</a>
+ &#8226;   <a href="#agent.utils.parsers">agent.utils.parsers</a>
  &#8226;   <a href="#agent.utils.shell">agent.utils.shell</a>
 
   </div>
@@ -1912,7 +1872,7 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#agent.discovery.cpu_discovery">agent.discovery.cpu_discovery</a>
- &#8226;   <a href="#agent.utils.sysfs">agent.utils.sysfs</a>
+ &#8226;   <a href="#agent.utils.parsers">agent.utils.parsers</a>
 
   </div>
   <div class="import">
@@ -1929,7 +1889,7 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#agent.discovery.cpu_discovery">agent.discovery.cpu_discovery</a>
- &#8226;   <a href="#agent.utils.sysfs">agent.utils.sysfs</a>
+ &#8226;   <a href="#agent.utils.parsers">agent.utils.parsers</a>
 
   </div>
   <div class="import">
@@ -1966,7 +1926,6 @@ imports:
     <a href="#agent.discovery.disk_discovery">agent.discovery.disk_discovery</a>
  &#8226;   <a href="#agent.discovery.disk_discovery.disk_physical">agent.discovery.disk_discovery.disk_physical</a>
  &#8226;   <a href="#agent.discovery.disk_discovery.disk_virtual">agent.discovery.disk_discovery.disk_virtual</a>
- &#8226;   <a href="#agent.utils.parser">agent.utils.parser</a>
  &#8226;   <a href="#agent.utils.shell">agent.utils.shell</a>
 
   </div>
@@ -1984,7 +1943,7 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#agent.discovery.disk_discovery">agent.discovery.disk_discovery</a>
- &#8226;   <a href="#agent.utils.disk_discovery_parsers">agent.utils.disk_discovery_parsers</a>
+ &#8226;   <a href="#agent.utils.parsers">agent.utils.parsers</a>
  &#8226;   <a href="#agent.utils.shell">agent.utils.shell</a>
 
   </div>
@@ -2002,7 +1961,10 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#agent.discovery.disk_discovery">agent.discovery.disk_discovery</a>
- &#8226;   <a href="#agent.utils.disk_discovery_parsers">agent.utils.disk_discovery_parsers</a>
+ &#8226;   <a href="#agent.utils.parsers">agent.utils.parsers</a>
+ &#8226;   <a href="#agent.utils.shell">agent.utils.shell</a>
+ &#8226;   <a href="#json">json</a>
+ &#8226;   <a href="#re">re</a>
 
   </div>
   <div class="import">
@@ -2039,8 +2001,7 @@ imports:
     <a href="#agent.discovery.mem_discovery">agent.discovery.mem_discovery</a>
  &#8226;   <a href="#agent.discovery.mem_discovery.mem_physical">agent.discovery.mem_discovery.mem_physical</a>
  &#8226;   <a href="#agent.discovery.mem_discovery.mem_virtual">agent.discovery.mem_discovery.mem_virtual</a>
- &#8226;   <a href="#agent.utils.mem_discovery_parses">agent.utils.mem_discovery_parses</a>
- &#8226;   <a href="#agent.utils.parser">agent.utils.parser</a>
+ &#8226;   <a href="#agent.utils.parsers">agent.utils.parsers</a>
  &#8226;   <a href="#agent.utils.shell">agent.utils.shell</a>
 
   </div>
@@ -2058,7 +2019,7 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#agent.discovery.mem_discovery">agent.discovery.mem_discovery</a>
- &#8226;   <a href="#agent.utils.mem_discovery_parses">agent.utils.mem_discovery_parses</a>
+ &#8226;   <a href="#agent.utils.parsers">agent.utils.parsers</a>
 
   </div>
   <div class="import">
@@ -2075,7 +2036,7 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#agent.discovery.mem_discovery">agent.discovery.mem_discovery</a>
- &#8226;   <a href="#agent.utils.mem_discovery_parses">agent.utils.mem_discovery_parses</a>
+ &#8226;   <a href="#agent.utils.parsers">agent.utils.parsers</a>
 
   </div>
   <div class="import">
@@ -2098,7 +2059,6 @@ imports:
 imported by:
     <a href="#agent.discovery.motherboard_discovery.motherboard">agent.discovery.motherboard_discovery.motherboard</a>
  &#8226;   <a href="#agent.discovery.motherboard_discovery.motherboard_physical">agent.discovery.motherboard_discovery.motherboard_physical</a>
- &#8226;   <a href="#agent.discovery.motherboard_discovery.motherboard_virtual">agent.discovery.motherboard_discovery.motherboard_virtual</a>
 
   </div>
 
@@ -2111,8 +2071,6 @@ imported by:
 imports:
     <a href="#agent.discovery.motherboard_discovery">agent.discovery.motherboard_discovery</a>
  &#8226;   <a href="#agent.discovery.motherboard_discovery.motherboard_physical">agent.discovery.motherboard_discovery.motherboard_physical</a>
- &#8226;   <a href="#agent.discovery.motherboard_discovery.motherboard_virtual">agent.discovery.motherboard_discovery.motherboard_virtual</a>
- &#8226;   <a href="#agent.utils.parser">agent.utils.parser</a>
  &#8226;   <a href="#agent.utils.shell">agent.utils.shell</a>
 
   </div>
@@ -2130,25 +2088,8 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#agent.discovery.motherboard_discovery">agent.discovery.motherboard_discovery</a>
- &#8226;   <a href="#agent.utils.motherboard_discovery_parsers">agent.utils.motherboard_discovery_parsers</a>
+ &#8226;   <a href="#agent.utils.parsers">agent.utils.parsers</a>
  &#8226;   <a href="#agent.utils.shell">agent.utils.shell</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#agent.discovery.motherboard_discovery.motherboard">agent.discovery.motherboard_discovery.motherboard</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="agent.discovery.motherboard_discovery.motherboard_virtual"></a>
-  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/discovery/motherboard_discovery/motherboard_virtual.py" type="text/plain"><tt>agent.discovery.motherboard_discovery.motherboard_virtual</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#agent.discovery.motherboard_discovery">agent.discovery.motherboard_discovery</a>
- &#8226;   <a href="#agent.utils.motherboard_discovery_parsers">agent.utils.motherboard_discovery_parsers</a>
 
   </div>
   <div class="import">
@@ -2185,7 +2126,6 @@ imports:
     <a href="#agent.discovery.network_discovery">agent.discovery.network_discovery</a>
  &#8226;   <a href="#agent.discovery.network_discovery.network_physical">agent.discovery.network_discovery.network_physical</a>
  &#8226;   <a href="#agent.discovery.network_discovery.network_virtual">agent.discovery.network_discovery.network_virtual</a>
- &#8226;   <a href="#agent.utils.parser">agent.utils.parser</a>
  &#8226;   <a href="#agent.utils.shell">agent.utils.shell</a>
 
   </div>
@@ -2203,7 +2143,7 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#agent.discovery.network_discovery">agent.discovery.network_discovery</a>
- &#8226;   <a href="#agent.utils.network_discovery_parsers">agent.utils.network_discovery_parsers</a>
+ &#8226;   <a href="#agent.utils.parsers">agent.utils.parsers</a>
  &#8226;   <a href="#agent.utils.shell">agent.utils.shell</a>
 
   </div>
@@ -2221,7 +2161,7 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#agent.discovery.network_discovery">agent.discovery.network_discovery</a>
- &#8226;   <a href="#agent.utils.network_discovery_parsers">agent.utils.network_discovery_parsers</a>
+ &#8226;   <a href="#agent.utils.parsers">agent.utils.parsers</a>
 
   </div>
   <div class="import">
@@ -2243,8 +2183,6 @@ imports:
   <div class="import">
 imported by:
     <a href="#agent.discovery.system_discovery.system">agent.discovery.system_discovery.system</a>
- &#8226;   <a href="#agent.discovery.system_discovery.system_physical">agent.discovery.system_discovery.system_physical</a>
- &#8226;   <a href="#agent.discovery.system_discovery.system_virtual">agent.discovery.system_discovery.system_virtual</a>
 
   </div>
 
@@ -2256,9 +2194,7 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#agent.discovery.system_discovery">agent.discovery.system_discovery</a>
- &#8226;   <a href="#agent.discovery.system_discovery.system_physical">agent.discovery.system_discovery.system_physical</a>
- &#8226;   <a href="#agent.discovery.system_discovery.system_virtual">agent.discovery.system_discovery.system_virtual</a>
- &#8226;   <a href="#agent.utils.parser">agent.utils.parser</a>
+ &#8226;   <a href="#agent.utils.parsers">agent.utils.parsers</a>
  &#8226;   <a href="#agent.utils.shell">agent.utils.shell</a>
 
   </div>
@@ -2271,46 +2207,126 @@ imported by:
 </div>
 
 <div class="node">
-  <a name="agent.discovery.system_discovery.system_physical"></a>
-  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/discovery/system_discovery/system_physical.py" type="text/plain"><tt>agent.discovery.system_discovery.system_physical</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
+  <a name="agent.discovery.tools_discovery"></a>
+  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/discovery/tools_discovery/__init__.py" type="text/plain"><tt>agent.discovery.tools_discovery</tt></a>
+<span class="moduletype">Package</span>  <div class="import">
 imports:
-    <a href="#agent.discovery.system_discovery">agent.discovery.system_discovery</a>
- &#8226;   <a href="#agent.utils.system_discovery_parsers">agent.utils.system_discovery_parsers</a>
+    <a href="#agent.discovery">agent.discovery</a>
 
   </div>
   <div class="import">
 imported by:
-    <a href="#agent.discovery.system_discovery.system">agent.discovery.system_discovery.system</a>
+    <a href="#agent.discovery.tools_discovery.tools">agent.discovery.tools_discovery.tools</a>
+ &#8226;   <a href="#agent.discovery.tools_discovery.tools_checker">agent.discovery.tools_discovery.tools_checker</a>
+ &#8226;   <a href="#agent.discovery.tools_discovery.tools_physical">agent.discovery.tools_discovery.tools_physical</a>
+ &#8226;   <a href="#agent.discovery.tools_discovery.tools_virtual">agent.discovery.tools_discovery.tools_virtual</a>
 
   </div>
 
 </div>
 
 <div class="node">
-  <a name="agent.discovery.system_discovery.system_virtual"></a>
-  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/discovery/system_discovery/system_virtual.py" type="text/plain"><tt>agent.discovery.system_discovery.system_virtual</tt></a>
+  <a name="agent.discovery.tools_discovery.tools"></a>
+  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/discovery/tools_discovery/tools.py" type="text/plain"><tt>agent.discovery.tools_discovery.tools</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
-    <a href="#agent.discovery.system_discovery">agent.discovery.system_discovery</a>
- &#8226;   <a href="#agent.utils.system_discovery_parsers">agent.utils.system_discovery_parsers</a>
+    <a href="#agent.discovery.tools_discovery">agent.discovery.tools_discovery</a>
+ &#8226;   <a href="#agent.discovery.tools_discovery.tools_physical">agent.discovery.tools_discovery.tools_physical</a>
+ &#8226;   <a href="#agent.discovery.tools_discovery.tools_virtual">agent.discovery.tools_discovery.tools_virtual</a>
 
   </div>
   <div class="import">
 imported by:
-    <a href="#agent.discovery.system_discovery.system">agent.discovery.system_discovery.system</a>
+    <a href="#agent.__main__">agent.__main__</a>
 
   </div>
 
 </div>
 
 <div class="node">
-  <a name="agent.sender"></a>
-  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/sender.py" type="text/plain"><tt>agent.sender</tt></a>
+  <a name="agent.discovery.tools_discovery.tools_checker"></a>
+  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/discovery/tools_discovery/tools_checker.py" type="text/plain"><tt>agent.discovery.tools_discovery.tools_checker</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#agent.discovery.tools_discovery">agent.discovery.tools_discovery</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#shutil">shutil</a>
+ &#8226;   <a href="#subprocess">subprocess</a>
+ &#8226;   <a href="#sys">sys</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#agent.discovery.tools_discovery.tools_physical">agent.discovery.tools_discovery.tools_physical</a>
+ &#8226;   <a href="#agent.discovery.tools_discovery.tools_virtual">agent.discovery.tools_discovery.tools_virtual</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="agent.discovery.tools_discovery.tools_physical"></a>
+  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/discovery/tools_discovery/tools_physical.py" type="text/plain"><tt>agent.discovery.tools_discovery.tools_physical</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#agent.discovery.tools_discovery">agent.discovery.tools_discovery</a>
+ &#8226;   <a href="#agent.discovery.tools_discovery.tools_checker">agent.discovery.tools_discovery.tools_checker</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#agent.discovery.tools_discovery.tools">agent.discovery.tools_discovery.tools</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="agent.discovery.tools_discovery.tools_virtual"></a>
+  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/discovery/tools_discovery/tools_virtual.py" type="text/plain"><tt>agent.discovery.tools_discovery.tools_virtual</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#agent.discovery.tools_discovery">agent.discovery.tools_discovery</a>
+ &#8226;   <a href="#agent.discovery.tools_discovery.tools_checker">agent.discovery.tools_discovery.tools_checker</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#agent.discovery.tools_discovery.tools">agent.discovery.tools_discovery.tools</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="agent.global_information"></a>
+  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/global_information/__init__.py" type="text/plain"><tt>agent.global_information</tt></a>
+<span class="moduletype">Package</span>  <div class="import">
 imports:
     <a href="#agent">agent</a>
- &#8226;   <a href="#requests">requests</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#agent.global_information.global_information">agent.global_information.global_information</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="agent.global_information.global_information"></a>
+  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/global_information/global_information.py" type="text/plain"><tt>agent.global_information.global_information</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#agent.global_information">agent.global_information</a>
+ &#8226;   <a href="#agent.utils.parsers">agent.utils.parsers</a>
+ &#8226;   <a href="#agent.utils.shell">agent.utils.shell</a>
+ &#8226;   <a href="#json">json</a>
+ &#8226;   <a href="#pathlib">pathlib</a>
+ &#8226;   <a href="#random">random</a>
+ &#8226;   <a href="#socket">socket</a>
+ &#8226;   <a href="#subprocess">subprocess</a>
 
   </div>
   <div class="import">
@@ -2331,22 +2347,17 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#agent.utils.disk_discovery_parsers">agent.utils.disk_discovery_parsers</a>
- &#8226;   <a href="#agent.utils.mem_discovery_parses">agent.utils.mem_discovery_parses</a>
- &#8226;   <a href="#agent.utils.motherboard_discovery_parsers">agent.utils.motherboard_discovery_parsers</a>
- &#8226;   <a href="#agent.utils.network_discovery_parsers">agent.utils.network_discovery_parsers</a>
- &#8226;   <a href="#agent.utils.parser">agent.utils.parser</a>
+    <a href="#agent.utils.parsers">agent.utils.parsers</a>
+ &#8226;   <a href="#agent.utils.sender">agent.utils.sender</a>
  &#8226;   <a href="#agent.utils.shell">agent.utils.shell</a>
- &#8226;   <a href="#agent.utils.sysfs">agent.utils.sysfs</a>
- &#8226;   <a href="#agent.utils.system_discovery_parsers">agent.utils.system_discovery_parsers</a>
 
   </div>
 
 </div>
 
 <div class="node">
-  <a name="agent.utils.disk_discovery_parsers"></a>
-  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/utils/disk_discovery_parsers.py" type="text/plain"><tt>agent.utils.disk_discovery_parsers</tt></a>
+  <a name="agent.utils.parsers"></a>
+  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/utils/parsers.py" type="text/plain"><tt>agent.utils.parsers</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#agent.utils">agent.utils</a>
@@ -2356,84 +2367,36 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#agent.discovery.disk_discovery.disk_physical">agent.discovery.disk_discovery.disk_physical</a>
+    <a href="#agent.discovery.cpu_discovery.cpu">agent.discovery.cpu_discovery.cpu</a>
+ &#8226;   <a href="#agent.discovery.cpu_discovery.cpu_physical">agent.discovery.cpu_discovery.cpu_physical</a>
+ &#8226;   <a href="#agent.discovery.cpu_discovery.cpu_virtual">agent.discovery.cpu_discovery.cpu_virtual</a>
+ &#8226;   <a href="#agent.discovery.disk_discovery.disk_physical">agent.discovery.disk_discovery.disk_physical</a>
  &#8226;   <a href="#agent.discovery.disk_discovery.disk_virtual">agent.discovery.disk_discovery.disk_virtual</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="agent.utils.mem_discovery_parses"></a>
-  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/utils/mem_discovery_parses.py" type="text/plain"><tt>agent.utils.mem_discovery_parses</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#agent.utils">agent.utils</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#agent.discovery.mem_discovery.mem">agent.discovery.mem_discovery.mem</a>
+ &#8226;   <a href="#agent.discovery.mem_discovery.mem">agent.discovery.mem_discovery.mem</a>
  &#8226;   <a href="#agent.discovery.mem_discovery.mem_physical">agent.discovery.mem_discovery.mem_physical</a>
  &#8226;   <a href="#agent.discovery.mem_discovery.mem_virtual">agent.discovery.mem_discovery.mem_virtual</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="agent.utils.motherboard_discovery_parsers"></a>
-  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/utils/motherboard_discovery_parsers.py" type="text/plain"><tt>agent.utils.motherboard_discovery_parsers</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#agent.utils">agent.utils</a>
- &#8226;   <a href="#re">re</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#agent.discovery.motherboard_discovery.motherboard_physical">agent.discovery.motherboard_discovery.motherboard_physical</a>
- &#8226;   <a href="#agent.discovery.motherboard_discovery.motherboard_virtual">agent.discovery.motherboard_discovery.motherboard_virtual</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="agent.utils.network_discovery_parsers"></a>
-  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/utils/network_discovery_parsers.py" type="text/plain"><tt>agent.utils.network_discovery_parsers</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#agent.utils">agent.utils</a>
- &#8226;   <a href="#json">json</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#agent.discovery.network_discovery.network_physical">agent.discovery.network_discovery.network_physical</a>
+ &#8226;   <a href="#agent.discovery.motherboard_discovery.motherboard_physical">agent.discovery.motherboard_discovery.motherboard_physical</a>
+ &#8226;   <a href="#agent.discovery.network_discovery.network_physical">agent.discovery.network_discovery.network_physical</a>
  &#8226;   <a href="#agent.discovery.network_discovery.network_virtual">agent.discovery.network_discovery.network_virtual</a>
+ &#8226;   <a href="#agent.discovery.system_discovery.system">agent.discovery.system_discovery.system</a>
+ &#8226;   <a href="#agent.global_information.global_information">agent.global_information.global_information</a>
 
   </div>
 
 </div>
 
 <div class="node">
-  <a name="agent.utils.parser"></a>
-  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/utils/parser.py" type="text/plain"><tt>agent.utils.parser</tt></a>
+  <a name="agent.utils.sender"></a>
+  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/utils/sender.py" type="text/plain"><tt>agent.utils.sender</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#agent.utils">agent.utils</a>
+ &#8226;   <a href="#requests">requests</a>
 
   </div>
   <div class="import">
 imported by:
     <a href="#agent.__main__">agent.__main__</a>
- &#8226;   <a href="#agent.discovery.cpu_discovery.cpu">agent.discovery.cpu_discovery.cpu</a>
- &#8226;   <a href="#agent.discovery.disk_discovery.disk">agent.discovery.disk_discovery.disk</a>
- &#8226;   <a href="#agent.discovery.mem_discovery.mem">agent.discovery.mem_discovery.mem</a>
- &#8226;   <a href="#agent.discovery.motherboard_discovery.motherboard">agent.discovery.motherboard_discovery.motherboard</a>
- &#8226;   <a href="#agent.discovery.network_discovery.network">agent.discovery.network_discovery.network</a>
- &#8226;   <a href="#agent.discovery.system_discovery.system">agent.discovery.system_discovery.system</a>
 
   </div>
 
@@ -2445,56 +2408,23 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#agent.utils">agent.utils</a>
+ &#8226;   <a href="#os">os</a>
  &#8226;   <a href="#subprocess">subprocess</a>
 
   </div>
   <div class="import">
 imported by:
-    <a href="#agent.__main__">agent.__main__</a>
- &#8226;   <a href="#agent.discovery.cpu_discovery.cpu">agent.discovery.cpu_discovery.cpu</a>
+    <a href="#agent.discovery.cpu_discovery.cpu">agent.discovery.cpu_discovery.cpu</a>
  &#8226;   <a href="#agent.discovery.disk_discovery.disk">agent.discovery.disk_discovery.disk</a>
  &#8226;   <a href="#agent.discovery.disk_discovery.disk_physical">agent.discovery.disk_discovery.disk_physical</a>
+ &#8226;   <a href="#agent.discovery.disk_discovery.disk_virtual">agent.discovery.disk_discovery.disk_virtual</a>
  &#8226;   <a href="#agent.discovery.mem_discovery.mem">agent.discovery.mem_discovery.mem</a>
  &#8226;   <a href="#agent.discovery.motherboard_discovery.motherboard">agent.discovery.motherboard_discovery.motherboard</a>
  &#8226;   <a href="#agent.discovery.motherboard_discovery.motherboard_physical">agent.discovery.motherboard_discovery.motherboard_physical</a>
  &#8226;   <a href="#agent.discovery.network_discovery.network">agent.discovery.network_discovery.network</a>
  &#8226;   <a href="#agent.discovery.network_discovery.network_physical">agent.discovery.network_discovery.network_physical</a>
  &#8226;   <a href="#agent.discovery.system_discovery.system">agent.discovery.system_discovery.system</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="agent.utils.sysfs"></a>
-  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/utils/sysfs.py" type="text/plain"><tt>agent.utils.sysfs</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#agent.utils">agent.utils</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#agent.discovery.cpu_discovery.cpu_physical">agent.discovery.cpu_discovery.cpu_physical</a>
- &#8226;   <a href="#agent.discovery.cpu_discovery.cpu_virtual">agent.discovery.cpu_discovery.cpu_virtual</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="agent.utils.system_discovery_parsers"></a>
-  <a target="code" href="/home/zluuuck/Project/monitoramento_sistemas_p2/Agent/src/agent/utils/system_discovery_parsers.py" type="text/plain"><tt>agent.utils.system_discovery_parsers</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#agent.utils">agent.utils</a>
- &#8226;   <a href="#re">re</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#agent.discovery.system_discovery.system_physical">agent.discovery.system_discovery.system_physical</a>
- &#8226;   <a href="#agent.discovery.system_discovery.system_virtual">agent.discovery.system_discovery.system_virtual</a>
+ &#8226;   <a href="#agent.global_information.global_information">agent.global_information.global_information</a>
 
   </div>
 
@@ -8754,7 +8684,6 @@ imports:
  &#8226;   <a href="#importlib">importlib</a>
  &#8226;   <a href="#importlib._bootstrap">importlib._bootstrap</a>
  &#8226;   <a href="#importlib._bootstrap_external">importlib._bootstrap_external</a>
- &#8226;   <a href="#importlib.machinery">importlib.machinery</a>
  &#8226;   <a href="#sys">sys</a>
  &#8226;   <a href="#warnings">warnings</a>
 
@@ -8898,8 +8827,7 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#importlib">importlib</a>
- &#8226;   <a href="#importlib.abc">importlib.abc</a>
+    <a href="#importlib.abc">importlib.abc</a>
  &#8226;   <a href="#inspect">inspect</a>
  &#8226;   <a href="#packaging.tags">packaging.tags</a>
  &#8226;   <a href="#pkgutil">pkgutil</a>
@@ -9604,9 +9532,9 @@ imports:
   <div class="import">
 imported by:
     <a href="#agent.__main__">agent.__main__</a>
- &#8226;   <a href="#agent.agent_information.agent_information">agent.agent_information.agent_information</a>
- &#8226;   <a href="#agent.utils.disk_discovery_parsers">agent.utils.disk_discovery_parsers</a>
- &#8226;   <a href="#agent.utils.network_discovery_parsers">agent.utils.network_discovery_parsers</a>
+ &#8226;   <a href="#agent.discovery.disk_discovery.disk_virtual">agent.discovery.disk_discovery.disk_virtual</a>
+ &#8226;   <a href="#agent.global_information.global_information">agent.global_information.global_information</a>
+ &#8226;   <a href="#agent.utils.parsers">agent.utils.parsers</a>
  &#8226;   <a href="#charset_normalizer.models">charset_normalizer.models</a>
  &#8226;   <a href="#json.decoder">json.decoder</a>
  &#8226;   <a href="#json.encoder">json.encoder</a>
@@ -10916,7 +10844,8 @@ imported by:
     <a href="#_aix_support">_aix_support</a>
  &#8226;   <a href="#_distutils_hack">_distutils_hack</a>
  &#8226;   <a href="#_sitebuiltins">_sitebuiltins</a>
- &#8226;   <a href="#agent.agent_information.agent_information">agent.agent_information.agent_information</a>
+ &#8226;   <a href="#agent.discovery.tools_discovery.tools_checker">agent.discovery.tools_discovery.tools_checker</a>
+ &#8226;   <a href="#agent.utils.shell">agent.utils.shell</a>
  &#8226;   <a href="#argparse">argparse</a>
  &#8226;   <a href="#asyncio.base_events">asyncio.base_events</a>
  &#8226;   <a href="#asyncio.coroutines">asyncio.coroutines</a>
@@ -11500,8 +11429,7 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#agent.__main__">agent.__main__</a>
- &#8226;   <a href="#agent.agent_information.agent_information">agent.agent_information.agent_information</a>
+    <a href="#agent.global_information.global_information">agent.global_information.global_information</a>
  &#8226;   <a href="#importlib.metadata">importlib.metadata</a>
  &#8226;   <a href="#importlib.resources._common">importlib.resources._common</a>
  &#8226;   <a href="#importlib.resources._legacy">importlib.resources._legacy</a>
@@ -12128,7 +12056,7 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#agent.agent_information.agent_information">agent.agent_information.agent_information</a>
+    <a href="#agent.global_information.global_information">agent.global_information.global_information</a>
  &#8226;   <a href="#email.generator">email.generator</a>
  &#8226;   <a href="#email.utils">email.utils</a>
  &#8226;   <a href="#secrets">secrets</a>
@@ -12163,9 +12091,8 @@ imported by:
     <a href="#_pydecimal">_pydecimal</a>
  &#8226;   <a href="#_sre">_sre</a>
  &#8226;   <a href="#_strptime">_strptime</a>
- &#8226;   <a href="#agent.utils.disk_discovery_parsers">agent.utils.disk_discovery_parsers</a>
- &#8226;   <a href="#agent.utils.motherboard_discovery_parsers">agent.utils.motherboard_discovery_parsers</a>
- &#8226;   <a href="#agent.utils.system_discovery_parsers">agent.utils.system_discovery_parsers</a>
+ &#8226;   <a href="#agent.discovery.disk_discovery.disk_virtual">agent.discovery.disk_discovery.disk_virtual</a>
+ &#8226;   <a href="#agent.utils.parsers">agent.utils.parsers</a>
  &#8226;   <a href="#argparse">argparse</a>
  &#8226;   <a href="#ast">ast</a>
  &#8226;   <a href="#base64">base64</a>
@@ -12447,7 +12374,7 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#agent.sender">agent.sender</a>
+    <a href="#agent.utils.sender">agent.utils.sender</a>
  &#8226;   <a href="#requests">requests</a>
  &#8226;   <a href="#requests.__version__">requests.__version__</a>
  &#8226;   <a href="#requests._internal_utils">requests._internal_utils</a>
@@ -16818,7 +16745,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#argparse">argparse</a>
+    <a href="#agent.discovery.tools_discovery.tools_checker">agent.discovery.tools_discovery.tools_checker</a>
+ &#8226;   <a href="#argparse">argparse</a>
  &#8226;   <a href="#http.server">http.server</a>
  &#8226;   <a href="#multiprocessing.util">multiprocessing.util</a>
  &#8226;   <a href="#setuptools._distutils.spawn">setuptools._distutils.spawn</a>
@@ -16940,7 +16868,7 @@ imports:
   <div class="import">
 imported by:
     <a href="#_ssl">_ssl</a>
- &#8226;   <a href="#agent.agent_information.agent_information">agent.agent_information.agent_information</a>
+ &#8226;   <a href="#agent.global_information.global_information">agent.global_information.global_information</a>
  &#8226;   <a href="#asyncio.base_events">asyncio.base_events</a>
  &#8226;   <a href="#asyncio.events">asyncio.events</a>
  &#8226;   <a href="#asyncio.proactor_events">asyncio.proactor_events</a>
@@ -17287,7 +17215,8 @@ imports:
   <div class="import">
 imported by:
     <a href="#_aix_support">_aix_support</a>
- &#8226;   <a href="#agent.agent_information.agent_information">agent.agent_information.agent_information</a>
+ &#8226;   <a href="#agent.discovery.tools_discovery.tools_checker">agent.discovery.tools_discovery.tools_checker</a>
+ &#8226;   <a href="#agent.global_information.global_information">agent.global_information.global_information</a>
  &#8226;   <a href="#agent.utils.shell">agent.utils.shell</a>
  &#8226;   <a href="#asyncio.base_events">asyncio.base_events</a>
  &#8226;   <a href="#asyncio.base_subprocess">asyncio.base_subprocess</a>
@@ -17329,6 +17258,7 @@ imported by:
  &#8226;   <a href="#_pydecimal">_pydecimal</a>
  &#8226;   <a href="#_sitebuiltins">_sitebuiltins</a>
  &#8226;   <a href="#agent.__main__">agent.__main__</a>
+ &#8226;   <a href="#agent.discovery.tools_discovery.tools_checker">agent.discovery.tools_discovery.tools_checker</a>
  &#8226;   <a href="#argparse">argparse</a>
  &#8226;   <a href="#ast">ast</a>
  &#8226;   <a href="#asyncio">asyncio</a>
