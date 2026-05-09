@@ -10,12 +10,13 @@
 # - Partições recursivas (suporta LVM, LUKS, RAID até depth 4)
 # =============================================================================
 
-from agent.utils.shell import run
+from agent.utils.shell import run, run_permissive
 from agent.utils.parsers import (
     parse_lsblk,
     parse_smartctl,
     resolve_disk_type,
     resolve_disk_interface,
+    sanitize_string,
     safe_int,
 )
 
@@ -44,8 +45,11 @@ def get_physical_disk_info(lsblk_raw: str | None) -> dict:
 
         device_path = f"/dev/{name}"
 
-        # ── smartctl — requer root, falha silenciosa ───────────────────────
-        smartctl_raw = run(f"smartctl -i -j {device_path}")
+        # ── smartctl — requer root ────────────────────────────────────────
+        # run_permissive: smartctl retorna exit code != 0 mesmo com dados
+        # válidos quando detecta warnings no disco (ex: setores realocados).
+        # run() descartaria a saída nesses casos — run_permissive preserva.
+        smartctl_raw = run_permissive(f"smartctl -i -j {device_path}")
         smart        = parse_smartctl(smartctl_raw)
 
         # Tamanho: prioriza smartctl (bytes exatos), fallback lsblk
@@ -65,7 +69,7 @@ def get_physical_disk_info(lsblk_raw: str | None) -> dict:
             "device":       device_path,
             "model":        smart.get("model_name")  or dev.get("model")  or None,
             "model_family": smart.get("model_family"),
-            "vendor":       smart.get("vendor")      or dev.get("vendor") or None,
+            "vendor":       smart.get("vendor")      or sanitize_string(dev.get("vendor")) or None,
             "serial":       smart.get("serial_number") or dev.get("serial") or None,
             "firmware":     smart.get("firmware_version"),
             "type":         disk_type,          # HDD | SSD | Unknown
