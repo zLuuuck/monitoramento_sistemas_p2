@@ -1,5 +1,5 @@
 # discovery/system_discovery/system_physical.py
-from agent.utils.system_discovery_parsers import (
+from agent.utils.parsers import (
     parse_os_release,
     parse_uname,
     parse_uptime_seconds,

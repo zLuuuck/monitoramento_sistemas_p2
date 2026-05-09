@@ -1,20 +1,22 @@
 # discovery/motherboard_discovery/motherboard.py
 from agent.utils.shell import run
-from agent.utils.parser import parse_lscpu
 from agent.discovery.motherboard_discovery.motherboard_physical import get_physical_motherboard_info
-from agent.discovery.motherboard_discovery.motherboard_virtual import get_virtual_motherboard_info
 
 
-def get_motherboard_info():
+def get_motherboard_info(is_virtualized: bool) -> dict | None:
     """
     Ponto de entrada do discovery de placa-mãe.
 
     Em hardware físico usa dmidecode para extrair modelo, fabricante,
     BIOS, socket(s) de CPU, slots de RAM e slots de expansão.
-    Em VMs retorna apenas os dados expostos pelo hipervisor via dmidecode.
+    Em VMs retorna None, pois a placa-mãe física não é exposta de forma
+    confiável pelo hipervisor.
 
     Retorna um dict pronto para serialização JSON.
     """
+    if is_virtualized:
+        return None
+
     # ── Coleta common ─────────────────────────────────────────────────────────
     # type 0  → BIOS
     # type 2  → Baseboard (placa-mãe)
@@ -26,13 +28,6 @@ def get_motherboard_info():
     dmi_cpu_slot_raw = run("dmidecode -t 4")
     dmi_slots_raw    = run("dmidecode -t 9")
     dmi_mem_raw      = run("dmidecode -t 17")
-    lscpu_raw        = run("lscpu")
-
-    lscpu = parse_lscpu(lscpu_raw) if lscpu_raw else {}
-
-    # ── Detecção de virtualização ─────────────────────────────────────────────
-    hypervisor_vendor = lscpu.get("hypervisor_vendor")
-    is_virtualized    = bool(hypervisor_vendor)
 
     raw_data = {
         "dmi_bios":     dmi_bios_raw,
@@ -41,8 +36,5 @@ def get_motherboard_info():
         "dmi_slots":    dmi_slots_raw,
         "dmi_mem":      dmi_mem_raw,
     }
-
-    if is_virtualized:
-        return get_virtual_motherboard_info(raw_data, hypervisor_vendor)
 
     return get_physical_motherboard_info(raw_data)

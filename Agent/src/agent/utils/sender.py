@@ -1,35 +1,45 @@
-import requests  # Biblioteca para fazer requisições HTTP
+# =============================================================================
+# utils/sender.py
+# Envio dos payloads (discovery e métricas) ao backend central via HTTP POST.
+# =============================================================================
 
-URL = ""
+import requests
 
-# Token simples de autenticação (conforme seu projeto)
+# Configurações do servidor — preencher antes de ativar o envio
+URL   = ""
 TOKEN = "seu_token_aqui"
 
 
-def send_data(data):
+def send_data(data: dict) -> None:
     """
-    Envia dados para o servidor central via HTTP POST.
+    Envia um payload ao backend central via HTTP POST com autenticação Bearer.
 
     Parâmetros:
         data (dict): payload a ser enviado (discovery ou métricas)
 
-    Cabeçalhos:
-        - Content-Type: JSON
-        - Authorization: token simples
+    Cabeçalhos enviados:
+        Content-Type  : application/json
+        Authorization : Bearer <TOKEN>
 
-    Tratamento:
-        - Exibe status da resposta
-        - Captura erros de conexão
+    Tratamento de erros:
+        - Imprime o status HTTP em caso de sucesso
+        - Captura e imprime erros de conexão sem travar o agente
     """
-
     headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {TOKEN}"
+        "Content-Type":  "application/json",
+        "Authorization": f"Bearer {TOKEN}",
     }
 
     try:
-        response = requests.post(URL, json=data, headers=headers)
-        print("Status:", response.status_code)
-
+        response = requests.post(URL, json=data, headers=headers, timeout=10)
+        print(f"📡 Enviado — status: {response.status_code}")
+    except requests.exceptions.ConnectionError:
+        print("❌ Erro de conexão: servidor inacessível")
+    except requests.exceptions.Timeout:
+        print("❌ Timeout ao tentar enviar para o servidor")
     except Exception as e:
-        print("Erro ao enviar:", e)
+        print(f"❌ Erro ao enviar: {e}")
+
+# =============================================================================
+# FIM utils/sender.py
+# =============================================================================

@@ -1,5 +1,5 @@
 # discovery/motherboard_discovery/motherboard_virtual.py
-from agent.utils.motherboard_discovery_parsers import (
+from agent.utils.parsers import (
     parse_baseboard,
     parse_bios,
     _clean,

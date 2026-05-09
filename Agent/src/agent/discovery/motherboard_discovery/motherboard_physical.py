@@ -1,6 +1,6 @@
 # discovery/motherboard_discovery/motherboard_physical.py
 from agent.utils.shell import run
-from agent.utils.motherboard_discovery_parsers import (
+from agent.utils.parsers import (
     parse_baseboard,
     parse_bios,
     parse_cpu_sockets,

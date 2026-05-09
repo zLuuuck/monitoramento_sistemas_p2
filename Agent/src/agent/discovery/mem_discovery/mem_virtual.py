@@ -1,55 +1,45 @@
+# =============================================================================
 # discovery/mem_discovery/mem_virtual.py
-from agent.utils.mem_discovery_parses import (
-    parse_meminfo_kb,
-    kb_to_gb,
-    kb_to_mb,
-)
+#
+# Discovery de memória RAM para ambientes virtualizados.
+#
+# Em VMs, informações de slots físicos (fabricante, DDR type, velocidade)
+# não estão disponíveis — o hipervisor não as expõe.
+#
+# O discovery coleta apenas o total de RAM e swap.
+# Métricas de uso (livre, usado, disponível) pertencem à coleta contínua.
+# =============================================================================
+
+from agent.utils.parsers import parse_meminfo_kb, kb_to_bytes
 
 
-def get_virtual_mem_info(meminfo, hypervisor_vendor):
+def get_virtual_mem_info(meminfo: dict) -> dict:
     """
-    Retorna informações de memória RAM para ambientes virtualizados.
+    Monta o payload de memória para ambiente virtualizado.
 
-    Unidade base: bytes. Campos 'gb' são display helpers.
-    Notas contextuais centralizadas em metadata.notes no __main__.
+    Retorna apenas os totais — uso de memória é responsabilidade
+    da coleta contínua (coleta/mem_coleta), não do discovery.
+
+    Parâmetros:
+        meminfo (dict): saída parseada de /proc/meminfo
+
+    Retorno:
+        dict com total_bytes, swap_total_bytes e slots (ausente em VM).
     """
+    # ── Totais de RAM e swap ──────────────────────────────────────────────────
     total_kb      = parse_meminfo_kb(meminfo.get("memtotal"))
-    available_kb  = parse_meminfo_kb(meminfo.get("memavailable"))
-    free_kb       = parse_meminfo_kb(meminfo.get("memfree"))
-    buffers_kb    = parse_meminfo_kb(meminfo.get("buffers"))
-    cached_kb     = parse_meminfo_kb(meminfo.get("cached"))
     swap_total_kb = parse_meminfo_kb(meminfo.get("swaptotal"))
-    swap_free_kb  = parse_meminfo_kb(meminfo.get("swapfree"))
 
     return {
-        "total":     _size(total_kb),
-        "available": _size(available_kb),
-        "free":      _size(free_kb),
-        "buffers":   _size(buffers_kb),
-        "cached":    _size(cached_kb),
-        "swap": {
-            "total": _size(swap_total_kb),
-            "free":  _size(swap_free_kb),
-        },
-        # slots indisponíveis em VM — sem nota inline (vai em metadata.notes)
-        "slots": {
-            "total":   None,
-            "used":    None,
-            "free":    None,
-            "modules": [],
-        },
+        # Unidade base: bytes — conversão para GB/MB fica no frontend
+        "total_bytes":      kb_to_bytes(total_kb),
+        "swap_total_bytes": kb_to_bytes(swap_total_kb),
+
+        # Slots não disponíveis em VM — campo ausente (não null) indica isso
+        # O backend deve verificar a ausência do campo, não o valor null
+        "slots": None,
     }
 
-
-def _size(kb):
-    """
-    Retorna objeto de tamanho com bytes como unidade base e gb como display.
-    Derivado de kB (fonte: /proc/meminfo).
-    """
-    if kb is None:
-        return {"bytes": None, "gb": None}
-    bytes_val = kb * 1024
-    return {
-        "bytes": bytes_val,
-        "gb":    kb_to_gb(kb),
-    }
+# =============================================================================
+# FIM discovery/mem_discovery/mem_virtual.py
+# =============================================================================
