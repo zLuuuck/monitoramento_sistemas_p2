@@ -1,14 +1,15 @@
 curl -X POST http://localhost/api/discovery \
-  -H "Content-Type: application/json" \
-  -d '{
+    -H "Content-Type: application/json" \
+    -d '{
     "type": "discovery",
     "agent": {
-        "agent_id": "66445",
-        "host_id": "32926",
-        "hostname": "ZLUUUCK-WINDOWS.localdomain",
-        "primary_ip": "172.25.69.91",
+        "agent_id": "67579",
+        "host_id": "17005",
+        "hostname": "teste-ubuntu",
+        "primary_ip": "192.168.48.129",
         "all_ipv4": [
-        "172.25.69.91"
+        "192.168.48.129",
+        "10.10.10.1"
         ]
     },
     "metadata": {
@@ -23,11 +24,11 @@ curl -X POST http://localhost/api/discovery \
     },
     "environment": {
         "is_virtualized": true,
-        "hypervisor": "Microsoft",
+        "hypervisor": "VMware",
         "source": "lscpu"
     },
     "system": {
-        "hostname": "ZLUUUCK-WINDOWS.localdomain",
+        "hostname": "teste-ubuntu",
         "os": {
         "name": "Ubuntu",
         "pretty_name": "Ubuntu 24.04.4 LTS",
@@ -39,15 +40,15 @@ curl -X POST http://localhost/api/discovery \
         "build_id": null
         },
         "kernel": {
-        "release": "6.6.87.2-microsoft-standard-WSL2",
-        "version": "#1 SMP PREEMPT_DYNAMIC Thu Jun 5 18:30:46 UTC 2025 x86_64 x86_64",
+        "release": "6.8.0-110-generic",
+        "version": "#110-Ubuntu SMP PREEMPT_DYNAMIC Thu Mar 19 15:09:20 UTC 2026 x86_64 x86_64",
         "machine": "x86_64"
         },
-        "timezone": "America/Sao_Paulo",
-        "uptime_seconds": 729,
+        "timezone": "Etc/UTC",
+        "uptime_seconds": 200,
         "virtualization": {
         "is_virtualized": true,
-        "hypervisor": "Microsoft"
+        "hypervisor": "VMware"
         }
     },
     "cpu": {
@@ -55,8 +56,8 @@ curl -X POST http://localhost/api/discovery \
         "vendor": "AuthenticAMD",
         "architecture": "x86_64",
         "topology": {
-        "vcpus": 8,
-        "threads_per_core": 2,
+        "vcpus": 2,
+        "threads_per_core": null,
         "source": "lscpu"
         },
         "frequency": {
@@ -76,33 +77,33 @@ curl -X POST http://localhost/api/discovery \
     },
     "memory": {
         "total": {
-        "bytes": 3722682368,
-        "gb": 3.47
+        "bytes": 2013163520,
+        "gb": 1.87
         },
         "available": {
-        "bytes": 2995908608,
-        "gb": 2.79
+        "bytes": 1607245824,
+        "gb": 1.5
         },
         "free": {
-        "bytes": 2286907392,
-        "gb": 2.13
+        "bytes": 1378406400,
+        "gb": 1.28
         },
         "buffers": {
-        "bytes": 71454720,
-        "gb": 0.07
+        "bytes": 19587072,
+        "gb": 0.02
         },
         "cached": {
-        "bytes": 670072832,
-        "gb": 0.62
+        "bytes": 338702336,
+        "gb": 0.32
         },
         "swap": {
         "total": {
-            "bytes": 1073741824,
-            "gb": 1.0
+            "bytes": 2147479552,
+            "gb": 2.0
         },
         "free": {
-            "bytes": 911773696,
-            "gb": 0.85
+            "bytes": 2147479552,
+            "gb": 2.0
         }
         },
         "slots": {
@@ -113,160 +114,101 @@ curl -X POST http://localhost/api/discovery \
         }
     },
     "disk": {
-        "total_disks": 6,
+        "total_disks": 1,
         "disks": [
         {
             "device": "/dev/sda",
             "name": "sda",
-            "model": "Virtual Disk",
-            "vendor": "Msft",
-            "serial": "60022480728b63b9f0b8d5e28f1d4859",
+            "model": "VMware Virtual S",
+            "vendor": "VMware",
+            "serial": null,
             "firmware": null,
             "type": "Virtual",
             "interface": "SCSI",
             "form_factor": null,
             "removable": false,
             "size": {
-            "bytes": 407490560,
-            "gb": 0.38,
-            "tb": 0.0
+            "bytes": 32212254720,
+            "gb": 30.0,
+            "tb": 0.03
             },
             "health": {
             "smart_passed": null,
             "power_on_hours": null,
             "temperature_celsius": null
             },
-            "partitions": []
-        },
-        {
-            "device": "/dev/sdb",
-            "name": "sdb",
-            "model": "Virtual Disk",
-            "vendor": "Msft",
-            "serial": "600224805b5ac507b80a045bc3303ae1",
-            "firmware": null,
-            "type": "Virtual",
-            "interface": "SCSI",
-            "form_factor": null,
-            "removable": false,
-            "size": {
-            "bytes": 195080192,
-            "gb": 0.18,
-            "tb": 0.0
+            "partitions": [
+            {
+                "name": "sda1",
+                "type": "part",
+                "mountpoint": null,
+                "fstype": null,
+                "label": null,
+                "uuid": null,
+                "size": {
+                "bytes": 1048576,
+                "gb": 0.0
+                },
+                "children": [],
+                "role": "bios_boot"
             },
-            "health": {
-            "smart_passed": null,
-            "power_on_hours": null,
-            "temperature_celsius": null
+            {
+                "name": "sda2",
+                "type": "part",
+                "mountpoint": "/boot",
+                "fstype": "ext4",
+                "label": null,
+                "uuid": "e20783f7-5c1a-4511-9d27-1d35c2d8de8b",
+                "size": {
+                "bytes": 2147483648,
+                "gb": 2.0
+                },
+                "children": []
             },
-            "partitions": []
-        },
-        {
-            "device": "/dev/sdc",
-            "name": "sdc",
-            "model": "Virtual Disk",
-            "vendor": "Msft",
-            "serial": "60022480c4b5b981886c8a660f68c121",
-            "firmware": null,
-            "type": "Virtual",
-            "interface": "SCSI",
-            "form_factor": null,
-            "removable": false,
-            "size": {
-            "bytes": 1073745920,
-            "gb": 1.0,
-            "tb": 0.0
-            },
-            "health": {
-            "smart_passed": null,
-            "power_on_hours": null,
-            "temperature_celsius": null
-            },
-            "partitions": []
-        },
-        {
-            "device": "/dev/sdd",
-            "name": "sdd",
-            "model": "Virtual Disk",
-            "vendor": "Msft",
-            "serial": "60022480ad075f1a3aeb93f017e5267e",
-            "firmware": null,
-            "type": "Virtual",
-            "interface": "SCSI",
-            "form_factor": null,
-            "removable": false,
-            "size": {
-            "bytes": 1099511627776,
-            "gb": 1024.0,
-            "tb": 1.0
-            },
-            "health": {
-            "smart_passed": null,
-            "power_on_hours": null,
-            "temperature_celsius": null
-            },
-            "partitions": []
-        },
-        {
-            "device": "/dev/sde",
-            "name": "sde",
-            "model": "Virtual Disk",
-            "vendor": "Msft",
-            "serial": "60022480467babea0c2ff48825beb8aa",
-            "firmware": null,
-            "type": "Virtual",
-            "interface": "SCSI",
-            "form_factor": null,
-            "removable": false,
-            "size": {
-            "bytes": 158334976,
-            "gb": 0.15,
-            "tb": 0.0
-            },
-            "health": {
-            "smart_passed": null,
-            "power_on_hours": null,
-            "temperature_celsius": null
-            },
-            "partitions": []
-        },
-        {
-            "device": "/dev/sdf",
-            "name": "sdf",
-            "model": "Virtual Disk",
-            "vendor": "Msft",
-            "serial": "600224808290474e9653ed663a8d8b3e",
-            "firmware": null,
-            "type": "Virtual",
-            "interface": "SCSI",
-            "form_factor": null,
-            "removable": false,
-            "size": {
-            "bytes": 1099511627776,
-            "gb": 1024.0,
-            "tb": 1.0
-            },
-            "health": {
-            "smart_passed": null,
-            "power_on_hours": null,
-            "temperature_celsius": null
-            },
-            "partitions": []
+            {
+                "name": "sda3",
+                "type": "part",
+                "mountpoint": null,
+                "fstype": "LVM2_member",
+                "label": null,
+                "uuid": "gmjf2B-U6Fd-hVZQ-TBlf-bqZY-U0FE-vf21RT",
+                "size": {
+                "bytes": 30061625344,
+                "gb": 28.0
+                },
+                "children": [
+                {
+                    "name": "ubuntu--vg-ubuntu--lv",
+                    "type": "lvm",
+                    "mountpoint": "/",
+                    "fstype": "ext4",
+                    "label": null,
+                    "uuid": "c4695e5a-c0b7-4651-9fe9-3d67f3e28f43",
+                    "size": {
+                    "bytes": 15028191232,
+                    "gb": 14.0
+                    },
+                    "children": []
+                }
+                ],
+                "role": "unknown"
+            }
+            ]
         }
         ]
     },
     "network": {
-        "total_interfaces": 1,
+        "total_interfaces": 2,
         "default_gateway": {
-        "gateway": "172.25.64.1",
-        "interface": "eth0",
-        "metric": null,
-        "protocol": "kernel"
+        "gateway": "192.168.48.2",
+        "interface": "ens33",
+        "metric": 100,
+        "protocol": "dhcp"
         },
         "interfaces": [
         {
-            "name": "eth0",
-            "mac": "00:15:5d:2d:23:3e",
+            "name": "ens33",
+            "mac": "00:0c:29:2e:bd:12",
             "link_type": "ether",
             "mtu": 1500,
             "state": "UP",
@@ -278,15 +220,48 @@ curl -X POST http://localhost/api/discovery \
             ],
             "ipv4": [
             {
-                "address": "172.25.69.91",
-                "prefix": 20,
+                "address": "192.168.48.129",
+                "prefix": 24,
                 "scope": "global",
-                "broadcast": "172.25.79.255"
+                "broadcast": "192.168.48.255"
             }
             ],
             "ipv6": [
             {
-                "address": "fe80::215:5dff:fe2d:233e",
+                "address": "fe80::20c:29ff:fe2e:bd12",
+                "prefix": 64,
+                "scope": "link",
+                "broadcast": null
+            }
+            ],
+            "speed_mbps": null,
+            "duplex": null,
+            "driver": null,
+            "bus_info": null
+        },
+        {
+            "name": "ens34",
+            "mac": "00:0c:29:2e:bd:1c",
+            "link_type": "ether",
+            "mtu": 1500,
+            "state": "UP",
+            "flags": [
+            "BROADCAST",
+            "MULTICAST",
+            "UP",
+            "LOWER_UP"
+            ],
+            "ipv4": [
+            {
+                "address": "10.10.10.1",
+                "prefix": 27,
+                "scope": "global",
+                "broadcast": "10.10.10.31"
+            }
+            ],
+            "ipv6": [
+            {
+                "address": "fe80::20c:29ff:fe2e:bd1c",
                 "prefix": 64,
                 "scope": "link",
                 "broadcast": null
