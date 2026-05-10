@@ -15,7 +15,108 @@ def create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel):
 
     @discovery_bp.route('/discovery', methods=['POST'])
     def post_discovery():
-        """Recebe e persiste o discovery gerado pelo Agent."""
+        """
+        Recebe e persiste o discovery gerado pelo Agent.
+
+        O endpoint aceita dois formatos de payload, dependendo do ambiente
+        onde o agente está sendo executado:
+
+        --- MÁQUINA FÍSICA (ex: Linux Mint) ---
+        {
+            "type": "discovery",
+            "metadata": { "schema_version": "1.0", "notes": [] },
+            "environment": { "is_virtualized": false, "hypervisor": null },
+            "cpu": {
+                "model_name": "Intel(R) Core(TM) i5-4690 CPU @ 3.50GHz",
+                "vendor": "GenuineIntel",
+                "cores_logical": 4,
+                "frequency": {
+                    "base_mhz": null,
+                    "max_mhz": 3900.0,
+                    "min_mhz": 800.0
+                }
+            },
+            "memory": {
+                "total_mb": 11895.33,
+                "total_gb": 11.62,
+                "slots": {
+                    "modules": [
+                        { "size_gb": 4.0, "type": "DDR3", "speed_mhz": 1333 }
+                    ]
+                }
+            },
+            "disk": {
+                "total_disks": 1,
+                "disks": [
+                    {
+                        "device": "/dev/sda",
+                        "model": "TOSHIBA DT01ACA100",
+                        "size": { "bytes": 1000204886016, "gb": 931.51 }
+                    }
+                ]
+            }
+        }
+
+        --- MÁQUINA VIRTUAL (ex: Ubuntu 24.04 em VMware) ---
+        {
+            "type": "discovery",
+            "metadata": { "schema_version": "1.0", "notes": ["..."] },
+            "environment": { "is_virtualized": true, "hypervisor": "VMware" },
+            "system": {
+                "hostname": "teste-ubuntu",
+                "os": {
+                    "name": "Ubuntu",
+                    "pretty_name": "Ubuntu 24.04.4 LTS",
+                    "version_id": "24.04"
+                },
+                "kernel": { "release": "6.8.0-110-generic" },
+                "uptime_seconds": 808
+            },
+            "cpu": {
+                "model_name": "AMD Ryzen 5 7520U with Radeon Graphics",
+                "topology": { "vcpus": 2 },
+                "frequency": {
+                    "base_mhz": { "value": null },
+                    "max_mhz": { "value": 2794.546 }
+                }
+            },
+            "memory": {
+                "total": { "bytes": 2013175808, "gb": 1.87 },
+                "slots": { "modules": [] }
+            },
+            "disk": {
+                "total_disks": 1,
+                "disks": [
+                    {
+                        "device": "/dev/sda",
+                        "model": "VMware Virtual S",
+                        "size": { "bytes": 32212254720, "gb": 30.0 }
+                    }
+                ]
+            },
+            "network": {
+                "total_interfaces": 2,
+                "default_gateway": { "gateway": "192.168.48.2", "interface": "ens33" },
+                "interfaces": [
+                    {
+                        "name": "ens33",
+                        "mac": "00:0c:29:2e:bd:12",
+                        "ipv4": [{ "address": "192.168.48.129", "prefix": 24 }]
+                    }
+                ]
+            },
+            "motherboard": {
+                "manufacturer": null,
+                "product_name": null,
+                "bios": { "vendor": null, "version": null }
+            }
+        }
+
+        Campos obrigatórios: nenhum (o endpoint é tolerante a ausências).
+        O hostname e IP são extraídos do payload ou inferidos do request.
+
+        Retorna 201 Created com os dados persistidos.
+        """
         try:
             dados = request.get_json(silent=True)
 
@@ -43,6 +144,7 @@ def create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel):
                 db.session.flush()
             else:
                 host.hostname = campos['hostname']
+                host.last_seen = datetime.utcnow()
 
             agent = _upsert_agent(db, AgentModel, host.id, campos)
 
@@ -54,17 +156,24 @@ def create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel):
                 discovery = HostDiscoveryModel(host_id=host.id)
                 db.session.add(discovery)
 
-            discovery.is_virtualized = campos['is_virtualized']
-            discovery.hypervisor = campos['hypervisor']
-            discovery.cpu_model = campos['cpu_model']
-            discovery.cpu_cores = campos['cpu_vcpus']
+            # Campos comuns (físico e VM)
+            discovery.is_virtualized    = campos['is_virtualized']
+            discovery.hypervisor        = campos['hypervisor']
+            discovery.cpu_model         = campos['cpu_model']
+            discovery.cpu_cores         = campos['cpu_vcpus']
             discovery.cpu_clock_base_mhz = campos['cpu_clock_base_mhz']
-            discovery.cpu_max_mhz = campos['cpu_max_mhz']
-            discovery.total_memory_gb = campos['memory_total_gb']
-            discovery.disk_total_gb = campos['disk_total_gb']
-            discovery.memories = campos['memories']
-            discovery.disks = campos['disks']
-            discovery.networks = campos['networks']
+            discovery.cpu_max_mhz       = campos['cpu_max_mhz']
+            discovery.total_memory_gb   = campos['memory_total_gb']
+            discovery.disk_total_gb     = campos['disk_total_gb']
+            discovery.memories          = campos['memories']
+            discovery.disks             = campos['disks']
+            discovery.networks          = campos['networks']
+
+            # Campos exclusivos da VM (system)
+            discovery.os_name           = campos['os_name']
+            discovery.os_version        = campos['os_version']
+            discovery.kernel_release    = campos['kernel_release']
+            discovery.uptime_seconds    = campos['uptime_seconds']
 
             db.session.commit()
 
@@ -112,6 +221,8 @@ def create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel):
     return discovery_bp
 
 
+# ==================== HELPERS ====================
+
 def _discovery_to_response(discovery):
     dados = discovery.to_dict()
     host = discovery.host
@@ -128,16 +239,26 @@ def _discovery_to_response(discovery):
 
 
 def _extract_discovery_fields(dados, remote_addr):
-    agent = dados.get('agent') or {}
-    system = dados.get('system') or {}
+    """
+    Extrai campos do payload de discovery.
+
+    Compatível com dois formatos:
+    - Máquina física: cpu.cores_logical, memory.total_mb, frequency como valores diretos
+    - VM: cpu.topology.vcpus, memory.total.gb, frequency como objetos com .value
+    """
+    agent       = dados.get('agent') or {}
+    system      = dados.get('system') or {}
     environment = dados.get('environment') or {}
-    metadata = dados.get('metadata') or {}
-    cpu = dados.get('cpu') or {}
-    memory = dados.get('memory') or {}
+    metadata    = dados.get('metadata') or {}
+    cpu         = dados.get('cpu') or {}
+    memory      = dados.get('memory') or {}
+    os_info     = system.get('os') or {}
+    kernel      = system.get('kernel') or {}
 
     ip_address = (
         agent.get('primary_ip')
         or dados.get('primary_ip')
+        or _get_primary_ip_from_network(dados.get('network'))
         or remote_addr
         or '0.0.0.0'
     )
@@ -150,54 +271,84 @@ def _extract_discovery_fields(dados, remote_addr):
     )
 
     is_virtualized = _get_value(
-        environment,
-        'is_virtualized',
+        environment, 'is_virtualized',
         fallback=dados.get('is_virtualized', False),
     )
 
+    # cpu_vcpus: VM usa topology.vcpus, física usa cores_logical direto
+    cpu_vcpus = (
+        _get_nested(cpu, 'topology', 'vcpus')
+        or cpu.get('cores_logical')
+        or dados.get('cpu_vcpus')
+    )
+
+    # memory_total_gb: VM usa memory.total.gb, física usa memory.total_gb ou total_mb
+    memory_total_gb = (
+        _get_nested(memory, 'total', 'gb')
+        or memory.get('total_gb')
+        or (memory['total_mb'] / 1024 if memory.get('total_mb') else None)
+        or dados.get('memory_total_gb')
+    )
+
     return {
-        'hostname': hostname,
-        'ip_address': ip_address,
-        'agent_id': _safe_int(agent.get('agent_id') or dados.get('agent_id')),
-        'agent_version': metadata.get('schema_version') or dados.get('agent_version'),
-        'is_virtualized': bool(is_virtualized),
-        'hypervisor': _get_value(
-            environment,
-            'hypervisor',
-            fallback=dados.get('hypervisor'),
-        ),
-        'cpu_model': cpu.get('model_name') or dados.get('cpu_model'),
-        'cpu_vcpus': _get_nested(
-            cpu,
-            'topology',
-            'vcpus',
-            fallback=dados.get('cpu_vcpus'),
-        ),
-        'cpu_clock_base_mhz': _get_int_from_nested(
-            cpu,
-            'frequency',
-            'base_mhz',
-            'value',
-            fallback=dados.get('cpu_clock_base_mhz'),
-        ),
-        'cpu_max_mhz': _get_int_from_nested(
-            cpu,
-            'frequency',
-            'max_mhz',
-            'value',
-            fallback=dados.get('cpu_max_mhz'),
-        ),
-        'memory_total_gb': _get_nested(
-            memory,
-            'total',
-            'gb',
-            fallback=dados.get('memory_total_gb'),
-        ),
-        'disk_total_gb': _get_disk_total_gb(dados),
-        'memories': memory or dados.get('memories'),
-        'disks': _get_nested(dados, 'disk', 'disks', fallback=dados.get('disks')),
-        'networks': dados.get('network') or dados.get('networks'),
+        'hostname':          hostname,
+        'ip_address':        ip_address,
+        'agent_id':          _safe_int(agent.get('agent_id') or dados.get('agent_id')),
+        'agent_version':     metadata.get('schema_version') or dados.get('agent_version'),
+        'is_virtualized':    bool(is_virtualized),
+        'hypervisor':        _get_value(environment, 'hypervisor', fallback=dados.get('hypervisor')),
+
+        # CPU
+        'cpu_model':         cpu.get('model_name') or dados.get('cpu_model'),
+        'cpu_vcpus':         cpu_vcpus,
+        'cpu_clock_base_mhz': _get_cpu_freq(cpu, 'base_mhz', fallback=dados.get('cpu_clock_base_mhz')),
+        'cpu_max_mhz':       _get_cpu_freq(cpu, 'max_mhz',  fallback=dados.get('cpu_max_mhz')),
+
+        # Memória
+        'memory_total_gb':   memory_total_gb,
+        'memories':          memory or dados.get('memories'),
+
+        # Disco
+        'disk_total_gb':     _get_disk_total_gb(dados),
+        'disks':             _get_nested(dados, 'disk', 'disks', fallback=dados.get('disks')),
+
+        # Rede
+        'networks':          dados.get('network') or dados.get('networks'),
+
+        # Sistema (exclusivo VM)
+        'os_name':           os_info.get('pretty_name') or os_info.get('name'),
+        'os_version':        os_info.get('version_id'),
+        'kernel_release':    kernel.get('release'),
+        'uptime_seconds':    system.get('uptime_seconds'),
     }
+
+
+def _get_cpu_freq(cpu, field, fallback=None):
+    """
+    Extrai frequência de CPU nos dois formatos:
+    - Físico: cpu.frequency.max_mhz = 3900.0  (valor direto)
+    - VM:     cpu.frequency.max_mhz = { "value": 2794.546 }  (objeto com .value)
+    """
+    freq = _get_nested(cpu, 'frequency', field)
+    if freq is None:
+        return fallback
+    if isinstance(freq, dict):
+        value = freq.get('value')
+        return int(float(value)) if value is not None else fallback
+    return int(float(freq))
+
+
+def _get_primary_ip_from_network(network):
+    """Tenta extrair o IP primário da interface padrão (payload da VM)."""
+    if not isinstance(network, dict):
+        return None
+    gateway_iface = (network.get('default_gateway') or {}).get('interface')
+    for iface in (network.get('interfaces') or []):
+        if iface.get('name') == gateway_iface:
+            ipv4_list = iface.get('ipv4') or []
+            if ipv4_list:
+                return ipv4_list[0].get('address')
+    return None
 
 
 def _upsert_agent(db, AgentModel, host_id, campos):
@@ -215,10 +366,10 @@ def _upsert_agent(db, AgentModel, host_id, campos):
             agent.id = campos['agent_id']
         db.session.add(agent)
 
-    agent.host_id = host_id
+    agent.host_id      = host_id
     agent.agent_version = campos['agent_version']
     agent.last_checkin = datetime.utcnow()
-    agent.status = 'active'
+    agent.status       = 'active'
 
     return agent
 
@@ -236,13 +387,6 @@ def _get_nested(source, *keys, fallback=None):
             return fallback
         current = current.get(key)
     return fallback if current is None else current
-
-
-def _get_int_from_nested(source, *keys, fallback=None):
-    value = _get_nested(source, *keys, fallback=fallback)
-    if value is None:
-        return None
-    return int(float(value))
 
 
 def _safe_int(value):
