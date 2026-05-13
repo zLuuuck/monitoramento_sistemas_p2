@@ -10,7 +10,8 @@ CREATE INDEX idx_host_ip ON host (ip_address);
 
 -- 2. TABELA agents (agentes de monitoramento)
 CREATE TABLE agents (
-    id SERIAL PRIMARY KEY,
+    id 
+     PRIMARY KEY,
     host_id INT NOT NULL UNIQUE REFERENCES host(id) ON DELETE CASCADE,
     agent_version VARCHAR(20),
     last_checkin TIMESTAMPTZ DEFAULT NOW(),
