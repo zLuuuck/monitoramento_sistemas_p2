@@ -13,7 +13,7 @@ export function Card({ title, value, unit, icon, color }) {
       <div className="flex justify-between items-start">
         <div>
           <p className="text-gray-500 text-sm">{title}</p>
-          <p className="text-3xl font-bold text-gray-800">
+          <p className="text-2xl md:text-3xl font-bold text-gray-800 break-words">
             {value} <span className="text-lg font-normal">{unit}</span>
           </p>
         </div>

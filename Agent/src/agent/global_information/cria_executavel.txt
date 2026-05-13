@@ -1,0 +1,5 @@
+pyinstaller --onefile -n agent \
+  --paths src \
+  --distpath Agent_Exec/dist \
+  --workpath Agent_Exec/build \
+  Agent_Exec/main.py

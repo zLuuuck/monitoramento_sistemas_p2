@@ -16,15 +16,13 @@ class Metric:
 
             id = db.Column(db.Integer, primary_key=True)
             host_id = db.Column(db.Integer, db.ForeignKey(
-                'hosts.id'), nullable=False)
+                'host.id'), nullable=False)
             timestamp = db.Column(db.DateTime, nullable=False)
             cpu_percent = db.Column(db.Float, nullable=True)
             memory_percent = db.Column(db.Float, nullable=True)
             disk_percent = db.Column(db.Float, nullable=True)
-            net_sent = db.Column(
-                db.BigInteger, nullable=True)  # bytes enviados
-            net_recv = db.Column(
-                db.BigInteger, nullable=True)  # bytes recebidos
+            net_sent = db.Column('net_sent_bytes', db.BigInteger, nullable=True)
+            net_recv = db.Column('net_recv_bytes', db.BigInteger, nullable=True)
 
             # Relacionamento com host
             host = db.relationship('HostModel', back_populates='metrics')

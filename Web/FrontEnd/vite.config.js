@@ -12,13 +12,12 @@ export default defineConfig({
       usePolling: true      // Hot Reload no Windows
     },
     // 🔥 Proxy para o BackEnd (Evita erro de CORS durante desenvolvimento)
-    //proxy: {
-    // '/api': {
-    //    target: 'http://backend:5000', // Use o nome do serviço no docker-compose
-    //    changeOrigin: true,
-    //    secure: false,
-        // rewrite: (path) => path.replace(/^\/api/, '') // Se precisar remover o /api
-    //  }
-    //}
+    proxy: {
+      '/api': {
+        target: 'http://backend:5000', // Nome do serviço no docker-compose
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   }
 })

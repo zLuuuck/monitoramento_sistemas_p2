@@ -11,7 +11,7 @@ services:
       POSTGRES_DB: monitor
     volumes:
       - postgres_data:/var/lib/postgresql/data
-       - ./Web/database/init.sql:/docker-entrypoint-initdb.d/init.sql 
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"  # Opcional, para acessar com ferramentas externas (ex: pgAdmin)
     healthcheck:
