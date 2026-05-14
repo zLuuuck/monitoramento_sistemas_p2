@@ -1,0 +1,9 @@
+[project]
+name = "agent-monitor"
+version = "1.0.0"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+agent = "agent.__main__:main"
