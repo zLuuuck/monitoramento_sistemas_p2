@@ -2,6 +2,7 @@
 import sys          # <-- ADICIONADO
 import time
 import json
+from datetime import datetime, timezone
 
 from agent.discovery.cpu_discovery.cpu import get_cpu_info
 from agent.discovery.mem_discovery.mem import get_mem_info
@@ -110,11 +111,15 @@ def main():
     while True:
         try:
             metrics = collect_all()
+            timestamp = datetime.now(timezone.utc).isoformat()
             payload = {
                 "type": "metrics",
                 "global": metrics_global,
-                "timestamp": time.time(),
-                "data": metrics,
+                "timestamp": timestamp,
+                "data": {
+                    **metrics,
+                    "timestamp": timestamp,
+                },
             }
             print("Enviando métricas...")
             if dry_run:

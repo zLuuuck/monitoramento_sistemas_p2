@@ -30,10 +30,9 @@ export const api = {
   },
   getMetrics: async (hostId, limit = 30) => {
     if (!hostId) {
-      return [];
+      return { metrics: [], status: 'offline', is_online: false, last_metric_at: null };
     }
 
-    const data = await request(`/api/metrics?host_id=${hostId}&limit=${limit}`);
-    return data.metrics || [];
+    return request(`/api/metrics?host_id=${hostId}&limit=${limit}`);
   },
 };

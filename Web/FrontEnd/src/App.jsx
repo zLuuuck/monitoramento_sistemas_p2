@@ -15,18 +15,21 @@ function App() {
     const [discovery, setDiscovery] = useState([]);
     const [discoveryLoading, setDiscoveryLoading] = useState(true);
     const [discoveryError, setDiscoveryError] = useState("");
+    const [hostStatusById, setHostStatusById] = useState({});
     const [discoveryPayload, setDiscoveryPayload] = useState("");
     const [postingDiscovery, setPostingDiscovery] = useState(false);
     const [postDiscoveryMessage, setPostDiscoveryMessage] = useState("");
 
-    const carregarDiscovery = async ({ selecionarPrimeiro = false } = {}) => {
+    const carregarDiscovery = async ({ selecionarPrimeiro = false, silent = false } = {}) => {
         try {
-            setDiscoveryLoading(true);
+            if (!silent) {
+                setDiscoveryLoading(true);
+            }
             setDiscoveryError("");
             const dados = await api.getDiscovery();
-            setDiscovery(dados);
+            setDiscovery((atuais) => sameDiscovery(atuais, dados) ? atuais : dados);
 
-            if (dados.length > 0 && (selecionarPrimeiro || !selectedHost)) {
+            if (dados.length > 0 && selecionarPrimeiro) {
                 setSelectedHost(String(dados[0].host_id));
             }
         } catch (error) {
@@ -38,11 +41,13 @@ function App() {
 
     useEffect(() => {
         carregarDiscovery({ selecionarPrimeiro: true });
+
+        return undefined;
     }, []);
 
     // Carregar métricas quando mudar o host
     useEffect(() => {
-        const carregarMetricas = async () => {
+        const carregarMetricas = async ({ silent = false } = {}) => {
             if (!selectedHost) {
                 setMetrics([]);
                 setLoading(false);
@@ -50,20 +55,41 @@ function App() {
             }
 
             try {
-                setLoading(true);
+                if (!silent) {
+                    setLoading(true);
+                }
                 setMetricsError("");
-                const dados = await api.getMetrics(selectedHost);
-                setMetrics(dados);
+                const resposta = await api.getMetrics(selectedHost);
+                const dados = resposta.metrics || [];
+                setMetrics((atuais) => sameMetrics(atuais, dados) ? atuais : dados);
+                setHostStatusById((atuais) => {
+                    const proximo = {
+                        status: resposta.status || "offline",
+                        isOnline: Boolean(resposta.is_online),
+                        lastMetricAt: resposta.last_metric_at,
+                    };
+
+                    return sameJson(atuais[selectedHost], proximo)
+                        ? atuais
+                        : { ...atuais, [selectedHost]: proximo };
+                });
             } catch (error) {
-                setMetrics([]);
+                if (!silent) {
+                    setMetrics([]);
+                }
                 setMetricsError(error.message);
             } finally {
-                setLoading(false);
+                if (!silent) {
+                    setLoading(false);
+                }
             }
         };
 
         carregarMetricas();
-        const intervalId = window.setInterval(carregarMetricas, 5000);
+        const intervalId = window.setInterval(
+            () => carregarMetricas({ silent: true }),
+            5000,
+        );
 
         return () => window.clearInterval(intervalId);
     }, [selectedHost]);
@@ -75,7 +101,8 @@ function App() {
             ? discovery.map((item) => ({
                 id: String(item.host_id),
                 name: item.host?.hostname || `Host ${item.host_id}`,
-                status: "online",
+                status: hostStatusById[String(item.host_id)]?.status || item.host?.status || "offline",
+                isOnline: hostStatusById[String(item.host_id)]?.isOnline ?? Boolean(item.host?.is_online),
                 ip: item.host?.ip_address,
             }))
             : [];
@@ -85,13 +112,18 @@ function App() {
     const selectedHostInfo = hostsDisponiveis.find(
         (host) => host.id === selectedHost,
     );
-    const discos = Array.isArray(selectedDiscovery?.disks)
-        ? selectedDiscovery.disks
+    const hostIsVirtualized = isTruthy(selectedDiscovery?.is_virtualized);
+    const selectedDisks = parseJsonValue(selectedDiscovery?.disks);
+    const selectedNetworks = parseJsonValue(selectedDiscovery?.networks);
+    const selectedMemories = parseJsonValue(selectedDiscovery?.memories);
+    const selectedMotherboard = parseJsonValue(selectedDiscovery?.motherboard);
+    const discos = Array.isArray(selectedDisks)
+        ? selectedDisks
         : [];
-    const redes = Array.isArray(selectedDiscovery?.networks?.interfaces)
-        ? selectedDiscovery.networks.interfaces
-        : Array.isArray(selectedDiscovery?.networks)
-            ? selectedDiscovery.networks
+    const redes = Array.isArray(selectedNetworks?.interfaces)
+        ? selectedNetworks.interfaces
+        : Array.isArray(selectedNetworks)
+            ? selectedNetworks
             : [];
 
     const enviarDiscovery = async (event) => {
@@ -190,10 +222,10 @@ function App() {
                     />
                     <Card
                         title="Status"
-                        value={selectedHostInfo?.status === "online" ? "Online" : "Offline"}
+                        value={selectedHostInfo?.isOnline ? "Online" : "Offline"}
                         unit=""
-                        icon={selectedHostInfo?.status === "online" ? "🟢" : "🔴"}
-                        color={selectedHostInfo?.status === "online" ? "green" : "red"}
+                        icon={selectedHostInfo?.isOnline ? "🟢" : "🔴"}
+                        color={selectedHostInfo?.isOnline ? "green" : "red"}
                     />
                 </div>
             )}
@@ -262,7 +294,7 @@ function App() {
 
                 {!discoveryLoading && selectedDiscovery && (
                     <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
                             <Card
                                 title="Hostname"
                                 value={selectedDiscovery.host?.hostname || "-"}
@@ -286,10 +318,17 @@ function App() {
                             />
                             <Card
                                 title="Virtualização"
-                                value={selectedDiscovery.is_virtualized ? "Sim" : "Nao"}
+                                value={hostIsVirtualized ? "Sim" : "Nao"}
                                 unit=""
                                 icon="🖥️"
-                                color={selectedDiscovery.is_virtualized ? "green" : "blue"}
+                                color={hostIsVirtualized ? "green" : "blue"}
+                            />
+                            <Card
+                                title="Status"
+                                value={selectedHostInfo?.isOnline ? "Online" : "Offline"}
+                                unit=""
+                                icon={selectedHostInfo?.isOnline ? "🟢" : "🔴"}
+                                color={selectedHostInfo?.isOnline ? "green" : "red"}
                             />
                         </div>
 
@@ -316,10 +355,12 @@ function App() {
                                     label="Clock maximo"
                                     value={formatMhz(selectedDiscovery.cpu_max_mhz)}
                                 />
-                                <Info
-                                    label="Hypervisor"
-                                    value={selectedDiscovery.hypervisor || "Nao informado"}
-                                />
+                                {hostIsVirtualized && (
+                                    <Info
+                                        label="Hypervisor"
+                                        value={selectedDiscovery.hypervisor || "Nao informado"}
+                                    />
+                                )}
                                 <Info label="Sistema operacional" value={selectedDiscovery.os_name} />
                                 <Info label="Versao do OS" value={selectedDiscovery.os_version} />
                                 <Info label="Kernel" value={selectedDiscovery.kernel_release} />
@@ -330,17 +371,16 @@ function App() {
                             </div>
                         </div>
 
+                        {!hostIsVirtualized && (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <MemoryDetails memory={selectedMemories} />
+                                <MotherboardDetails motherboard={selectedMotherboard} />
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <DiscoveryList
-                                title="Discos"
-                                items={discos}
-                                emptyText="Nenhum disco informado"
-                            />
-                            <DiscoveryList
-                                title="Redes"
-                                items={redes}
-                                emptyText="Nenhuma interface informada"
-                            />
+                            <DiskList items={discos} />
+                            <NetworkList items={redes} />
                         </div>
                     </div>
                 )}
@@ -350,6 +390,62 @@ function App() {
             <LogsPlaceholder />
         </Layout>
     );
+}
+
+function sameMetrics(current, next) {
+    if (current.length !== next.length) {
+        return false;
+    }
+
+    const currentLast = current[current.length - 1];
+    const nextLast = next[next.length - 1];
+
+    return currentLast?.id === nextLast?.id
+        && currentLast?.timestamp === nextLast?.timestamp;
+}
+
+function sameJson(current, next) {
+    return JSON.stringify(current) === JSON.stringify(next);
+}
+
+function sameDiscovery(current, next) {
+    return sameJson(
+        current.map(discoveryComparable),
+        next.map(discoveryComparable),
+    );
+}
+
+function discoveryComparable(item) {
+    return {
+        ...item,
+        host: item.host
+            ? {
+                ...item.host,
+                last_seen: undefined,
+            }
+            : item.host,
+    };
+}
+
+function parseJsonValue(value) {
+    if (typeof value !== "string") {
+        return value;
+    }
+
+    try {
+        const parsed = JSON.parse(value);
+        return typeof parsed === "string" ? parseJsonValue(parsed) : parsed;
+    } catch {
+        return value;
+    }
+}
+
+function isTruthy(value) {
+    if (typeof value === "string") {
+        return value.toLowerCase() === "true";
+    }
+
+    return Boolean(value);
 }
 
 function Info({ label, value }) {
@@ -364,29 +460,30 @@ function Info({ label, value }) {
     );
 }
 
-function DiscoveryList({ title, items, emptyText }) {
+function DiskList({ items }) {
     return (
         <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">{title}</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Discos</h3>
             {items.length === 0 ? (
-                <p className="text-sm text-gray-500">{emptyText}</p>
+                <p className="text-sm text-gray-500">Nenhum disco informado</p>
             ) : (
                 <div className="space-y-3">
                     {items.map((item, index) => (
                         <div
-                            key={item.name || item.device || item.interface || index}
+                            key={item.device || index}
                             className="border border-gray-200 rounded-lg p-3"
                         >
                             <p className="font-medium text-gray-800">
-                                {item.name ||
-                                    item.device ||
-                                    item.interface ||
-                                    item.mountpoint ||
-                                    `Item ${index + 1}`}
+                                {item.device || `Disco ${index + 1}`}
                             </p>
-                            <p className="text-sm text-gray-500 break-words">
-                                {summarizeObject(item)}
-                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 text-sm">
+                                <Info label="Modelo" value={item.model} />
+                                <Info label="Tipo" value={item.type} />
+                                <Info label="Interface" value={item.interface} />
+                                <Info label="Tamanho" value={formatBytesAsGb(item.size_bytes || item.size?.bytes)} />
+                                <Info label="Serial" value={item.serial} />
+                                <Info label="Firmware" value={item.firmware} />
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -395,15 +492,93 @@ function DiscoveryList({ title, items, emptyText }) {
     );
 }
 
-function summarizeObject(item) {
+function NetworkList({ items }) {
     return (
-        Object.entries(item)
-            .filter(
-                ([, value]) =>
-                    value !== null && value !== undefined && typeof value !== "object",
-            )
-            .map(([key, value]) => `${key}: ${value}`)
-            .join(" | ") || "Sem detalhes adicionais"
+        <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Redes</h3>
+            {items.length === 0 ? (
+                <p className="text-sm text-gray-500">Nenhuma interface informada</p>
+            ) : (
+                <div className="space-y-3">
+                    {items.map((item, index) => (
+                        <div
+                            key={item.name || item.interface || index}
+                            className="border border-gray-200 rounded-lg p-3"
+                        >
+                            <p className="font-medium text-gray-800">
+                                {item.name || item.interface || `Interface ${index + 1}`}
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 text-sm">
+                                <Info label="Estado" value={item.state} />
+                                <Info label="MAC" value={item.mac} />
+                                <Info label="IPv4" value={formatInterfaceAddresses(item, "ipv4")} />
+                                <Info label="IPv6" value={formatInterfaceAddresses(item, "ipv6")} />
+                                <Info label="Driver" value={item.driver} />
+                                <Info label="MTU" value={item.mtu} />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function MemoryDetails({ memory }) {
+    const slots = memory?.slots || {};
+    const modules = Array.isArray(slots.modules) ? slots.modules : [];
+
+    return (
+        <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Memória RAM</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm mb-4">
+                <Info label="Total" value={formatBytesAsGb(memory?.total_bytes)} />
+                <Info label="Slots usados" value={slots.used} />
+                <Info label="Slots livres" value={slots.free} />
+            </div>
+            {modules.length === 0 ? (
+                <p className="text-sm text-gray-500">Nenhum módulo informado</p>
+            ) : (
+                <div className="space-y-3">
+                    {modules.map((module, index) => (
+                        <div key={module.locator || index} className="border border-gray-200 rounded-lg p-3">
+                            <p className="font-medium text-gray-800">
+                                {module.locator || `Slot ${index + 1}`}
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 text-sm">
+                                <Info label="Populado" value={module.populated ? "Sim" : "Nao"} />
+                                <Info label="Tamanho" value={module.size_mb ? `${formatNumber(module.size_mb / 1024)} GB` : "-"} />
+                                <Info label="Tipo" value={module.type} />
+                                <Info label="Fabricante" value={module.manufacturer} />
+                                <Info label="Part number" value={module.part_number} />
+                                <Info label="Velocidade" value={formatMhz(module.speed_mhz)} />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function MotherboardDetails({ motherboard }) {
+    const bios = motherboard?.bios || {};
+    const ramSlots = motherboard?.ram_slots || {};
+
+    return (
+        <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Placa-mãe</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <Info label="Fabricante" value={motherboard?.manufacturer} />
+                <Info label="Modelo" value={motherboard?.product_name} />
+                <Info label="Versão" value={motherboard?.version} />
+                <Info label="Serial" value={motherboard?.serial_number} />
+                <Info label="Chipset" value={motherboard?.chipset} />
+                <Info label="BIOS" value={[bios.vendor, bios.version].filter(Boolean).join(" ") || "-"} />
+                <Info label="Data da BIOS" value={bios.release_date} />
+                <Info label="Slots RAM" value={ramSlots.total ? `${ramSlots.used || 0}/${ramSlots.total} usados` : "-"} />
+            </div>
+        </div>
     );
 }
 
@@ -415,6 +590,95 @@ function formatNumber(value) {
     return Number(value).toLocaleString("pt-BR", {
         maximumFractionDigits: 2,
     });
+}
+
+function formatBytesAsGb(value) {
+    if (value === null || value === undefined || value === "") {
+        return "-";
+    }
+
+    const number = Number(value);
+    if (Number.isNaN(number)) {
+        return "-";
+    }
+
+    return `${formatNumber(number / (1024 ** 3))} GB`;
+}
+
+function formatAddresses(addresses) {
+    const normalized = normalizeAddresses(addresses);
+
+    if (normalized.length === 0) {
+        return "-";
+    }
+
+    return normalized
+        .map((item) => {
+            if (!item.address) {
+                return null;
+            }
+            return item.prefix !== undefined
+                ? `${item.address}/${item.prefix}`
+                : item.address;
+        })
+        .filter(Boolean)
+        .join(", ") || "-";
+}
+
+function formatInterfaceAddresses(item, version) {
+    const candidates = version === "ipv4"
+        ? [
+            item.ipv4,
+            item.ipv4_addresses,
+            item.addresses?.ipv4,
+            item.addresses_v4,
+            item.ip,
+            item.address,
+        ]
+        : [
+            item.ipv6,
+            item.ipv6_addresses,
+            item.addresses?.ipv6,
+            item.addresses_v6,
+        ];
+
+    for (const candidate of candidates) {
+        const formatted = formatAddresses(candidate);
+        if (formatted !== "-") {
+            return formatted;
+        }
+    }
+
+    return "-";
+}
+
+function normalizeAddresses(addresses) {
+    addresses = parseJsonValue(addresses);
+
+    if (!addresses) {
+        return [];
+    }
+
+    if (typeof addresses === "string") {
+        return addresses.trim() ? [{ address: addresses }] : [];
+    }
+
+    if (!Array.isArray(addresses)) {
+        if (addresses.address || addresses.ip) {
+            return [{ ...addresses, address: addresses.address || addresses.ip }];
+        }
+
+        return Object.values(addresses).flatMap(normalizeAddresses);
+    }
+
+    return addresses
+        .map((item) => {
+            if (typeof item === "string") {
+                return { address: item };
+            }
+            return item;
+        })
+        .filter(Boolean);
 }
 
 function formatPercent(value) {

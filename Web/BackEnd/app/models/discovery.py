@@ -40,6 +40,7 @@ class HostDiscovery:
             memories            = db.Column(db.JSON,           nullable=True)
             disks               = db.Column(db.JSON,           nullable=True)
             networks            = db.Column(db.JSON,           nullable=True)
+            motherboard         = db.Column(db.JSON,           nullable=True)
 
             # Sistema operacional e kernel
             # Presentes no payload de VM — ausentes em máquina física (nullable)
@@ -80,6 +81,7 @@ class HostDiscovery:
                     'memories':           self.memories,
                     'disks':              self.disks,
                     'networks':           self.networks,
+                    'motherboard':        self.motherboard,
 
                     # Sistema operacional e kernel (VM)
                     'os_name':            self.os_name,

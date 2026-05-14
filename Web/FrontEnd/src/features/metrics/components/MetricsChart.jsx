@@ -61,6 +61,15 @@ export function MetricsChart({ metrics, title }) {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: false,
+    animations: false,
+    transitions: {
+      active: {
+        animation: {
+          duration: 0,
+        },
+      },
+    },
     plugins: {
       legend: {
         position: 'top',
@@ -101,7 +110,7 @@ export function MetricsChart({ metrics, title }) {
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="h-96">
-        <Line data={data} options={options} />
+        <Line data={data} options={options} updateMode="none" />
       </div>
     </div>
   );

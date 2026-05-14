@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 from sqlalchemy import or_
@@ -87,6 +87,7 @@ def create_metric_blueprint(db, HostModel, AgentModel, MetricModel):
             offset = max(request.args.get('offset', 0, type=int), 0)
 
             query = MetricModel.query.filter_by(host_id=host_id)
+            latest_metric = query.order_by(MetricModel.timestamp.desc()).first()
             metricas = query.order_by(MetricModel.timestamp.desc()) \
                 .limit(limit) \
                 .offset(offset) \
@@ -101,6 +102,9 @@ def create_metric_blueprint(db, HostModel, AgentModel, MetricModel):
                 'offset': offset,
                 'host_id': host_id,
                 'hostname': host.hostname,
+                'last_metric_at': latest_metric.timestamp.isoformat() if latest_metric else None,
+                'is_online': _is_online_from_metric(latest_metric.timestamp if latest_metric else None),
+                'status': 'online' if _is_online_from_metric(latest_metric.timestamp if latest_metric else None) else 'offline',
             }), 200
 
         except Exception as erro:
@@ -215,6 +219,14 @@ def _parse_timestamp(value):
         return datetime.fromisoformat(str(value).replace('Z', '+00:00'))
     except (ValueError, OSError, TypeError):
         return None
+
+
+def _is_online_from_metric(last_metric_at, timeout_seconds=30):
+    if last_metric_at is None:
+        return False
+    if last_metric_at.tzinfo is not None:
+        last_metric_at = last_metric_at.astimezone(timezone.utc).replace(tzinfo=None)
+    return (datetime.utcnow() - last_metric_at).total_seconds() < timeout_seconds
 
 
 def _number(value):

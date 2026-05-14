@@ -36,6 +36,7 @@ def garantir_schema_discovery():
         "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS os_version VARCHAR(50)",
         "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS kernel_release VARCHAR(200)",
         "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS uptime_seconds INTEGER",
+        "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS motherboard JSONB",
     ]
 
     try:
@@ -76,7 +77,7 @@ garantir_schema_metrics()
 
 # Registra os Blueprints de rotas
 from .routes import register_discovery_routes, register_log_routes, register_metric_routes
-register_discovery_routes(app, db, HostModel, AgentModel, HostDiscoveryModel)
+register_discovery_routes(app, db, HostModel, AgentModel, HostDiscoveryModel, MetricModel)
 register_metric_routes(app, db, HostModel, AgentModel, MetricModel)
 register_log_routes(app, db, HostModel, LogEntryModel)
 
