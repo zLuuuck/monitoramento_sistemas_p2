@@ -1,3 +1,4 @@
+# app/app.py
 # Aplicação principal Flask para o sistema de monitoramento
 
 from flask import Flask, jsonify, request
@@ -7,13 +8,13 @@ from dotenv import load_dotenv
 import os
 from datetime import datetime
 
-# Carrega variáveis de ambiente
+# Carrega variáveis de ambiente do arquivo .env
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
-# Configuração do banco de dados PostgreSQL
+# Configuração do banco de dados PostgreSQL via variável de ambiente
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
     'DATABASE_URL',
     'postgresql://monitor:monitor@localhost:5432/monitor'
@@ -23,201 +24,115 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Inicialização do SQLAlchemy
 db = SQLAlchemy(app)
 
-# Importa e registra os modelos
+# Registra todos os modelos (Host, Agent, HostDiscovery, Metric, LogEntry)
 from .models import registrar_modelos
-HostModel, AgentModel, HostDiscoveryModel, MetricModel = registrar_modelos(db)
-from .routes import register_discovery_routes
-register_discovery_routes(app, db, HostModel, AgentModel, HostDiscoveryModel)
+HostModel, AgentModel, HostDiscoveryModel, MetricModel, LogEntryModel = registrar_modelos(db)
 
 
-# ==================== ENDPOINTS ====================
+def garantir_schema_discovery():
+    """Adiciona colunas de discovery em bancos criados antes do schema atual."""
+    comandos = [
+        "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS os_name VARCHAR(200)",
+        "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS os_version VARCHAR(50)",
+        "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS kernel_release VARCHAR(200)",
+        "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS uptime_seconds INTEGER",
+        "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS motherboard JSONB",
+    ]
+
+    try:
+        with app.app_context():
+            for comando in comandos:
+                db.session.execute(db.text(comando))
+            db.session.commit()
+    except Exception as erro:
+        db.session.rollback()
+        app.logger.warning("Nao foi possivel garantir schema de discovery: %s", erro)
 
 
-# Mudar para uma pasta de rotas específica
-# Dar um git clone no hackathon_startup para pegar a base do backend
-# E depois criar rotas específicas para cada funcionalidade (discovery, metrics, etc)
-# criar models para implentar o banco de dados e salvar os dados recebidos do agente
+garantir_schema_discovery()
 
 
+def garantir_schema_metrics():
+    """Adiciona colunas de metricas em bancos atuais sem depender do init.sql."""
+    comandos = [
+        "ALTER TABLE metrics ADD COLUMN IF NOT EXISTS memory_used_mb INTEGER",
+        "ALTER TABLE metrics ADD COLUMN IF NOT EXISTS memory_free_mb INTEGER",
+        "ALTER TABLE metrics ADD COLUMN IF NOT EXISTS memory_total_mb INTEGER",
+        "ALTER TABLE metrics ADD COLUMN IF NOT EXISTS disk_used_mb BIGINT",
+        "ALTER TABLE metrics ADD COLUMN IF NOT EXISTS disk_free_mb BIGINT",
+        "ALTER TABLE metrics ADD COLUMN IF NOT EXISTS disk_total_mb BIGINT",
+    ]
+
+    try:
+        with app.app_context():
+            for comando in comandos:
+                db.session.execute(db.text(comando))
+            db.session.commit()
+    except Exception as erro:
+        db.session.rollback()
+        app.logger.warning("Nao foi possivel garantir schema de metricas: %s", erro)
+
+
+garantir_schema_metrics()
+
+# Registra os Blueprints de rotas
+from .routes import register_discovery_routes, register_log_routes, register_metric_routes
+register_discovery_routes(app, db, HostModel, AgentModel, HostDiscoveryModel, MetricModel)
+register_metric_routes(app, db, HostModel, AgentModel, MetricModel)
+register_log_routes(app, db, HostModel, LogEntryModel)
+
+
+# ==================== ENDPOINTS GERAIS ====================
 
 @app.route('/api/status', methods=['GET'])
 def status():
-    """Verificação de saúde da API"""
+    """Verificação de saúde da API."""
     return jsonify({
-        'status': 'online',
-        'service': 'API Monitoramento',
-        'version': '2.0.0',
+        'status':    'online',
+        'service':   'API Monitoramento',
+        'version':   '2.0.0',
         'timestamp': datetime.utcnow().isoformat()
     }), 200
 
 
 @app.route('/api/hello', methods=['GET'])
 def hello():
-    """Endpoint de teste"""
+    """Endpoint de teste."""
     return jsonify({'message': 'Olá do BackEnd Flask!'}), 200
 
 
 @app.route('/health', methods=['GET'])
 def health():
-    """Endpoint para verificações de saúde do container"""
+    """Endpoint para verificações de saúde do container."""
     return jsonify({"status": "ok"}), 200
 
 
 @app.route('/api/hosts', methods=['GET'])
 def get_hosts():
-    """Retorna todos os hosts cadastrados"""
+    """Retorna todos os hosts cadastrados."""
     try:
         incluir_discovery = request.args.get('include_discovery', 'false').lower() == 'true'
         hosts = HostModel.query.order_by(HostModel.id.desc()).all()
-        
+
         hosts_lista = []
         for host in hosts:
             host_dict = host.to_dict()
             if incluir_discovery and hasattr(host, 'discovery') and host.discovery:
                 host_dict['dados_hardware'] = host.discovery.to_dict()
             hosts_lista.append(host_dict)
-        
+
         return jsonify({'hosts': hosts_lista, 'total': len(hosts_lista)}), 200
-        
+
     except Exception as erro:
         return jsonify({'erro': f'Erro ao buscar hosts: {str(erro)}'}), 500
-
-
-# ==================== SEMANA 2 - MÉTRICAS ====================
-
-@app.route('/api/metrics', methods=['POST'])
-def post_metrics():
-    """
-    Endpoint para receber métricas contínuas do agente (Semana 2)
-    
-    Payload esperado:
-    {
-        "host_id": 1,
-        "timestamp": "2026-05-04T10:00:00",
-        "cpu_percent": 45.2,
-        "memory_percent": 60.5,
-        "disk_percent": 30.0,
-        "net_sent": 1024000,
-        "net_recv": 2048000
-    }
-    
-    Campos obrigatórios: host_id, timestamp
-    """
-    try:
-        dados = request.get_json()
-        
-        if dados is None:
-            return jsonify({'erro': 'Payload JSON é obrigatório'}), 400
-        
-        # VALIDAÇÃO: campos obrigatórios
-        if 'host_id' not in dados:
-            return jsonify({'erro': 'Campo "host_id" é obrigatório'}), 400
-        
-        if 'timestamp' not in dados:
-            return jsonify({'erro': 'Campo "timestamp" é obrigatório'}), 400
-        
-        # Verifica se o host existe
-        host = HostModel.query.get(dados['host_id'])
-        if not host:
-            return jsonify({'erro': f'Host com id {dados["host_id"]} não encontrado'}), 404
-        
-        # Converte timestamp para datetime
-        try:
-            timestamp = datetime.fromisoformat(dados['timestamp'])
-        except ValueError:
-            return jsonify({'erro': 'Formato de timestamp inválido. Use ISO format (ex: 2026-05-04T10:00:00)'}), 400
-        
-        # Cria a métrica
-        metrica = MetricModel(
-            host_id=dados['host_id'],
-            timestamp=timestamp,
-            cpu_percent=dados.get('cpu_percent'),
-            memory_percent=dados.get('memory_percent'),
-            disk_percent=dados.get('disk_percent'),
-            net_sent=dados.get('net_sent'),
-            net_recv=dados.get('net_recv')
-        )
-        
-        db.session.add(metrica)
-        db.session.commit()
-        
-        return jsonify({
-            'message': 'Métrica salva com sucesso',
-            'metric_id': metrica.id,
-            'host_id': metrica.host_id,
-            'timestamp': metrica.timestamp.isoformat()
-        }), 201
-        
-    except Exception as erro:
-        db.session.rollback()
-        return jsonify({'erro': f'Erro interno ao processar métrica: {str(erro)}'}), 500
-
-
-@app.route('/api/metrics', methods=['GET'])
-def get_metrics():
-    """
-    Endpoint para consultar métricas (Semana 2)
-    
-    Parâmetros (query string):
-    - host_id (obrigatório): ID do host
-    - limit (opcional, padrão 20): número de registros
-    - offset (opcional, padrão 0): deslocamento para paginação
-    
-    Exemplo: GET /api/metrics?host_id=1&limit=10&offset=0
-    """
-    try:
-        # Parâmetros obrigatórios
-        host_id = request.args.get('host_id')
-        
-        if not host_id:
-            return jsonify({'erro': 'Parâmetro "host_id" é obrigatório'}), 400
-        
-        # Valida se host existe
-        host = HostModel.query.get(host_id)
-        if not host:
-            return jsonify({'erro': f'Host com id {host_id} não encontrado'}), 404
-        
-        # Parâmetros opcionais com valores padrão
-        limit = request.args.get('limit', 20, type=int)
-        offset = request.args.get('offset', 0, type=int)
-        
-        # Validações
-        if limit < 1:
-            limit = 20
-        if limit > 100:
-            limit = 100
-        if offset < 0:
-            offset = 0
-        
-        # Busca as métricas ordenadas por timestamp decrescente
-        metricas = MetricModel.query.filter_by(host_id=host_id)\
-            .order_by(MetricModel.timestamp.desc())\
-            .limit(limit)\
-            .offset(offset)\
-            .all()
-        
-        # Total de métricas do host
-        total = MetricModel.query.filter_by(host_id=host_id).count()
-        
-        return jsonify({
-            'metrics': [m.to_dict() for m in metricas],
-            'total': total,
-            'limit': limit,
-            'offset': offset,
-            'host_id': host_id,
-            'hostname': host.hostname
-        }), 200
-        
-    except Exception as erro:
-        return jsonify({'erro': f'Erro ao buscar métricas: {str(erro)}'}), 500
 
 
 # ==================== INICIALIZAÇÃO ====================
 
 if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))
+    port       = int(os.getenv('PORT', 5000))
     debug_mode = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
-    
+
     print("=" * 60)
     print("🚀 Sistema de Monitoramento - Backend")
     print("=" * 60)
@@ -230,8 +145,11 @@ if __name__ == '__main__':
     print("   GET  /api/hello")
     print("   GET  /api/hosts")
     print("   POST /api/discovery  (Semana 1)")
+    print("   GET  /api/discovery  (Semana 1)")
     print("   POST /api/metrics    (Semana 2)")
-    print("   GET  /api/metrics    (Semana 2 - consulta)")
+    print("   GET  /api/metrics    (Semana 2)")
+    print("   POST /api/logs       (Semana 3)")
+    print("   GET  /api/logs       (Semana 3)")
     print("=" * 60)
-    
+
     app.run(host='0.0.0.0', port=port, debug=debug_mode)

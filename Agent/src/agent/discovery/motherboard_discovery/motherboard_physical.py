@@ -1,6 +1,6 @@
 # discovery/motherboard_discovery/motherboard_physical.py
 from agent.utils.shell import run
-from agent.utils.motherboard_discovery_parsers import (
+from agent.utils.parsers import (
     parse_baseboard,
     parse_bios,
     parse_cpu_sockets,
@@ -46,12 +46,9 @@ def get_physical_motherboard_info(raw_data: dict) -> dict:
             "populated": sum(1 for s in cpu_sockets if s["populated"]),
             "sockets":   cpu_sockets,
         },
-        "ram_slots":      mem_summary,
+        "ram_slots":       mem_summary,
         "expansion_slots": system_slots,
-        "virtualization": {
-            "is_virtualized": False,
-            "hypervisor":     None,
-        },
+        # virtualization removido — contexto já está em global.environment
     }
 
 

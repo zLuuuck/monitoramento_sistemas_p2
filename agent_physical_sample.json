@@ -1,6 +1,4 @@
-curl -X POST http://localhost/api/discovery \
-    -H "Content-Type: application/json" \
-    -d '{
+{
   "global": {
     "collection_type": "discovery",
     "schema_version": "1.0",
@@ -300,4 +298,4 @@ curl -X POST http://localhost/api/discovery \
       "needs_root": false
     }
   }
-}'
+}

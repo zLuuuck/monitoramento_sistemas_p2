@@ -40,7 +40,7 @@ export function MetricsChart({ metrics, title }) {
     datasets: [
       {
         label: 'CPU (%)',
-        data: metrics.map(m => m.cpu_percent),
+        data: metrics.map(m => Number(m.cpu_percent || 0)),
         borderColor: 'rgb(59, 130, 246)',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         tension: 0.3,
@@ -48,7 +48,7 @@ export function MetricsChart({ metrics, title }) {
       },
       {
         label: 'Memória (%)',
-        data: metrics.map(m => m.memory_percent),
+        data: metrics.map(m => Number(m.memory_percent || 0)),
         borderColor: 'rgb(34, 197, 94)',
         backgroundColor: 'rgba(34, 197, 94, 0.1)',
         tension: 0.3,
@@ -61,6 +61,15 @@ export function MetricsChart({ metrics, title }) {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: false,
+    animations: false,
+    transitions: {
+      active: {
+        animation: {
+          duration: 0,
+        },
+      },
+    },
     plugins: {
       legend: {
         position: 'top',
@@ -75,7 +84,7 @@ export function MetricsChart({ metrics, title }) {
       tooltip: {
         callbacks: {
           label: function(context) {
-            return `${context.dataset.label}: ${context.raw.toFixed(1)}%`;
+            return `${context.dataset.label}: ${Number(context.raw || 0).toFixed(1)}%`;
           }
         }
       }
@@ -101,7 +110,7 @@ export function MetricsChart({ metrics, title }) {
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="h-96">
-        <Line data={data} options={options} />
+        <Line data={data} options={options} updateMode="none" />
       </div>
     </div>
   );
