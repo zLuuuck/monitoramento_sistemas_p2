@@ -1,6 +1,10 @@
 [project]
 name = "agent-monitor"
 version = "1.0.0"
+dependencies = [
+  "psutil",
+  "requests",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

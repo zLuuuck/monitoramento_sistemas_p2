@@ -28,4 +28,11 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  getMetrics: async (hostId, limit = 30) => {
+    if (!hostId) {
+      return { metrics: [], status: 'offline', is_online: false, last_metric_at: null };
+    }
+
+    return request(`/api/metrics?host_id=${hostId}&limit=${limit}`);
+  },
 };

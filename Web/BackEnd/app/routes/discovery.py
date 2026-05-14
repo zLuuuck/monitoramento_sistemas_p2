@@ -1,16 +1,16 @@
 from flask import Blueprint, jsonify, request
 from sqlalchemy import or_
-from datetime import datetime
+from datetime import datetime, timezone
 
 
-def register_discovery_routes(app, db, HostModel, AgentModel, HostDiscoveryModel):
+def register_discovery_routes(app, db, HostModel, AgentModel, HostDiscoveryModel, MetricModel):
     """Registra as rotas de discovery no app Flask."""
     app.register_blueprint(
-        create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel)
+        create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel, MetricModel)
     )
 
 
-def create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel):
+def create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel, MetricModel):
     discovery_bp = Blueprint('discovery', __name__, url_prefix='/api')
 
     @discovery_bp.route('/discovery', methods=['POST'])
@@ -181,6 +181,7 @@ def create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel):
             discovery.memories          = campos['memories']
             discovery.disks             = campos['disks']
             discovery.networks          = campos['networks']
+            discovery.motherboard       = campos['motherboard']
 
             # Campos exclusivos da VM (system)
             discovery.os_name           = campos['os_name']
@@ -220,7 +221,7 @@ def create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel):
 
             return jsonify({
                 'discoveries': [
-                    _discovery_to_response(discovery)
+                    _discovery_to_response(discovery, MetricModel)
                     for discovery in discoveries
                 ],
                 'total': len(discoveries),
@@ -236,9 +237,11 @@ def create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel):
 
 # ==================== HELPERS ====================
 
-def _discovery_to_response(discovery):
+def _discovery_to_response(discovery, MetricModel):
     dados = discovery.to_dict()
     host = discovery.host
+    latest_metric_at = _latest_metric_at(MetricModel, host.id) if host else None
+    is_online = _is_host_online(latest_metric_at)
 
     dados['host'] = {
         'id': host.id,
@@ -246,6 +249,9 @@ def _discovery_to_response(discovery):
         'ip_address': host.ip_address,
         'created_at': host.created_at.isoformat() if host.created_at else None,
         'last_seen': host.last_seen.isoformat() if host.last_seen else None,
+        'last_metric_at': latest_metric_at.isoformat() if latest_metric_at else None,
+        'status': 'online' if is_online else 'offline',
+        'is_online': is_online,
     } if host else None
 
     return dados
@@ -333,12 +339,13 @@ def _extract_discovery_fields(dados, remote_addr):
 
         # Rede
         'networks':          dados.get('network') or dados.get('networks'),
+        'motherboard':       dados.get('motherboard'),
 
         # Sistema (exclusivo VM)
         'os_name':           os_info.get('pretty_name') or os_info.get('name'),
         'os_version':        os_info.get('version_id') or os_info.get('version'),
         'kernel_release':    kernel.get('release'),
-        'uptime_seconds':    system.get('uptime_seconds'),
+        'uptime_seconds':    _safe_int(system.get('uptime_seconds')),
     }
 
 
@@ -397,6 +404,21 @@ def _get_value(source, key, fallback=None):
     if isinstance(source, dict):
         return source.get(key, fallback)
     return fallback
+
+
+def _is_host_online(last_seen, timeout_seconds=30):
+    if last_seen is None:
+        return False
+    if last_seen.tzinfo is not None:
+        last_seen = last_seen.astimezone(timezone.utc).replace(tzinfo=None)
+    return (datetime.utcnow() - last_seen).total_seconds() < timeout_seconds
+
+
+def _latest_metric_at(MetricModel, host_id):
+    latest = MetricModel.query.filter_by(host_id=host_id) \
+        .order_by(MetricModel.timestamp.desc()) \
+        .first()
+    return latest.timestamp if latest else None
 
 
 def _get_nested(source, *keys, fallback=None):

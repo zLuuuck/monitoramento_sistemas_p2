@@ -20,7 +20,13 @@ class Metric:
             timestamp = db.Column(db.DateTime, nullable=False)
             cpu_percent = db.Column(db.Float, nullable=True)
             memory_percent = db.Column(db.Float, nullable=True)
+            memory_used_mb = db.Column(db.Integer, nullable=True)
+            memory_free_mb = db.Column(db.Integer, nullable=True)
+            memory_total_mb = db.Column(db.Integer, nullable=True)
             disk_percent = db.Column(db.Float, nullable=True)
+            disk_used_mb = db.Column(db.BigInteger, nullable=True)
+            disk_free_mb = db.Column(db.BigInteger, nullable=True)
+            disk_total_mb = db.Column(db.BigInteger, nullable=True)
             net_sent = db.Column('net_sent_bytes', db.BigInteger, nullable=True)
             net_recv = db.Column('net_recv_bytes', db.BigInteger, nullable=True)
 
@@ -35,7 +41,13 @@ class Metric:
                     'timestamp': self.timestamp.isoformat() if self.timestamp else None,
                     'cpu_percent': self.cpu_percent,
                     'memory_percent': self.memory_percent,
+                    'memory_used_mb': self.memory_used_mb,
+                    'memory_free_mb': self.memory_free_mb,
+                    'memory_total_mb': self.memory_total_mb,
                     'disk_percent': self.disk_percent,
+                    'disk_used_mb': self.disk_used_mb,
+                    'disk_free_mb': self.disk_free_mb,
+                    'disk_total_mb': self.disk_total_mb,
                     'net_sent': self.net_sent,
                     'net_recv': self.net_recv
                 }

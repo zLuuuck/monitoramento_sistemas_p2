@@ -20,8 +20,12 @@ class HostDiscovery:
             cpu_model           = db.Column(db.String(200),    nullable=True)
             cpu_cores           = db.Column(db.SmallInteger,   nullable=True)
             cpu_clock_base_mhz  = db.Column(db.Integer,        nullable=True)
-            # cpu_ghz é coluna gerada pelo banco (GENERATED ALWAYS AS) — somente leitura
-            cpu_ghz             = db.Column(db.Numeric(4, 1),  nullable=True)
+            # cpu_ghz e GENERATED ALWAYS no PostgreSQL; SQLAlchemy nao deve inserir valor.
+            cpu_ghz             = db.Column(
+                db.Numeric(4, 1),
+                db.Computed("cpu_clock_base_mhz / 1000.0", persisted=True),
+                nullable=True,
+            )
             cpu_max_mhz         = db.Column(db.Integer,        nullable=True)
 
             # Memória e disco
@@ -36,6 +40,7 @@ class HostDiscovery:
             memories            = db.Column(db.JSON,           nullable=True)
             disks               = db.Column(db.JSON,           nullable=True)
             networks            = db.Column(db.JSON,           nullable=True)
+            motherboard         = db.Column(db.JSON,           nullable=True)
 
             # Sistema operacional e kernel
             # Presentes no payload de VM — ausentes em máquina física (nullable)
@@ -76,6 +81,7 @@ class HostDiscovery:
                     'memories':           self.memories,
                     'disks':              self.disks,
                     'networks':           self.networks,
+                    'motherboard':        self.motherboard,
 
                     # Sistema operacional e kernel (VM)
                     'os_name':            self.os_name,
