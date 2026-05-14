@@ -28,13 +28,17 @@ class Host:
             metrics = db.relationship(
                 'MetricModel', back_populates='host', lazy='dynamic')
 
+            logs = db.relationship(
+                'LogEntryModel', back_populates='host', lazy='dynamic')
+
             def to_dict(self):
                 """Converte o objeto Host para dicionario."""
                 return {
                     'id': self.id,
                     'hostname': self.hostname,
                     'ip_address': self.ip_address,
-                    'created_at': self.created_at.isoformat() if self.created_at else None
+                    'created_at': self.created_at.isoformat() if self.created_at else None,
+                    'last_seen': self.last_seen.isoformat() if self.last_seen else None
                 }
 
             def para_dict(self):

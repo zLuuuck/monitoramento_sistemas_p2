@@ -20,8 +20,12 @@ class HostDiscovery:
             cpu_model           = db.Column(db.String(200),    nullable=True)
             cpu_cores           = db.Column(db.SmallInteger,   nullable=True)
             cpu_clock_base_mhz  = db.Column(db.Integer,        nullable=True)
-            # cpu_ghz é coluna gerada pelo banco (GENERATED ALWAYS AS) — somente leitura
-            cpu_ghz             = db.Column(db.Numeric(4, 1),  nullable=True)
+            # cpu_ghz e GENERATED ALWAYS no PostgreSQL; SQLAlchemy nao deve inserir valor.
+            cpu_ghz             = db.Column(
+                db.Numeric(4, 1),
+                db.Computed("cpu_clock_base_mhz / 1000.0", persisted=True),
+                nullable=True,
+            )
             cpu_max_mhz         = db.Column(db.Integer,        nullable=True)
 
             # Memória e disco

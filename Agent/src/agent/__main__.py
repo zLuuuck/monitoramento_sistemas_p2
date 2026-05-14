@@ -12,7 +12,7 @@ from agent.discovery.motherboard_discovery.motherboard import get_motherboard_in
 from agent.discovery.tools_discovery.tools import get_tools_info
 from agent.global_information.global_information import build_global_information
 from agent.coleta.collector import collect_all
-from agent.utils.sender import send_data
+from agent.utils.sender import send_discovery, send_metrics
 
 
 def _without_none(value):
@@ -77,6 +77,7 @@ def _safe_collect(name: str, fn, *args, **kwargs):
 
 def main():
     force_install = "--install-deps" in sys.argv
+    dry_run = "--dry-run" in sys.argv
 
     print("Agent iniciado")
 
@@ -88,8 +89,12 @@ def main():
         discovery = run_discovery(force_install=force_install)   # <-- PASSA O ARGUMENTO
 
         print("Enviando discovery...")
-        print(json.dumps(discovery, indent=2, default=str))
-        # send_data(discovery)
+        if dry_run:
+            print(json.dumps(discovery, indent=2, default=str))
+        else:
+            response = send_discovery(discovery)
+            if response and response.get("host_id"):
+                discovery["global"]["host_id"] = response["host_id"]
 
     except Exception as e:
         print(f"Erro no discovery: {e}")
@@ -98,19 +103,24 @@ def main():
     # COLETA CONTÍNUA
     # =========================================================================
     metrics_global = build_global_information("metrics")
+    if "discovery" in locals():
+        metrics_global["host_id"] = (discovery.get("global") or {}).get("host_id")
     print("Coleta contínua iniciada...")
 
     while True:
         try:
             metrics = collect_all()
             payload = {
+                "type": "metrics",
                 "global": metrics_global,
                 "timestamp": time.time(),
                 "data": metrics,
             }
             print("Enviando métricas...")
-            print(json.dumps(payload, indent=2, default=str))
-            # send_data(payload)
+            if dry_run:
+                print(json.dumps(payload, indent=2, default=str))
+            else:
+                send_metrics(payload)
         except Exception as e:
             print(f"Erro na coleta: {e}")
 

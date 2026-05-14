@@ -28,4 +28,12 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  getMetrics: async (hostId, limit = 30) => {
+    if (!hostId) {
+      return [];
+    }
+
+    const data = await request(`/api/metrics?host_id=${hostId}&limit=${limit}`);
+    return data.metrics || [];
+  },
 };

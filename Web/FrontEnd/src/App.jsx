@@ -5,13 +5,13 @@ import { Layout } from "./shared/components/Layout";
 import { Card } from "./shared/components/Card";
 import { LogsPlaceholder } from "./features/logs_feat/components/LogsPlaceholder";
 import { MetricsChart } from "./features/metrics/components/MetricsChart";
-import { mockApi, mockHosts } from "./shared/services/mockApi";
 import { api } from "./shared/services/api";
 
 function App() {
-    const [selectedHost, setSelectedHost] = useState("1");
+    const [selectedHost, setSelectedHost] = useState("");
     const [metrics, setMetrics] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [metricsError, setMetricsError] = useState("");
     const [discovery, setDiscovery] = useState([]);
     const [discoveryLoading, setDiscoveryLoading] = useState(true);
     const [discoveryError, setDiscoveryError] = useState("");
@@ -43,12 +43,29 @@ function App() {
     // Carregar métricas quando mudar o host
     useEffect(() => {
         const carregarMetricas = async () => {
-            setLoading(true);
-            const dados = await mockApi.getMetrics(selectedHost);
-            setMetrics(dados);
-            setLoading(false);
+            if (!selectedHost) {
+                setMetrics([]);
+                setLoading(false);
+                return;
+            }
+
+            try {
+                setLoading(true);
+                setMetricsError("");
+                const dados = await api.getMetrics(selectedHost);
+                setMetrics(dados);
+            } catch (error) {
+                setMetrics([]);
+                setMetricsError(error.message);
+            } finally {
+                setLoading(false);
+            }
         };
+
         carregarMetricas();
+        const intervalId = window.setInterval(carregarMetricas, 5000);
+
+        return () => window.clearInterval(intervalId);
     }, [selectedHost]);
 
     // Pega a última métrica (mais recente)
@@ -61,7 +78,7 @@ function App() {
                 status: "online",
                 ip: item.host?.ip_address,
             }))
-            : mockHosts;
+            : [];
     const selectedDiscovery = discovery.find(
         (item) => String(item.host_id) === selectedHost,
     );
@@ -113,6 +130,9 @@ function App() {
                         onChange={(e) => setSelectedHost(e.target.value)}
                         className="border border-gray-300 rounded-lg px-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
+                        {hostsDisponiveis.length === 0 && (
+                            <option value="">Nenhum host cadastrado</option>
+                        )}
                         {hostsDisponiveis.map((host) => (
                             <option key={host.id} value={host.id}>
                                 {host.name} {host.status === "offline" && "(Offline)"}
@@ -132,6 +152,18 @@ function App() {
                 </div>
             )}
 
+            {!loading && metricsError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-8">
+                    Nao foi possivel carregar metricas: {metricsError}
+                </div>
+            )}
+
+            {!loading && !metricsError && metrics.length === 0 && selectedDiscovery && (
+                <div className="bg-white rounded-lg shadow-md p-6 text-gray-500 mb-8">
+                    Nenhuma metrica recebida para este host ainda.
+                </div>
+            )}
+
             {/* Loading */}
             {loading && (
                 <div className="flex justify-center py-20">
@@ -144,14 +176,14 @@ function App() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <Card
                         title="CPU"
-                        value={ultimaMetrica.cpu_percent.toFixed(1)}
+                        value={formatPercent(ultimaMetrica.cpu_percent)}
                         unit="%"
                         icon="⚡"
                         color="blue"
                     />
                     <Card
                         title="Memória"
-                        value={ultimaMetrica.memory_percent.toFixed(1)}
+                        value={formatPercent(ultimaMetrica.memory_percent)}
                         unit="%"
                         icon="🧠"
                         color="green"
@@ -383,6 +415,19 @@ function formatNumber(value) {
     return Number(value).toLocaleString("pt-BR", {
         maximumFractionDigits: 2,
     });
+}
+
+function formatPercent(value) {
+    if (value === null || value === undefined || value === "") {
+        return "-";
+    }
+
+    const number = Number(value);
+    if (Number.isNaN(number)) {
+        return "-";
+    }
+
+    return number.toFixed(1);
 }
 
 function formatMhz(value) {

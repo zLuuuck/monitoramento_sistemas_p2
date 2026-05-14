@@ -338,7 +338,7 @@ def _extract_discovery_fields(dados, remote_addr):
         'os_name':           os_info.get('pretty_name') or os_info.get('name'),
         'os_version':        os_info.get('version_id') or os_info.get('version'),
         'kernel_release':    kernel.get('release'),
-        'uptime_seconds':    system.get('uptime_seconds'),
+        'uptime_seconds':    _safe_int(system.get('uptime_seconds')),
     }
 
 
