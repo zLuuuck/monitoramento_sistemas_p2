@@ -15,26 +15,29 @@ function App() {
     const [discovery, setDiscovery] = useState([]);
     const [discoveryLoading, setDiscoveryLoading] = useState(true);
     const [discoveryError, setDiscoveryError] = useState("");
+    const [discoveryPayload, setDiscoveryPayload] = useState("");
+    const [postingDiscovery, setPostingDiscovery] = useState(false);
+    const [postDiscoveryMessage, setPostDiscoveryMessage] = useState("");
+
+    const carregarDiscovery = async ({ selecionarPrimeiro = false } = {}) => {
+        try {
+            setDiscoveryLoading(true);
+            setDiscoveryError("");
+            const dados = await api.getDiscovery();
+            setDiscovery(dados);
+
+            if (dados.length > 0 && (selecionarPrimeiro || !selectedHost)) {
+                setSelectedHost(String(dados[0].host_id));
+            }
+        } catch (error) {
+            setDiscoveryError(error.message);
+        } finally {
+            setDiscoveryLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const carregarDiscovery = async () => {
-            try {
-                setDiscoveryLoading(true);
-                setDiscoveryError("");
-                const dados = await api.getDiscovery();
-                setDiscovery(dados);
-
-                if (dados.length > 0) {
-                    setSelectedHost(String(dados[0].host_id));
-                }
-            } catch (error) {
-                setDiscoveryError(error.message);
-            } finally {
-                setDiscoveryLoading(false);
-            }
-        };
-
-        carregarDiscovery();
+        carregarDiscovery({ selecionarPrimeiro: true });
     }, []);
 
     // Carregar métricas quando mudar o host
@@ -73,6 +76,31 @@ function App() {
         : Array.isArray(selectedDiscovery?.networks)
             ? selectedDiscovery.networks
             : [];
+
+    const enviarDiscovery = async (event) => {
+        event.preventDefault();
+        setPostDiscoveryMessage("");
+
+        let payload;
+        try {
+            payload = JSON.parse(discoveryPayload);
+        } catch {
+            setPostDiscoveryMessage("JSON invalido. Verifique o conteudo colado.");
+            return;
+        }
+
+        try {
+            setPostingDiscovery(true);
+            const resposta = await api.postDiscovery(payload);
+            setPostDiscoveryMessage(resposta.message || "Discovery enviado com sucesso.");
+            await carregarDiscovery({ selecionarPrimeiro: true });
+            setSelectedHost(String(resposta.host_id));
+        } catch (error) {
+            setPostDiscoveryMessage(`Erro ao enviar discovery: ${error.message}`);
+        } finally {
+            setPostingDiscovery(false);
+        }
+    };
 
     return (
         <Layout>
@@ -150,6 +178,37 @@ function App() {
                         </p>
                     </div>
                 </div>
+
+                <form
+                    onSubmit={enviarDiscovery}
+                    className="bg-white rounded-lg shadow-md p-6 mb-6"
+                >
+                    <label
+                        htmlFor="discovery-payload"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                        Enviar discovery JSON
+                    </label>
+                    <textarea
+                        id="discovery-payload"
+                        value={discoveryPayload}
+                        onChange={(event) => setDiscoveryPayload(event.target.value)}
+                        placeholder='Cole aqui o conteudo de agent_physical_sample.json, agent_virtual_sample-WSL2.json ou agent_virtual_sample-Ubuntu.json'
+                        className="w-full min-h-36 border border-gray-300 rounded-lg px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-3">
+                        <button
+                            type="submit"
+                            disabled={postingDiscovery || !discoveryPayload.trim()}
+                            className="bg-blue-600 text-white rounded-lg px-4 py-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {postingDiscovery ? "Enviando..." : "Enviar discovery"}
+                        </button>
+                        {postDiscoveryMessage && (
+                            <p className="text-sm text-gray-600">{postDiscoveryMessage}</p>
+                        )}
+                    </div>
+                </form>
 
                 {discoveryLoading && (
                     <div className="bg-white rounded-lg shadow-md p-6 text-gray-500">
@@ -229,6 +288,13 @@ function App() {
                                     label="Hypervisor"
                                     value={selectedDiscovery.hypervisor || "Nao informado"}
                                 />
+                                <Info label="Sistema operacional" value={selectedDiscovery.os_name} />
+                                <Info label="Versao do OS" value={selectedDiscovery.os_version} />
+                                <Info label="Kernel" value={selectedDiscovery.kernel_release} />
+                                <Info
+                                    label="Uptime"
+                                    value={formatDuration(selectedDiscovery.uptime_seconds)}
+                                />
                             </div>
                         </div>
 
@@ -255,10 +321,13 @@ function App() {
 }
 
 function Info({ label, value }) {
+    const displayValue =
+        value === null || value === undefined || value === "" ? "-" : value;
+
     return (
         <div className="border border-gray-200 rounded-lg p-3">
             <p className="text-gray-500">{label}</p>
-            <p className="font-medium text-gray-800 break-words">{value || "-"}</p>
+            <p className="font-medium text-gray-800 break-words">{displayValue}</p>
         </div>
     );
 }
@@ -330,6 +399,26 @@ function formatDate(value) {
     }
 
     return new Date(value).toLocaleString("pt-BR");
+}
+
+function formatDuration(value) {
+    if (value === null || value === undefined || value === "") {
+        return "-";
+    }
+
+    const seconds = Number(value);
+    if (Number.isNaN(seconds)) {
+        return "-";
+    }
+
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+
+    if (hours > 0) {
+        return `${hours}h ${minutes}min`;
+    }
+
+    return `${minutes}min`;
 }
 
 export default App;

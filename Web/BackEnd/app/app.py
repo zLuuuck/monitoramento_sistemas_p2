@@ -28,6 +28,28 @@ db = SQLAlchemy(app)
 from .models import registrar_modelos
 HostModel, AgentModel, HostDiscoveryModel, MetricModel, LogEntryModel = registrar_modelos(db)
 
+
+def garantir_schema_discovery():
+    """Adiciona colunas de discovery em bancos criados antes do schema atual."""
+    comandos = [
+        "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS os_name VARCHAR(200)",
+        "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS os_version VARCHAR(50)",
+        "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS kernel_release VARCHAR(200)",
+        "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS uptime_seconds INTEGER",
+    ]
+
+    try:
+        with app.app_context():
+            for comando in comandos:
+                db.session.execute(db.text(comando))
+            db.session.commit()
+    except Exception as erro:
+        db.session.rollback()
+        app.logger.warning("Nao foi possivel garantir schema de discovery: %s", erro)
+
+
+garantir_schema_discovery()
+
 # Registra os Blueprints de rotas
 from .routes import register_discovery_routes, register_log_routes
 register_discovery_routes(app, db, HostModel, AgentModel, HostDiscoveryModel)

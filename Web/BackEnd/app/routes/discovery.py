@@ -123,27 +123,38 @@ def create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel):
             if dados is None:
                 return jsonify({'erro': 'Payload JSON e obrigatorio'}), 400
 
-            if dados.get('type') not in (None, 'discovery'):
+            collection_type = (
+                dados.get('type')
+                or dados.get('collection_type')
+                or (dados.get('global') or {}).get('collection_type')
+            )
+
+            if collection_type not in (None, 'discovery'):
                 return jsonify({'erro': 'Payload enviado nao e do tipo discovery'}), 400
 
             campos = _extract_discovery_fields(dados, request.remote_addr)
 
-            host = HostModel.query.filter(
-                or_(
-                    HostModel.ip_address == campos['ip_address'],
-                    HostModel.hostname == campos['hostname'],
-                )
-            ).first()
+            filtros_host = [
+                HostModel.ip_address == campos['ip_address'],
+                HostModel.hostname == campos['hostname'],
+            ]
+            if campos['host_id'] is not None:
+                filtros_host.append(HostModel.id == campos['host_id'])
+
+            host = HostModel.query.filter(or_(*filtros_host)).first()
 
             if not host:
                 host = HostModel(
+                    id=campos['host_id'],
                     hostname=campos['hostname'],
                     ip_address=campos['ip_address'],
+                    last_seen=datetime.utcnow(),
                 )
                 db.session.add(host)
                 db.session.flush()
             else:
                 host.hostname = campos['hostname']
+                host.ip_address = campos['ip_address']
                 host.last_seen = datetime.utcnow()
 
             agent = _upsert_agent(db, AgentModel, host.id, campos)
@@ -155,6 +166,8 @@ def create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel):
             if not discovery:
                 discovery = HostDiscoveryModel(host_id=host.id)
                 db.session.add(discovery)
+            else:
+                discovery.discovery_date = datetime.utcnow()
 
             # Campos comuns (físico e VM)
             discovery.is_virtualized    = campos['is_virtualized']
@@ -246,9 +259,10 @@ def _extract_discovery_fields(dados, remote_addr):
     - Máquina física: cpu.cores_logical, memory.total_mb, frequency como valores diretos
     - VM: cpu.topology.vcpus, memory.total.gb, frequency como objetos com .value
     """
+    global_info = dados.get('global') or {}
     agent       = dados.get('agent') or {}
     system      = dados.get('system') or {}
-    environment = dados.get('environment') or {}
+    environment = dados.get('environment') or global_info.get('environment') or {}
     metadata    = dados.get('metadata') or {}
     cpu         = dados.get('cpu') or {}
     memory      = dados.get('memory') or {}
@@ -257,6 +271,7 @@ def _extract_discovery_fields(dados, remote_addr):
 
     ip_address = (
         agent.get('primary_ip')
+        or global_info.get('primary_ip')
         or dados.get('primary_ip')
         or _get_primary_ip_from_network(dados.get('network'))
         or remote_addr
@@ -265,6 +280,7 @@ def _extract_discovery_fields(dados, remote_addr):
 
     hostname = (
         agent.get('hostname')
+        or global_info.get('hostname')
         or system.get('hostname')
         or dados.get('hostname')
         or f'host-{ip_address.replace(".", "-")}'
@@ -278,6 +294,7 @@ def _extract_discovery_fields(dados, remote_addr):
     # cpu_vcpus: VM usa topology.vcpus, física usa cores_logical direto
     cpu_vcpus = (
         _get_nested(cpu, 'topology', 'vcpus')
+        or _get_nested(cpu, 'topology', 'cores_logical')
         or cpu.get('cores_logical')
         or dados.get('cpu_vcpus')
     )
@@ -286,6 +303,7 @@ def _extract_discovery_fields(dados, remote_addr):
     memory_total_gb = (
         _get_nested(memory, 'total', 'gb')
         or memory.get('total_gb')
+        or _bytes_to_gb(memory.get('total_bytes'))
         or (memory['total_mb'] / 1024 if memory.get('total_mb') else None)
         or dados.get('memory_total_gb')
     )
@@ -293,8 +311,9 @@ def _extract_discovery_fields(dados, remote_addr):
     return {
         'hostname':          hostname,
         'ip_address':        ip_address,
-        'agent_id':          _safe_int(agent.get('agent_id') or dados.get('agent_id')),
-        'agent_version':     metadata.get('schema_version') or dados.get('agent_version'),
+        'host_id':           _safe_int(global_info.get('host_id') or dados.get('host_id')),
+        'agent_id':          _safe_int(agent.get('agent_id') or global_info.get('agent_id') or dados.get('agent_id')),
+        'agent_version':     metadata.get('schema_version') or global_info.get('schema_version') or dados.get('agent_version'),
         'is_virtualized':    bool(is_virtualized),
         'hypervisor':        _get_value(environment, 'hypervisor', fallback=dados.get('hypervisor')),
 
@@ -317,7 +336,7 @@ def _extract_discovery_fields(dados, remote_addr):
 
         # Sistema (exclusivo VM)
         'os_name':           os_info.get('pretty_name') or os_info.get('name'),
-        'os_version':        os_info.get('version_id'),
+        'os_version':        os_info.get('version_id') or os_info.get('version'),
         'kernel_release':    kernel.get('release'),
         'uptime_seconds':    system.get('uptime_seconds'),
     }
@@ -409,9 +428,22 @@ def _get_disk_total_gb(dados):
     for item in disks:
         size = item.get('size') or {}
         gb = size.get('gb')
+        if gb is None and item.get('size_gb') is not None:
+            gb = item.get('size_gb')
+        if gb is None and item.get('size_bytes') is not None:
+            gb = _bytes_to_gb(item.get('size_bytes'))
         if gb is None and size.get('bytes') is not None:
-            gb = size['bytes'] / (1024 ** 3)
+            gb = _bytes_to_gb(size.get('bytes'))
         if gb is not None:
             total += float(gb)
 
     return round(total, 2) if disks else None
+
+
+def _bytes_to_gb(value):
+    if value is None:
+        return None
+    try:
+        return float(value) / (1024 ** 3)
+    except (TypeError, ValueError):
+        return None

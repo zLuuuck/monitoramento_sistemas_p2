@@ -35,7 +35,11 @@ CREATE TABLE host_discovery (
     is_virtualized BOOLEAN,
     hypervisor VARCHAR(50),
     cpu_max_mhz INTEGER,
-    disk_total_gb DECIMAL(10,2)
+    disk_total_gb DECIMAL(10,2),
+    os_name VARCHAR(200),
+    os_version VARCHAR(50),
+    kernel_release VARCHAR(200),
+    uptime_seconds INTEGER
 );
 
 CREATE INDEX idx_discovery_virtualized ON host_discovery (is_virtualized);
