@@ -22,8 +22,12 @@ ChartJS.register(
 );
 
 export function MetricsChart({ metrics, title }) {
+  const validMetrics = Array.isArray(metrics)
+    ? metrics.filter((metric) => metric && metric.timestamp)
+    : [];
+
   // Se não tem dados, mostra mensagem
-  if (!metrics || metrics.length === 0) {
+  if (validMetrics.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-md p-6 text-center text-gray-400">
         Nenhum dado disponível para exibir no gráfico
@@ -33,14 +37,14 @@ export function MetricsChart({ metrics, title }) {
 
   // Preparar os dados para o gráfico
   const data = {
-    labels: metrics.map(m => {
+    labels: validMetrics.map(m => {
       const date = new Date(m.timestamp);
       return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     }),
     datasets: [
       {
         label: 'CPU (%)',
-        data: metrics.map(m => Number(m.cpu_percent || 0)),
+        data: validMetrics.map(m => toChartNumber(m.cpu_percent)),
         borderColor: 'rgb(59, 130, 246)',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         tension: 0.3,
@@ -48,7 +52,7 @@ export function MetricsChart({ metrics, title }) {
       },
       {
         label: 'Memória (%)',
-        data: metrics.map(m => Number(m.memory_percent || 0)),
+        data: validMetrics.map(m => toChartNumber(m.memory_percent)),
         borderColor: 'rgb(34, 197, 94)',
         backgroundColor: 'rgba(34, 197, 94, 0.1)',
         tension: 0.3,
@@ -114,4 +118,9 @@ export function MetricsChart({ metrics, title }) {
       </div>
     </div>
   );
+}
+
+function toChartNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
 }

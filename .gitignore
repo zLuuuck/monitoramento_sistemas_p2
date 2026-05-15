@@ -11,7 +11,7 @@ __pycache__/
 
 # Ambientes virtuais Python
 .venv/
-.ambienteVirtual/
+.ambiente*/
 venv/
 env/
 

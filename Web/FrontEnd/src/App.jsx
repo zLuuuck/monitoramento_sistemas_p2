@@ -1,17 +1,17 @@
-import { useState } from 'react';
+import { Component, useState } from 'react';
 import './App.css'
 import { useEffect } from 'react';
 import { Layout } from './shared/components/Layout';
-import { Card } from './shared/components/Card';
 import { LogsPlaceholder } from './features/logs_feat/components/LogsPlaceholder';
 import { MetricsChart } from './features/metrics/components/MetricsChart';
-import { mockApi, mockHosts } from './shared/services/mockApi';
 import { api } from './shared/services/api';
+import { DiscoveryDashboard, MetricCards } from './components/DiscoveryDashboard';
 
 function App() {
-  const [selectedHost, setSelectedHost] = useState('1');
+  const [selectedHost, setSelectedHost] = useState('');
   const [metrics, setMetrics] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [metricsError, setMetricsError] = useState('');
   const [discovery, setDiscovery] = useState([]);
   const [discoveryLoading, setDiscoveryLoading] = useState(true);
   const [discoveryError, setDiscoveryError] = useState('');
@@ -25,7 +25,7 @@ function App() {
         setDiscovery(dados);
 
         if (dados.length > 0) {
-          setSelectedHost(String(dados[0].host_id));
+          setSelectedHost((currentHost) => currentHost || String(dados[0].host_id));
         }
       } catch (error) {
         setDiscoveryError(error.message);
@@ -40,10 +40,25 @@ function App() {
   // Carregar métricas quando mudar o host
   useEffect(() => {
     const carregarMetricas = async () => {
+      if (!selectedHost) {
+        setMetrics([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
-      const dados = await mockApi.getMetrics(selectedHost);
-      setMetrics(dados);
-      setLoading(false);
+      setMetricsError('');
+
+      try {
+        const resposta = await api.getMetrics(selectedHost);
+        const dados = Array.isArray(resposta?.metrics) ? resposta.metrics : [];
+        setMetrics(normalizeMetrics(dados));
+      } catch (error) {
+        setMetrics([]);
+        setMetricsError(error.message);
+      } finally {
+        setLoading(false);
+      }
     };
     carregarMetricas();
   }, [selectedHost]);
@@ -54,21 +69,15 @@ function App() {
     ? discovery.map((item) => ({
         id: String(item.host_id),
         name: item.host?.hostname || `Host ${item.host_id}`,
-        status: 'online',
+        status: item.host?.status || 'offline',
         ip: item.host?.ip_address,
       }))
-    : mockHosts;
+    : [];
   const selectedDiscovery = discovery.find((item) => String(item.host_id) === selectedHost);
   const selectedHostInfo = hostsDisponiveis.find((host) => host.id === selectedHost);
-  const discos = Array.isArray(selectedDiscovery?.disks) ? selectedDiscovery.disks : [];
-  const redes = Array.isArray(selectedDiscovery?.networks?.interfaces)
-    ? selectedDiscovery.networks.interfaces
-    : Array.isArray(selectedDiscovery?.networks)
-      ? selectedDiscovery.networks
-      : [];
 
   return (
-    <Layout>
+    <Layout hostType={selectedDiscovery?.is_virtualized ? 'virtual' : 'physical'}>
       {/* Seletor de Host */}
       <div className="flex justify-end mb-6">
         <div className="flex items-center gap-3">
@@ -77,7 +86,11 @@ function App() {
             value={selectedHost}
             onChange={(e) => setSelectedHost(e.target.value)}
             className="border border-gray-300 rounded-lg px-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={hostsDisponiveis.length === 0}
           >
+            {hostsDisponiveis.length === 0 && (
+              <option value="">Nenhum host</option>
+            )}
             {hostsDisponiveis.map((host) => (
               <option key={host.id} value={host.id}>
                 {host.name} {host.status === 'offline' && '(Offline)'}
@@ -87,49 +100,41 @@ function App() {
         </div>
       </div>
 
-      {/* GRÁFICO - NOVO! */}
-      {!loading && metrics.length > 0 && (
-        <div className="mb-8">
-          <MetricsChart 
-            metrics={metrics} 
-            title={`Métricas - ${selectedHostInfo?.name || 'Host selecionado'}`}
-          />
-        </div>
-      )}
+      <MetricsErrorBoundary key={selectedHost}>
+        {/* GRÁFICO - NOVO! */}
+        {!loading && metrics.length > 0 && (
+          <div className="mb-8">
+            <MetricsChart
+              metrics={metrics}
+              title={`Métricas - ${selectedHostInfo?.name || 'Host selecionado'}`}
+            />
+          </div>
+        )}
 
-      {/* Loading */}
-      {loading && (
-        <div className="flex justify-center py-20">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
-        </div>
-      )}
+        {/* Loading */}
+        {loading && (
+          <div className="flex justify-center py-20">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
+          </div>
+        )}
 
-      {/* Cards de Métricas */}
-      {!loading && ultimaMetrica && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card 
-            title="CPU" 
-            value={ultimaMetrica.cpu_percent.toFixed(1)} 
-            unit="%" 
-            icon="⚡" 
-            color="blue" 
-          />
-          <Card 
-            title="Memória" 
-            value={ultimaMetrica.memory_percent.toFixed(1)} 
-            unit="%" 
-            icon="🧠" 
-            color="green" 
-          />
-          <Card 
-            title="Status" 
-            value={selectedHostInfo?.status === 'online' ? "Online" : "Offline"} 
-            unit="" 
-            icon={selectedHostInfo?.status === 'online' ? "🟢" : "🔴"} 
-            color={selectedHostInfo?.status === 'online' ? "green" : "red"} 
-          />
-        </div>
-      )}
+        {!loading && metricsError && (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            Nao foi possivel carregar as metricas: {metricsError}
+          </div>
+        )}
+
+        {!loading && selectedHost && !metricsError && metrics.length === 0 && (
+          <div className="mb-6 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+            Nenhuma metrica cadastrada para este host ainda.
+          </div>
+        )}
+
+        {/* Cards de Métricas */}
+        {!loading && ultimaMetrica && (
+          <MetricCards latestMetric={ultimaMetrica} />
+        )}
+      </MetricsErrorBoundary>
 
       {/* Discovery */}
       <section className="mb-8">
@@ -161,56 +166,7 @@ function App() {
         )}
 
         {!discoveryLoading && selectedDiscovery && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card
-                title="Hostname"
-                value={selectedDiscovery.host?.hostname || '-'}
-                unit=""
-                icon="💻"
-                color="blue"
-              />
-              <Card
-                title="Memória Total"
-                value={formatNumber(selectedDiscovery.total_memory_gb)}
-                unit="GB"
-                icon="🧠"
-                color="green"
-              />
-              <Card
-                title="Disco Total"
-                value={formatNumber(selectedDiscovery.disk_total_gb)}
-                unit="GB"
-                icon="💾"
-                color="yellow"
-              />
-              <Card
-                title="Virtualização"
-                value={selectedDiscovery.is_virtualized ? 'Sim' : 'Nao'}
-                unit=""
-                icon="🖥️"
-                color={selectedDiscovery.is_virtualized ? 'green' : 'blue'}
-              />
-            </div>
-
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Detalhes do sistema</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <Info label="IP" value={selectedDiscovery.host?.ip_address} />
-                <Info label="Data do discovery" value={formatDate(selectedDiscovery.discovery_date)} />
-                <Info label="CPU" value={selectedDiscovery.cpu_model} />
-                <Info label="Nucleos/vCPUs" value={selectedDiscovery.cpu_cores} />
-                <Info label="Clock base" value={formatMhz(selectedDiscovery.cpu_clock_base_mhz)} />
-                <Info label="Clock maximo" value={formatMhz(selectedDiscovery.cpu_max_mhz)} />
-                <Info label="Hypervisor" value={selectedDiscovery.hypervisor || 'Nao informado'} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <DiscoveryList title="Discos" items={discos} emptyText="Nenhum disco informado" />
-              <DiscoveryList title="Redes" items={redes} emptyText="Nenhuma interface informada" />
-            </div>
-          </div>
+          <DiscoveryDashboard discovery={selectedDiscovery} />
         )}
       </section>
 
@@ -220,70 +176,48 @@ function App() {
   );
 }
 
-function Info({ label, value }) {
-  return (
-    <div className="border border-gray-200 rounded-lg p-3">
-      <p className="text-gray-500">{label}</p>
-      <p className="font-medium text-gray-800 break-words">{value || '-'}</p>
-    </div>
-  );
+function normalizeMetrics(metrics) {
+  return metrics
+    .filter((metric) => metric && metric.timestamp)
+    .map((metric) => ({
+      ...metric,
+      cpu_percent: toNumber(metric.cpu_percent),
+      memory_percent: toNumber(metric.memory_percent),
+      disk_percent: toNumber(metric.disk_percent),
+      net_sent: toNumber(metric.net_sent),
+      net_recv: toNumber(metric.net_recv),
+    }));
 }
 
-function DiscoveryList({ title, items, emptyText }) {
-  return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h3 className="text-lg font-semibold text-gray-800 mb-4">{title}</h3>
-      {items.length === 0 ? (
-        <p className="text-sm text-gray-500">{emptyText}</p>
-      ) : (
-        <div className="space-y-3">
-          {items.map((item, index) => (
-            <div key={item.name || item.device || item.interface || index} className="border border-gray-200 rounded-lg p-3">
-              <p className="font-medium text-gray-800">
-                {item.name || item.device || item.interface || item.mountpoint || `Item ${index + 1}`}
-              </p>
-              <p className="text-sm text-gray-500 break-words">
-                {summarizeObject(item)}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function summarizeObject(item) {
-  return Object.entries(item)
-    .filter(([, value]) => value !== null && value !== undefined && typeof value !== 'object')
-    .map(([key, value]) => `${key}: ${value}`)
-    .join(' | ') || 'Sem detalhes adicionais';
-}
-
-function formatNumber(value) {
+function toNumber(value) {
   if (value === null || value === undefined || value === '') {
-    return '-';
+    return null;
   }
-
-  return Number(value).toLocaleString('pt-BR', {
-    maximumFractionDigits: 2,
-  });
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
-function formatMhz(value) {
-  if (!value) {
-    return '-';
+class MetricsErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
   }
 
-  return `${formatNumber(value)} MHz`;
-}
-
-function formatDate(value) {
-  if (!value) {
-    return '-';
+  static getDerivedStateFromError() {
+    return { hasError: true };
   }
 
-  return new Date(value).toLocaleString('pt-BR');
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          O painel de metricas encontrou dados inesperados, mas o restante do dashboard continua disponivel.
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
 export default App;
