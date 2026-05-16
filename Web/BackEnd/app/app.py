@@ -148,8 +148,8 @@ if __name__ == '__main__':
     print("   GET  /api/discovery  (Semana 1)")
     print("   POST /api/metrics    (Semana 2)")
     print("   GET  /api/metrics    (Semana 2)")
-    print("   POST /api/logs       (Semana 3)")
-    print("   GET  /api/logs       (Semana 3)")
+    print("   POST /api/logs       (Semana 3/4 — com parsing SSH)")
+    print("   GET  /api/logs       (Semana 3/4)")
     print("=" * 60)
 
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
