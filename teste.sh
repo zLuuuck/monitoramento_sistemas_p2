@@ -1,4 +1,4 @@
-curl -X POST http://localhost/api/discovery \
+curl -X POST http://10.81.243.50/api/discovery \
     -H "Content-Type: application/json" \
     -d '{
   "global": {
