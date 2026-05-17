@@ -15,8 +15,6 @@ __pycache__/
 venv/
 env/
 
-Context/
-
 # Frontend
 FrontEnd/node_modules/
 FrontEnd/dist/
