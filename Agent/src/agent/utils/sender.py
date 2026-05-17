@@ -8,7 +8,7 @@ from urllib.parse import urljoin
 
 import requests
 
-API_BASE_URL = os.getenv("MONITOR_API_BASE_URL", "http://192.168.0.11:5000")
+API_BASE_URL = os.getenv("MONITOR_API_BASE_URL", "http://api.monitoramento.lan")
 DISCOVERY_URL = os.getenv("MONITOR_DISCOVERY_URL") or urljoin(
     API_BASE_URL.rstrip("/") + "/", "api/discovery"
 )

@@ -23,8 +23,7 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
 
     Fluxo:
         1. Conta falhas SSH do ip_origem nos últimos 60 segundos via count_failed_logins()
-        2. Se >= LIMIAR_BRUTE_FORCE falhas: verifica se já existe alerta ativo
-           (resolved = False) para a combinação host_id + ip_origem + "brute_force"
+        2. Se >= LIMIAR_BRUTE_FORCE falhas: verifica se já existe alerta ativo(resolved = False) para a combinação host_id + ip_origem + "brute_force"
         3. Se não existir alerta ativo: cria um novo e salva no banco
         4. Retorna True se um alerta novo foi criado, False caso contrário
 
