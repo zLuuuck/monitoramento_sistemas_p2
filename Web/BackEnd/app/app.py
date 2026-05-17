@@ -1,5 +1,6 @@
 # app/app.py
 # Aplicação principal Flask para o sistema de monitoramento
+# Semana 5: registro do AlertModel e das rotas de alertas
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -24,9 +25,17 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Inicialização do SQLAlchemy
 db = SQLAlchemy(app)
 
-# Registra todos os modelos (Host, Agent, HostDiscovery, Metric, LogEntry)
+# Registra todos os modelos
+# Semana 5: registrar_modelos agora retorna AlertModel também
 from .models import registrar_modelos
-HostModel, AgentModel, HostDiscoveryModel, MetricModel, LogEntryModel = registrar_modelos(db)
+(
+    HostModel,
+    AgentModel,
+    HostDiscoveryModel,
+    MetricModel,
+    LogEntryModel,
+    AlertModel,       # Semana 5
+) = registrar_modelos(db)
 
 
 def garantir_schema_discovery():
@@ -53,7 +62,7 @@ garantir_schema_discovery()
 
 
 def garantir_schema_metrics():
-    """Adiciona colunas de metricas em bancos atuais sem depender do init.sql."""
+    """Adiciona colunas de métricas em bancos sem init.sql atualizado."""
     comandos = [
         "ALTER TABLE metrics ADD COLUMN IF NOT EXISTS memory_used_mb INTEGER",
         "ALTER TABLE metrics ADD COLUMN IF NOT EXISTS memory_free_mb INTEGER",
@@ -75,11 +84,49 @@ def garantir_schema_metrics():
 
 garantir_schema_metrics()
 
+
+def garantir_schema_alerts():
+    """
+    Adiciona as colunas resolved e resolved_at na tabela alerts.
+
+    O init.sql da Beatriz criou a tabela sem esses campos.
+    Esta função garante que bancos existentes sejam atualizados
+    sem depender de recriação do container.
+    """
+    comandos = [
+        "ALTER TABLE alerts ADD COLUMN IF NOT EXISTS resolved BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE alerts ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ",
+    ]
+
+    try:
+        with app.app_context():
+            for comando in comandos:
+                db.session.execute(db.text(comando))
+            db.session.commit()
+    except Exception as erro:
+        db.session.rollback()
+        app.logger.warning("Nao foi possivel garantir schema de alerts: %s", erro)
+
+
+garantir_schema_alerts()  # Semana 5
+
+
 # Registra os Blueprints de rotas
-from .routes import register_discovery_routes, register_log_routes, register_metric_routes
+from .routes import (
+    register_discovery_routes,
+    register_log_routes,
+    register_metric_routes,
+    register_alerts_routes,   # Semana 5
+)
+
 register_discovery_routes(app, db, HostModel, AgentModel, HostDiscoveryModel, MetricModel)
 register_metric_routes(app, db, HostModel, AgentModel, MetricModel)
-register_log_routes(app, db, HostModel, LogEntryModel)
+
+# Semana 5: AlertModel é passado para register_log_routes
+register_log_routes(app, db, HostModel, LogEntryModel, AlertModel)
+
+# Semana 5: rotas de alertas
+register_alerts_routes(app, db, HostModel, AlertModel)
 
 
 # ==================== ENDPOINTS GERAIS ====================
@@ -90,7 +137,7 @@ def status():
     return jsonify({
         'status':    'online',
         'service':   'API Monitoramento',
-        'version':   '2.0.0',
+        'version':   '3.0.0',  # Semana 5
         'timestamp': datetime.utcnow().isoformat()
     }), 200
 
@@ -144,12 +191,14 @@ if __name__ == '__main__':
     print("   GET  /api/status")
     print("   GET  /api/hello")
     print("   GET  /api/hosts")
-    print("   POST /api/discovery  (Semana 1)")
-    print("   GET  /api/discovery  (Semana 1)")
-    print("   POST /api/metrics    (Semana 2)")
-    print("   GET  /api/metrics    (Semana 2)")
-    print("   POST /api/logs       (Semana 3/4 — com parsing SSH)")
-    print("   GET  /api/logs       (Semana 3/4)")
+    print("   POST /api/discovery       (Semana 1)")
+    print("   GET  /api/discovery       (Semana 1)")
+    print("   POST /api/metrics         (Semana 2)")
+    print("   GET  /api/metrics         (Semana 2)")
+    print("   POST /api/logs            (Semana 3/4 — com parsing SSH)")
+    print("   GET  /api/logs            (Semana 3/4)")
+    print("   GET  /api/alerts          (Semana 5 — brute force)")
+    print("   PATCH /api/alerts/<id>/resolve  (Semana 5)")
     print("=" * 60)
 
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
