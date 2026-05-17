@@ -6,8 +6,9 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    host: '0.0.0.0',        // Permite conexões externas (Docker)
-    port: 5173,             // Porta fixa
+    host: '0.0.0.0',
+    port: 5173,
+    allowedHosts: ['painel.monitoramento.lan'],
     watch: {
       usePolling: true      // Hot Reload no Windows
     },
