@@ -35,4 +35,12 @@ export const api = {
 
     return request(`/api/metrics?host_id=${hostId}&limit=${limit}`);
   },
+
+  getLogs: async (hostId, options = {}) => {
+    if (!hostId) return { logs: [], total: 0 };
+    const { limit = 50, offset = 0, log_type = 'auth' } = options;
+    let url = `/api/logs?host_id=${hostId}&limit=${limit}&offset=${offset}`;
+    if (log_type) url += `&log_type=${log_type}`;
+    return request(url);
+  },
 };

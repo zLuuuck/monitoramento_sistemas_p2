@@ -3,7 +3,7 @@ import { Sidebar } from './Sidebar';
 import { TopTabs } from './TopTabs';
 import { Icon } from './Icon';
 
-export function Layout({ children, hostType = 'physical' }) {
+export function Layout({ children, hostType = 'physical', logsPanel }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeSubTab, setActiveSubTab] = useState('overview');
 
@@ -23,12 +23,12 @@ export function Layout({ children, hostType = 'physical' }) {
           </div>
         );
       case 'logs':
-        return (
+        return logsPanel ?? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center text-gray-400">
               <Icon name="log" size="text-4xl" className="mb-2" />
               <p>Central de Logs</p>
-              <p className="text-sm">Em desenvolvimento</p>
+              <p className="text-sm">Nenhum host selecionado</p>
             </div>
           </div>
         );

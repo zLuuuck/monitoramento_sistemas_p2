@@ -12,8 +12,8 @@ from agent.discovery.network_discovery.network import get_network_info
 from agent.discovery.motherboard_discovery.motherboard import get_motherboard_info
 from agent.discovery.tools_discovery.tools import get_tools_info
 from agent.global_information.global_information import build_global_information
-from agent.coleta.collector import collect_all
-from agent.utils.sender import send_discovery, send_metrics
+from agent.coleta.collector import collect_all, collect_auth_logs
+from agent.utils.sender import send_discovery, send_metrics, send_log
 
 
 def _without_none(value):
@@ -103,18 +103,26 @@ def main():
     # =========================================================================
     # COLETA CONTÍNUA
     # =========================================================================
+    db_host_id = (discovery.get("global") or {}).get("host_id") if "discovery" in locals() else None
+
     metrics_global = build_global_information("metrics")
-    if "discovery" in locals():
-        metrics_global["host_id"] = (discovery.get("global") or {}).get("host_id")
+    metrics_global["host_id"] = db_host_id
+
+    logs_global = build_global_information("logs")
+    logs_global["host_id"] = db_host_id
+
     print("Coleta contínua iniciada...")
 
     while True:
+        # -----------------------------------------------------------------
+        # MÉTRICAS (CPU, memória, disco, rede)
+        # -----------------------------------------------------------------
         try:
-            metrics = collect_all()
+            metrics   = collect_all()
             timestamp = datetime.now(timezone.utc).isoformat()
-            payload = {
-                "type": "metrics",
-                "global": metrics_global,
+            payload   = {
+                "type":      "metrics",
+                "global":    metrics_global,
                 "timestamp": timestamp,
                 "data": {
                     **metrics,
@@ -127,7 +135,28 @@ def main():
             else:
                 send_metrics(payload)
         except Exception as e:
-            print(f"Erro na coleta: {e}")
+            print(f"Erro na coleta de métricas: {e}")
+
+        # -----------------------------------------------------------------
+        # LOGS DE AUTENTICAÇÃO (auth.log — uma linha por request)
+        # -----------------------------------------------------------------
+        try:
+            log_lines = collect_auth_logs()
+            if log_lines:
+                print(f"Enviando {len(log_lines)} linha(s) de auth.log...")
+            for entry in log_lines:
+                log_payload = {
+                    "global":    logs_global,
+                    "log_type":  "auth",
+                    "timestamp": entry["timestamp"],
+                    "raw_line":  entry["raw_line"],
+                }
+                if dry_run:
+                    print(json.dumps(log_payload, indent=2, default=str))
+                else:
+                    send_log(log_payload)
+        except Exception as e:
+            print(f"Erro na coleta de logs: {e}")
 
         time.sleep(5)
 

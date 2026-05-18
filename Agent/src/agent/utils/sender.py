@@ -15,6 +15,9 @@ DISCOVERY_URL = os.getenv("MONITOR_DISCOVERY_URL") or urljoin(
 METRICS_URL = os.getenv("MONITOR_METRICS_URL") or urljoin(
     API_BASE_URL.rstrip("/") + "/", "api/metrics"
 )
+LOGS_URL = os.getenv("MONITOR_LOGS_URL") or urljoin(
+    API_BASE_URL.rstrip("/") + "/", "api/logs"
+)
 TOKEN = os.getenv("MONITOR_TOKEN", "")
 
 
@@ -63,6 +66,10 @@ def send_discovery(data: dict) -> dict | None:
 
 def send_metrics(data: dict) -> dict | None:
     return send_data(data, METRICS_URL)
+
+
+def send_log(data: dict) -> dict | None:
+    return send_data(data, LOGS_URL)
 
 
 def _url_for_payload(data: dict) -> str:

@@ -55,12 +55,15 @@ def create_log_blueprint(app, db, HostModel, LogEntryModel, AlertModel):
             if dados is None:
                 return jsonify({'erro': 'Payload JSON é obrigatório'}), 400
 
-            # Valida campo obrigatório: host_id
-            if 'host_id' not in dados:
-                return jsonify({'erro': 'Campo "host_id" é obrigatório'}), 400
+            # host_id aceito na raiz OU dentro do bloco "global" (padrão do agente)
+            global_block = dados.get('global') or {}
+            host_id_raw  = dados.get('host_id') if 'host_id' in dados else global_block.get('host_id')
+
+            if host_id_raw is None:
+                return jsonify({'erro': 'Campo "host_id" é obrigatório (raiz ou global.host_id)'}), 400
 
             try:
-                host_id = int(dados['host_id'])
+                host_id = int(host_id_raw)
             except (TypeError, ValueError):
                 return jsonify({'erro': 'Campo "host_id" deve ser numérico'}), 400
 

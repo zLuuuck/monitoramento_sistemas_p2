@@ -2,7 +2,7 @@ import { Component, useState } from 'react';
 import './App.css'
 import { useEffect } from 'react';
 import { Layout } from './shared/components/Layout';
-import { LogsPlaceholder } from './features/logs_feat/components/LogsPlaceholder';
+import { LogsPanel } from './features/logs_feat/components/LogsPanel';
 import { MetricsChart } from './features/metrics/components/MetricsChart';
 import { api } from './shared/services/api';
 import { DiscoveryDashboard, MetricCards } from './components/DiscoveryDashboard';
@@ -77,7 +77,10 @@ function App() {
   const selectedHostInfo = hostsDisponiveis.find((host) => host.id === selectedHost);
 
   return (
-    <Layout hostType={selectedDiscovery?.is_virtualized ? 'virtual' : 'physical'}>
+    <Layout
+      hostType={selectedDiscovery?.is_virtualized ? 'virtual' : 'physical'}
+      logsPanel={<LogsPanel hostId={selectedHost} />}
+    >
       {/* Seletor de Host */}
       <div className="flex justify-end mb-6">
         <div className="flex items-center gap-3">
@@ -171,7 +174,7 @@ function App() {
       </section>
 
       {/* Logs */}
-      <LogsPlaceholder />
+      <LogsPanel hostId={selectedHost} />
     </Layout>
   );
 }
