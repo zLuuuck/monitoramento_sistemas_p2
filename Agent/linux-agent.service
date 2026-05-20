@@ -1,0 +1,18 @@
+[Unit]
+Description=Monitor Agent - Linux System Monitoring
+Documentation=https://github.com/zLuuuck/monitoramento_sistemas_p2
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/monitor-agent/agent
+EnvironmentFile=/etc/monitor-agent/env
+Restart=on-failure
+RestartSec=10s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=monitor-agent
+
+[Install]
+WantedBy=multi-user.target

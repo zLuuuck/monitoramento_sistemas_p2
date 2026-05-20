@@ -1,19 +1,27 @@
+import time
 import psutil
 
-def get_network_usage():
-    """
-    Coleta estatísticas de rede do sistema.
+_prev_net = None
+_prev_time: float | None = None
 
-    psutil.net_io_counters():
-    - bytes_sent: total de bytes enviados
-    - bytes_recv: total de bytes recebidos
 
-    Retorno:
-        dict com dados de tráfego de rede
-    """
+def get_network_usage() -> dict:
+    global _prev_net, _prev_time
+
     net = psutil.net_io_counters()
+    now = time.monotonic()
 
-    return {
+    result = {
         "bytes_sent": net.bytes_sent,
-        "bytes_recv": net.bytes_recv
+        "bytes_recv": net.bytes_recv,
     }
+
+    if _prev_net is not None:
+        elapsed = now - _prev_time
+        if elapsed > 0:
+            result["bytes_sent_per_sec"] = round((net.bytes_sent - _prev_net.bytes_sent) / elapsed, 2)
+            result["bytes_recv_per_sec"] = round((net.bytes_recv - _prev_net.bytes_recv) / elapsed, 2)
+
+    _prev_net  = net
+    _prev_time = now
+    return result
