@@ -12,8 +12,8 @@ from agent.discovery.network_discovery.network import get_network_info
 from agent.discovery.motherboard_discovery.motherboard import get_motherboard_info
 from agent.discovery.tools_discovery.tools import get_tools_info
 from agent.global_information.global_information import build_global_information
-from agent.coleta.collector import collect_all, collect_auth_logs
-from agent.utils.sender import send_discovery, send_metrics, send_log
+from agent.coleta.collector import collect_all, collect_auth_logs, collect_connections
+from agent.utils.sender import send_discovery, send_metrics, send_log, send_connections
 
 
 def _without_none(value):
@@ -111,6 +111,9 @@ def main():
     logs_global = build_global_information("logs")
     logs_global["host_id"] = db_host_id
 
+    connections_global = build_global_information("connections")
+    connections_global["host_id"] = db_host_id
+
     print("Coleta contínua iniciada...")
 
     while True:
@@ -157,6 +160,29 @@ def main():
                     send_log(log_payload)
         except Exception as e:
             print(f"Erro na coleta de logs: {e}")
+
+        # -----------------------------------------------------------------
+        # CONEXÕES TCP (detecção de port scan)
+        # -----------------------------------------------------------------
+        try:
+            conn_data  = collect_connections()
+            timestamp  = datetime.now(timezone.utc).isoformat()
+            conn_payload = {
+                "global":             connections_global,
+                "timestamp":          timestamp,
+                "connections":        conn_data.get("connections", []),
+                "total":              conn_data.get("total", 0),
+                "port_scan_detected": conn_data.get("port_scan_detected", False),
+                "syn_sent_count":     conn_data.get("syn_sent_count", 0),
+            }
+            if conn_data.get("port_scan_detected"):
+                print(f"ALERTA: possível port scan detectado — {conn_data['syn_sent_count']} portas SYN_SENT distintas")
+            if dry_run:
+                print(json.dumps(conn_payload, indent=2, default=str))
+            else:
+                send_connections(conn_payload)
+        except Exception as e:
+            print(f"Erro na coleta de conexões: {e}")
 
         time.sleep(5)
 

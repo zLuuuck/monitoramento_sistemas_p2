@@ -18,6 +18,9 @@ METRICS_URL = os.getenv("MONITOR_METRICS_URL") or urljoin(
 LOGS_URL = os.getenv("MONITOR_LOGS_URL") or urljoin(
     API_BASE_URL.rstrip("/") + "/", "api/logs"
 )
+CONNECTIONS_URL = os.getenv("MONITOR_CONNECTIONS_URL") or urljoin(
+    API_BASE_URL.rstrip("/") + "/", "api/connections"
+)
 TOKEN = os.getenv("MONITOR_TOKEN", "")
 
 
@@ -70,6 +73,10 @@ def send_metrics(data: dict) -> dict | None:
 
 def send_log(data: dict) -> dict | None:
     return send_data(data, LOGS_URL)
+
+
+def send_connections(data: dict) -> dict | None:
+    return send_data(data, CONNECTIONS_URL)
 
 
 def _url_for_payload(data: dict) -> str:
