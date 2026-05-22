@@ -82,16 +82,13 @@ else
 fi
 
 if [[ "$RESP" == "s" || "$RESP" == "sim" ]]; then
-    read -rp "URL do servidor de monitoramento (ex: http://painel.monitoramento.lan/): " API_URL
-    API_URL="${API_URL:-http://api.monitoramento.lan}"
-
     read -rp "Token de autenticação [Enter para pular — sem auth]: " API_TOKEN
 
     read -rp "Nível de log (DEBUG/INFO/WARNING) [padrão: INFO]: " LOG_LEVEL
     LOG_LEVEL="${LOG_LEVEL:-INFO}"
 
     cat > "$ENV_FILE" <<EOF
-MONITOR_API_BASE_URL=$API_URL
+MONITOR_API_BASE_URL=http://api.monitoramento.lan
 MONITOR_TOKEN=$API_TOKEN
 MONITOR_LOG_LEVEL=$LOG_LEVEL
 EOF
