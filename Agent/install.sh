@@ -82,7 +82,7 @@ else
 fi
 
 if [[ "$RESP" == "s" || "$RESP" == "sim" ]]; then
-    read -rp "URL do servidor de monitoramento (ex: http://192.168.1.50:5000): " API_URL
+    read -rp "URL do servidor de monitoramento (ex: http://painel.monitoramento.lan/): " API_URL
     API_URL="${API_URL:-http://api.monitoramento.lan}"
 
     read -rp "Token de autenticação [Enter para pular — sem auth]: " API_TOKEN
