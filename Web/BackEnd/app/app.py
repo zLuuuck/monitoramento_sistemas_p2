@@ -1,6 +1,7 @@
 # app/app.py
-# Aplicação principal Flask para o sistema de monitoramento
-# Semana 5: registro do AlertModel e das rotas de alertas
+# Aplicação principal Flask para o sistema de monitoramento.
+# Semana 5: registro do AlertModel e das rotas de alertas.
+# Semana 6: registro do ActiveConnectionModel, rotas de conexões e check_port_scan.
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -26,7 +27,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 # Registra todos os modelos
-# Semana 5: registrar_modelos agora retorna AlertModel também
+# Semana 6: registrar_modelos agora retorna ActiveConnectionModel também
 from .models import registrar_modelos
 (
     HostModel,
@@ -34,20 +35,20 @@ from .models import registrar_modelos
     HostDiscoveryModel,
     MetricModel,
     LogEntryModel,
-    AlertModel,       # Semana 5
+    AlertModel,               # Semana 5
+    ActiveConnectionModel,    # Semana 6
 ) = registrar_modelos(db)
 
 
 def garantir_schema_discovery():
     """Adiciona colunas de discovery em bancos criados antes do schema atual."""
     comandos = [
-        "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS os_name VARCHAR(200)",
-        "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS os_version VARCHAR(50)",
-        "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS kernel_release VARCHAR(200)",
-        "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS uptime_seconds INTEGER",
-        "ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS motherboard JSONB",
+        'ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS os_name VARCHAR(200)',
+        'ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS os_version VARCHAR(50)',
+        'ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS kernel_release VARCHAR(200)',
+        'ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS uptime_seconds INTEGER',
+        'ALTER TABLE host_discovery ADD COLUMN IF NOT EXISTS motherboard JSONB',
     ]
-
     try:
         with app.app_context():
             for comando in comandos:
@@ -55,23 +56,19 @@ def garantir_schema_discovery():
             db.session.commit()
     except Exception as erro:
         db.session.rollback()
-        app.logger.warning("Nao foi possivel garantir schema de discovery: %s", erro)
-
-
-garantir_schema_discovery()
+        app.logger.warning('Nao foi possivel garantir schema de discovery: %s', erro)
 
 
 def garantir_schema_metrics():
     """Adiciona colunas de métricas em bancos sem init.sql atualizado."""
     comandos = [
-        "ALTER TABLE metrics ADD COLUMN IF NOT EXISTS memory_used_mb INTEGER",
-        "ALTER TABLE metrics ADD COLUMN IF NOT EXISTS memory_free_mb INTEGER",
-        "ALTER TABLE metrics ADD COLUMN IF NOT EXISTS memory_total_mb INTEGER",
-        "ALTER TABLE metrics ADD COLUMN IF NOT EXISTS disk_used_mb BIGINT",
-        "ALTER TABLE metrics ADD COLUMN IF NOT EXISTS disk_free_mb BIGINT",
-        "ALTER TABLE metrics ADD COLUMN IF NOT EXISTS disk_total_mb BIGINT",
+        'ALTER TABLE metrics ADD COLUMN IF NOT EXISTS memory_used_mb INTEGER',
+        'ALTER TABLE metrics ADD COLUMN IF NOT EXISTS memory_free_mb INTEGER',
+        'ALTER TABLE metrics ADD COLUMN IF NOT EXISTS memory_total_mb INTEGER',
+        'ALTER TABLE metrics ADD COLUMN IF NOT EXISTS disk_used_mb BIGINT',
+        'ALTER TABLE metrics ADD COLUMN IF NOT EXISTS disk_free_mb BIGINT',
+        'ALTER TABLE metrics ADD COLUMN IF NOT EXISTS disk_total_mb BIGINT',
     ]
-
     try:
         with app.app_context():
             for comando in comandos:
@@ -79,25 +76,21 @@ def garantir_schema_metrics():
             db.session.commit()
     except Exception as erro:
         db.session.rollback()
-        app.logger.warning("Nao foi possivel garantir schema de metricas: %s", erro)
-
-
-garantir_schema_metrics()
+        app.logger.warning('Nao foi possivel garantir schema de metricas: %s', erro)
 
 
 def garantir_schema_alerts():
     """
     Adiciona as colunas resolved e resolved_at na tabela alerts.
 
-    O init.sql da Beatriz criou a tabela sem esses campos.
+    O init.sql original criou a tabela sem esses campos.
     Esta função garante que bancos existentes sejam atualizados
     sem depender de recriação do container.
     """
     comandos = [
-        "ALTER TABLE alerts ADD COLUMN IF NOT EXISTS resolved BOOLEAN DEFAULT FALSE",
-        "ALTER TABLE alerts ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ",
+        'ALTER TABLE alerts ADD COLUMN IF NOT EXISTS resolved BOOLEAN DEFAULT FALSE',
+        'ALTER TABLE alerts ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ',
     ]
-
     try:
         with app.app_context():
             for comando in comandos:
@@ -105,10 +98,12 @@ def garantir_schema_alerts():
             db.session.commit()
     except Exception as erro:
         db.session.rollback()
-        app.logger.warning("Nao foi possivel garantir schema de alerts: %s", erro)
+        app.logger.warning('Nao foi possivel garantir schema de alerts: %s', erro)
 
 
-garantir_schema_alerts()  # Semana 5
+garantir_schema_discovery()
+garantir_schema_metrics()
+garantir_schema_alerts()
 
 
 # Registra os Blueprints de rotas
@@ -116,17 +111,27 @@ from .routes import (
     register_discovery_routes,
     register_log_routes,
     register_metric_routes,
-    register_alerts_routes,   # Semana 5
+    register_alerts_routes,
 )
+
+# Semana 6: importação do blueprint de conexões e da função de detecção
+from .routes.connections import register_connections_routes
+from .utils.detection import check_port_scan
 
 register_discovery_routes(app, db, HostModel, AgentModel, HostDiscoveryModel, MetricModel)
 register_metric_routes(app, db, HostModel, AgentModel, MetricModel)
-
-# Semana 5: AlertModel é passado para register_log_routes
 register_log_routes(app, db, HostModel, LogEntryModel, AlertModel)
-
-# Semana 5: rotas de alertas
 register_alerts_routes(app, db, HostModel, AlertModel)
+
+# Semana 6: rotas de conexões TCP com injeção de check_port_scan
+register_connections_routes(
+    app,
+    db,
+    HostModel,
+    ActiveConnectionModel,
+    AlertModel,
+    check_port_scan,          # função injetada — sem import direto no blueprint
+)
 
 
 # ==================== ENDPOINTS GERAIS ====================
@@ -137,7 +142,7 @@ def status():
     return jsonify({
         'status':    'online',
         'service':   'API Monitoramento',
-        'version':   '3.0.0',  # Semana 5
+        'version':   '4.0.0',  # Semana 6
         'timestamp': datetime.utcnow().isoformat()
     }), 200
 
@@ -151,7 +156,7 @@ def hello():
 @app.route('/health', methods=['GET'])
 def health():
     """Endpoint para verificações de saúde do container."""
-    return jsonify({"status": "ok"}), 200
+    return jsonify({'status': 'ok'}), 200
 
 
 @app.route('/api/hosts', methods=['GET'])
@@ -180,25 +185,26 @@ if __name__ == '__main__':
     port       = int(os.getenv('PORT', 5000))
     debug_mode = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
 
-    print("=" * 60)
-    print("🚀 Sistema de Monitoramento - Backend")
-    print("=" * 60)
-    print(f"📍 Servidor: http://localhost:{port}")
-    print(f"🐘 Banco: PostgreSQL (monitor/monitor@localhost:5432/monitor)")
-    print(f"🐛 Modo Debug: {debug_mode}")
-    print("=" * 60)
-    print("\n📌 Endpoints disponíveis:")
-    print("   GET  /api/status")
-    print("   GET  /api/hello")
-    print("   GET  /api/hosts")
-    print("   POST /api/discovery       (Semana 1)")
-    print("   GET  /api/discovery       (Semana 1)")
-    print("   POST /api/metrics         (Semana 2)")
-    print("   GET  /api/metrics         (Semana 2)")
-    print("   POST /api/logs            (Semana 3/4 — com parsing SSH)")
-    print("   GET  /api/logs            (Semana 3/4)")
-    print("   GET  /api/alerts          (Semana 5 — brute force)")
-    print("   PATCH /api/alerts/<id>/resolve  (Semana 5)")
-    print("=" * 60)
+    print('=' * 60)
+    print('Sistema de Monitoramento - Backend')
+    print('=' * 60)
+    print(f'Servidor: http://localhost:{port}')
+    print(f'Banco: PostgreSQL (monitor/monitor@localhost:5432/monitor)')
+    print(f'Modo Debug: {debug_mode}')
+    print('=' * 60)
+    print('\nEndpoints disponíveis:')
+    print('   GET   /api/status')
+    print('   GET   /api/hello')
+    print('   GET   /api/hosts')
+    print('   POST  /api/discovery       (Semana 1)')
+    print('   GET   /api/discovery       (Semana 1)')
+    print('   POST  /api/metrics         (Semana 2)')
+    print('   GET   /api/metrics         (Semana 2)')
+    print('   POST  /api/logs            (Semanas 3/4 — com parsing SSH)')
+    print('   GET   /api/logs            (Semanas 3/4)')
+    print('   GET   /api/alerts          (Semana 5 — brute force)')
+    print('   PATCH /api/alerts/<id>/resolve  (Semana 5)')
+    print('   POST  /api/connections     (Semana 6 — TCP + port scan)')
+    print('=' * 60)
 
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
