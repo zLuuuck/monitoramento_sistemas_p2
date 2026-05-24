@@ -2,14 +2,16 @@
 # Rotas para recebimento e consulta de logs do sistema operacional
 # Semana 4: integração com parse_ssh_log()
 # Semana 5: chama check_brute_force() quando log SSH é "failed"
+# Semana 6: parse_ssh_log() substituído por parse_auth_log() — cobre todos
+#           os eventos do auth.log (CRON, PAM, sudo, logind, disconnect)
 
 from flask import Blueprint, jsonify, request
 from datetime import datetime
 
-# Parser SSH — Semana 4
-from ..utils.parsers import parse_ssh_log
+# Semana 6: parse_auth_log substitui parse_ssh_log como ponto de entrada
+from ..utils.parsers import parse_auth_log
 
-# Detecção de brute force — Semana 5
+# Detecção de brute force — Semana 5 (sem alteração)
 from ..utils.detection import check_brute_force
 
 
@@ -47,6 +49,9 @@ def create_log_blueprint(app, db, HostModel, LogEntryModel, AlertModel):
         Semana 4: quando log_type == "auth", chama parse_ssh_log() automaticamente.
         Semana 5: quando parsed_data contém status == "failed", chama
                   check_brute_force() para detectar possível ataque SSH.
+        Semana 6: parse_ssh_log() substituído por parse_auth_log(), que cobre
+                  todos os tipos de evento do auth.log (CRON, PAM, sudo,
+                  logind, disconnect). Nenhuma alteração no banco ou no agente.
         """
         try:
             dados = request.get_json(silent=True)
@@ -97,25 +102,40 @@ def create_log_blueprint(app, db, HostModel, LogEntryModel, AlertModel):
             raw_line = str(dados['raw_line'])
 
             # ------------------------------------------------------------------
-            # SEMANA 4 — Parsing automático de logs de autenticação SSH
+            # SEMANA 6 — Parsing automático de todos os eventos do auth.log
+            #
+            # parse_auth_log() substitui parse_ssh_log(). Ela tenta em sequência
+            # todos os parsers registrados e retorna o primeiro que casar:
+            #   ssh_login       → Failed/Accepted password (comportamento anterior)
+            #   sudo            → execução de comando privilegiado
+            #   pam_auth_failure → falha de autenticação PAM
+            #   ssh_disconnect  → encerramento de sessão SSH
+            #   pam_session     → abertura/fechamento de sessão PAM (inclui CRON)
+            #   logind_session  → eventos systemd-logind
+            #
+            # O campo event_type no parsed_data identifica o subtipo para o front.
+            # Os campos status, usuario e ip_origem são mantidos nos mesmos
+            # nomes para preservar compatibilidade com os índices JSONB do banco
+            # e com a lógica de brute force existente.
             # ------------------------------------------------------------------
             parsed_data = None
 
             if log_type == 'auth':
-                parsed_data = parse_ssh_log(raw_line)
+                parsed_data = parse_auth_log(raw_line)
 
                 if parsed_data is not None:
                     app.logger.info(
-                        "Log SSH parseado | host_id=%s | status=%s | usuario=%s | ip=%s",
+                        "Log auth parseado | host_id=%s | event_type=%s | status=%s | usuario=%s | ip=%s",
                         host_id,
+                        parsed_data.get('event_type'),
                         parsed_data.get('status'),
                         parsed_data.get('usuario'),
                         parsed_data.get('ip_origem'),
                     )
                 else:
-                    # Linha de auth.log que não é evento SSH (sudo, PAM, cron...)
+                    # Linha de auth.log que nenhum parser reconheceu
                     app.logger.info(
-                        "Log auth sem padrão SSH | host_id=%s | linha: %.100s",
+                        "Log auth sem padrão reconhecido | host_id=%s | linha: %.100s",
                         host_id,
                         raw_line,
                     )
@@ -133,19 +153,11 @@ def create_log_blueprint(app, db, HostModel, LogEntryModel, AlertModel):
             db.session.commit()
 
             # ------------------------------------------------------------------
-            # SEMANA 5 — Detecção de brute force SSH
+            # SEMANA 5 — Detecção de brute force SSH (sem alteração)
             #
-            # Após salvar o log com sucesso, verifica se o IP está realizando
-            # um ataque de força bruta. A detecção ocorre somente quando:
-            #   - log_type é "auth"
-            #   - parsed_data foi preenchido (linha SSH reconhecida)
-            #   - status do evento é "failed" (tentativa com falha)
-            #
-            # check_brute_force() é chamado APÓS o commit para garantir que
-            # a falha recém-salva já seja contabilizada na janela de tempo.
-            #
-            # A função retorna True se um novo alerta foi criado.
-            # Falhas internas da detecção são silenciosas — não afetam o 201.
+            # Continua funcionando porque parse_auth_log() preserva os campos
+            # status = "failed" e ip_origem para eventos ssh_login,
+            # exatamente como parse_ssh_log() fazia antes.
             # ------------------------------------------------------------------
             alerta_criado = False
 
@@ -176,7 +188,8 @@ def create_log_blueprint(app, db, HostModel, LogEntryModel, AlertModel):
                 'host_id':       log.host_id,
                 'log_type':      log.log_type,
                 'parsed':        parsed_data is not None,
-                'alerta_criado': alerta_criado,  # Semana 5: informa ao chamador
+                'event_type':    parsed_data.get('event_type') if parsed_data else None,
+                'alerta_criado': alerta_criado,
             }), 201
 
         except Exception as erro:

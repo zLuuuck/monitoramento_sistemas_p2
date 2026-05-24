@@ -1,6 +1,7 @@
 # app/utils/detection.py
-# Funções de detecção de ameaças de segurança
-# Semana 5: check_brute_force() — detecta ataques de força bruta SSH
+# Funções de detecção de ameaças de segurança.
+# Semana 5: check_brute_force() — detecta ataques de força bruta SSH.
+# Semana 6: check_port_scan()   — registra alerta quando o agente detecta varredura de portas.
 
 import logging
 from datetime import datetime
@@ -23,7 +24,8 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
 
     Fluxo:
         1. Conta falhas SSH do ip_origem nos últimos 60 segundos via count_failed_logins()
-        2. Se >= LIMIAR_BRUTE_FORCE falhas: verifica se já existe alerta ativo(resolved = False) para a combinação host_id + ip_origem + "brute_force"
+        2. Se >= LIMIAR_BRUTE_FORCE falhas: verifica se já existe alerta ativo
+           (resolved=False) para a combinação host_id + ip_origem + "brute_force"
         3. Se não existir alerta ativo: cria um novo e salva no banco
         4. Retorna True se um alerta novo foi criado, False caso contrário
 
@@ -53,7 +55,7 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
             return False
 
         logger.warning(
-            "Possível brute force detectado | host_id=%s | ip=%s | falhas=%s",
+            'Possível brute force detectado | host_id=%s | ip=%s | falhas=%s',
             host_id, ip_origem, total_falhas,
         )
 
@@ -68,20 +70,20 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
         if alerta_existente:
             # Alerta já existe e ainda está ativo — não cria duplicata
             logger.info(
-                "Alerta de brute force já ativo (id=%s) | host_id=%s | ip=%s",
+                'Alerta de brute force já ativo (id=%s) | host_id=%s | ip=%s',
                 alerta_existente.id, host_id, ip_origem,
             )
             return False
 
         # Passo 3: cria novo alerta de brute force
         novo_alerta = AlertModel(
-            host_id    = host_id,
-            alert_type = 'brute_force',
-            source_ip  = ip_origem,
-            timestamp  = datetime.utcnow(),
-            severity   = 'high',      # brute force = severidade alta
-            metodos    = 'password',  # método SSH observado
-            resolved   = False,
+            host_id     = host_id,
+            alert_type  = 'brute_force',
+            source_ip   = ip_origem,
+            timestamp   = datetime.utcnow(),
+            severity    = 'high',
+            metodos     = 'password',
+            resolved    = False,
             resolved_at = None,
         )
 
@@ -89,7 +91,7 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
         db.session.commit()
 
         logger.warning(
-            "ALERTA CRIADO | brute_force | host_id=%s | ip=%s | falhas=%s | alerta_id=%s",
+            'ALERTA CRIADO | brute_force | host_id=%s | ip=%s | falhas=%s | alerta_id=%s',
             host_id, ip_origem, total_falhas, novo_alerta.id,
         )
 
@@ -99,7 +101,81 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
         # Falha silenciosa — nunca deve interromper o salvamento do log
         db.session.rollback()
         logger.error(
-            "Erro em check_brute_force (host_id=%s, ip=%s): %s",
+            'Erro em check_brute_force (host_id=%s, ip=%s): %s',
+            host_id, ip_origem, erro,
+        )
+        return False
+
+
+def check_port_scan(db, AlertModel, host_id: int, ip_origem: str) -> bool:
+    """
+    Registra um alerta de port scan quando o agente sinaliza detecção.
+
+    O agente realiza a análise de SYN_SENT no lado dele e envia
+    port_scan_detected=true no payload. O backend apenas persiste o alerta,
+    evitando duplicatas para o mesmo host enquanto o alerta estiver ativo.
+
+    Fluxo:
+        1. Verifica se já existe alerta ativo (resolved=False) para
+           host_id + ip_origem + "port_scan"
+        2. Se não existir: cria novo alerta com severity="high"
+        3. Retorna True se alerta foi criado, False caso contrário
+
+    Parâmetros:
+        db         — instância do SQLAlchemy (para db.session)
+        AlertModel — modelo de alertas (injetado para evitar import circular)
+        host_id    — ID do host onde o port scan foi detectado
+        ip_origem  — IP associado ao alerta (primary_ip do host nesta versão;
+                     campo dedicado pode ser adicionado pelo agente futuramente)
+
+    Retorna:
+        bool — True se um novo alerta foi criado, False caso contrário.
+        Falha silenciosa (try/except) — nunca interrompe o salvamento das conexões.
+    """
+    try:
+        # Passo 1: verifica se já existe alerta ativo de port scan para este host
+        alerta_existente = AlertModel.query.filter_by(
+            host_id    = host_id,
+            source_ip  = ip_origem,
+            alert_type = 'port_scan',
+            resolved   = False,
+        ).first()
+
+        if alerta_existente:
+            # Alerta já ativo — não cria duplicata
+            logger.info(
+                'Alerta de port scan já ativo (id=%s) | host_id=%s | ip=%s',
+                alerta_existente.id, host_id, ip_origem,
+            )
+            return False
+
+        # Passo 2: cria novo alerta de port scan
+        novo_alerta = AlertModel(
+            host_id     = host_id,
+            alert_type  = 'port_scan',
+            source_ip   = ip_origem,
+            timestamp   = datetime.utcnow(),
+            severity    = 'high',
+            metodos     = None,   # campo não aplicável para port scan
+            resolved    = False,
+            resolved_at = None,
+        )
+
+        db.session.add(novo_alerta)
+        db.session.commit()
+
+        logger.warning(
+            'ALERTA CRIADO | port_scan | host_id=%s | ip=%s | alerta_id=%s',
+            host_id, ip_origem, novo_alerta.id,
+        )
+
+        return True
+
+    except Exception as erro:
+        # Falha silenciosa — nunca deve interromper o salvamento das conexões
+        db.session.rollback()
+        logger.error(
+            'Erro em check_port_scan (host_id=%s, ip=%s): %s',
             host_id, ip_origem, erro,
         )
         return False
