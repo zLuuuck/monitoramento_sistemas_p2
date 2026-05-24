@@ -32,15 +32,23 @@ export const api = {
     if (!hostId) {
       return { metrics: [], status: 'offline', is_online: false, last_metric_at: null };
     }
-
     return request(`/api/metrics?host_id=${hostId}&limit=${limit}`);
   },
-
   getLogs: async (hostId, options = {}) => {
     if (!hostId) return { logs: [], total: 0 };
     const { limit = 50, offset = 0, log_type = 'auth' } = options;
     let url = `/api/logs?host_id=${hostId}&limit=${limit}&offset=${offset}`;
     if (log_type) url += `&log_type=${log_type}`;
     return request(url);
+  },
+  // ALERTAS (agora dentro do objeto api)
+  getAlerts: async (status = 'active') => {
+    const params = status ? `?status=${status}` : '';
+    return request(`/api/alerts${params}`);
+  },
+  resolveAlert: async (alertId) => {
+    return request(`/api/alerts/${alertId}/resolve`, {
+      method: 'PATCH',
+    });
   },
 };

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { TopTabs } from './TopTabs';
 import { Icon } from './Icon';
+import AlertsPanel from '../../features/alerts/components/AlertsPanel';
+
 
 export function Layout({ children, hostType = 'physical', logsPanel }) {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -32,16 +34,8 @@ export function Layout({ children, hostType = 'physical', logsPanel }) {
             </div>
           </div>
         );
-      case 'alerts':
-        return (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center text-gray-400">
-              <Icon name="alert" size="text-4xl" className="mb-2" />
-              <p>Painel de Alertas</p>
-              <p className="text-sm">Em desenvolvimento</p>
-            </div>
-          </div>
-        );
+        case 'alerts':
+        return <div className="bg-red-500 text-white p-10 text-center text-2xl">ALERTA - TESTE</div>;
       case 'endpoints':
         return (
           <div className="flex items-center justify-center h-64">

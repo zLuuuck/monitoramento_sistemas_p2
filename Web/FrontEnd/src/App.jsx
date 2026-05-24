@@ -6,6 +6,7 @@ import { LogsPanel } from './features/logs_feat/components/LogsPanel';
 import { MetricsChart } from './features/metrics/components/MetricsChart';
 import { api } from './shared/services/api';
 import { DiscoveryDashboard, MetricCards } from './components/DiscoveryDashboard';
+import AlertsPanel from './features/alerts/components/AlertsPanel';
 
 function App() {
   const [selectedHost, setSelectedHost] = useState('');

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Icon } from './Icon';
 
+
 export function Sidebar({ activeTab, onTabChange }) {
   // Estado da sidebar (minimizada ou expandida)
   const [isMinimized, setIsMinimized] = useState(false);
