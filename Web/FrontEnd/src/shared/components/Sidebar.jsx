@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom'; // Importamos o Link do React Router
 import { Icon } from './Icon';
 
-
-export function Sidebar({ activeTab, onTabChange }) {
+export function Sidebar({ activeTab }) {
   // Estado da sidebar (minimizada ou expandida)
   const [isMinimized, setIsMinimized] = useState(false);
 
@@ -21,14 +21,14 @@ export function Sidebar({ activeTab, onTabChange }) {
     localStorage.setItem('sidebarMinimized', newState);
   };
 
-  // Itens do menu
+  // Itens do menu com o caminho (path) de cada rota mapeado
   const menuItems = [
-    { id: 'dashboard', name: 'Dashboard', icon: 'dashboard' },
-    { id: 'metrics', name: 'Métricas', icon: 'chart' },
-    { id: 'logs', name: 'Logs', icon: 'log' },
-    { id: 'alerts', name: 'Alertas', icon: 'alert' },
-    { id: 'endpoints', name: 'Endpoints', icon: 'server' },
-    { id: 'settings', name: 'Configurações', icon: 'settings' },
+    { id: 'dashboard', name: 'Dashboard', icon: 'dashboard', path: '/dashboard' },
+    { id: 'metrics', name: 'Métricas', icon: 'chart', path: '/metrics' },
+    { id: 'logs', name: 'Logs', icon: 'log', path: '/logs' },
+    { id: 'alerts', name: 'Alertas', icon: 'alert', path: '/alerts' },
+    { id: 'endpoints', name: 'Endpoints', icon: 'server', path: '/endpoints' },
+    { id: 'settings', name: 'Configurações', icon: 'settings', path: '/settings' },
   ];
 
   return (
@@ -71,9 +71,10 @@ export function Sidebar({ activeTab, onTabChange }) {
         <ul className="space-y-1">
           {menuItems.map((item) => (
             <li key={item.id}>
-              <button
-                onClick={() => onTabChange(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 transition-all duration-200 ${
+              {/* Trocamos o button pelo Link para atualizar a URL real do navegador */}
+              <Link
+                to={item.path}
+                className={`flex items-center gap-3 px-4 py-3 transition-all duration-200 ${
                   activeTab === item.id
                     ? 'bg-blue-600 text-white border-r-4 border-blue-400'
                     : 'text-gray-400 hover:bg-gray-800 hover:text-white'
@@ -83,7 +84,7 @@ export function Sidebar({ activeTab, onTabChange }) {
                 <Icon name={item.icon} size="text-lg" />
                 {!isMinimized && <span className="text-sm">{item.name}</span>}
                 
-                {/* Indicador de notificação (opcional) */}
+                {/* Indicador de notificação */}
                 {item.id === 'alerts' && !isMinimized && (
                   <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
                     3
@@ -92,7 +93,7 @@ export function Sidebar({ activeTab, onTabChange }) {
                 {item.id === 'alerts' && isMinimized && (
                   <span className="ml-auto w-2 h-2 bg-red-500 rounded-full"></span>
                 )}
-              </button>
+              </Link>
             </li>
           ))}
         </ul>

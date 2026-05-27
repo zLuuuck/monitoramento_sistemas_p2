@@ -1,1 +1,0 @@
-pra vcs fazerem as paginas aqui, não no APP.JSX
