@@ -1,83 +1,24 @@
-import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TopTabs } from './TopTabs';
-import { Icon } from './Icon';
-import AlertsPanel from '../../features/alerts/components/AlertsPanel';
 
+export function Layout({ children, hostType = 'physical' }) {
+  const location = useLocation();
 
-export function Layout({ children, hostType = 'physical', logsPanel }) {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [activeSubTab, setActiveSubTab] = useState('overview');
-
-  // Renderizar conteúdo baseado na aba ativa
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return children;
-      case 'metrics':
-        return (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center text-gray-400">
-              <Icon name="chart" size="text-4xl" className="mb-2" />
-              <p>Página de Métricas Detalhadas</p>
-              <p className="text-sm">Em desenvolvimento</p>
-            </div>
-          </div>
-        );
-      case 'logs':
-        return logsPanel ?? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center text-gray-400">
-              <Icon name="log" size="text-4xl" className="mb-2" />
-              <p>Central de Logs</p>
-              <p className="text-sm">Nenhum host selecionado</p>
-            </div>
-          </div>
-        );
-        case 'alerts':
-        return <div className="bg-red-500 text-white p-10 text-center text-2xl">ALERTA - TESTE</div>;
-      case 'endpoints':
-        return (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center text-gray-400">
-              <Icon name="server" size="text-4xl" className="mb-2" />
-              <p>Gerenciamento de Endpoints</p>
-              <p className="text-sm">Em desenvolvimento</p>
-            </div>
-          </div>
-        );
-      case 'settings':
-        return (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center text-gray-400">
-              <Icon name="settings" size="text-4xl" className="mb-2" />
-              <p>Configurações do Sistema</p>
-              <p className="text-sm">Em desenvolvimento</p>
-            </div>
-          </div>
-        );
-      default:
-        return children;
-    }
-  };
+  // Mapeia a aba ativa na Sidebar baseando-se no endereço atual da URL
+  const activeTab = location.pathname.substring(1) || 'dashboard';
 
   return (
     <div className="flex h-screen bg-gray-100" style={{ minWidth: '1024px' }}>
-      {/* Sidebar (aba lateral minimizável) */}
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      {/* Sidebar recebe qual aba está ativa de acordo com a URL */}
+      <Sidebar activeTab={activeTab} />
 
-      {/* Conteúdo principal */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Tabs (aba superior) */}
-        <TopTabs 
-          activeSubTab={activeSubTab}
-          onSubTabChange={setActiveSubTab}
-          hostType={hostType}
-        />
+        <TopTabs hostType={hostType} />
 
-        {/* Conteúdo rolável */}
+        {/* O container principal renderiza o Seletor de Host + a subpágina correta */}
         <main className="flex-1 overflow-y-auto p-6">
-          {renderContent()}
+          {children}
         </main>
       </div>
     </div>
