@@ -174,6 +174,7 @@ cat /var/cache/monitor-agent/retry_queue.json | python3 -m json.tool
 | `/var/log/auth.log` | Grupo `adm` ou root | Leitura de logs de autenticação |
 | `dmidecode` | root | Detalhes de RAM e placa-mãe |
 | `smartctl` | root | Saúde do disco (S.M.A.R.T.) |
+| `tcpdump` | root ou `cap_net_raw` | Captura de pacotes SYN para detecção de port scan entrante |
 
 Para leitura de auth.log sem root:
 ```bash
@@ -181,7 +182,9 @@ sudo usermod -a -G adm $USER
 # Fazer logout e login para aplicar
 ```
 
-O serviço systemd roda como root por padrão, então essas permissões são atendidas automaticamente quando instalado via `install.sh`.
+O serviço systemd roda como root por padrão, então todas as permissões são atendidas automaticamente quando instalado via `install.sh`.
+
+> **Nota sobre tcpdump:** se não estiver instalado na máquina alvo, a detecção de port scan é desabilitada silenciosamente — o restante da coleta funciona normalmente. Para instalar: `sudo apt install tcpdump`.
 
 ---
 

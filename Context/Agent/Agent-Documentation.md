@@ -511,19 +511,33 @@ Lê `/var/log/auth.log` de forma incremental, rastreando byte offset e inode em 
 
 **Arquivo:** `coleta/connections_coleta/connections.py`
 
-Usa `psutil.net_connections(kind="tcp")`. Rastreia estados `ESTABLISHED`, `SYN_SENT`, `TIME_WAIT`, `CLOSE_WAIT`.
+Combina `psutil.net_connections(kind="tcp")` para listar conexões ativas com **detecção de port scan entrante via tcpdump**.
 
-**Detecção de port scan:** `port_scan_detected = true` quando 10 ou mais conexões `SYN_SENT` apontam para portas remotas distintas (`_PORTSCAN_THRESHOLD = 10`).
+#### Detecção de port scan (tcpdump)
+
+Duas threads daemon são iniciadas no momento do import do módulo:
+
+**Thread `tcpdump-capture`:** executa `tcpdump -n -l -i any` com filtro `tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack == 0`, capturando cada pacote SYN que chega à máquina. Pacotes cujo IP de origem pertence ao próprio host (IPs locais resolvidos via `psutil.net_if_addrs()`) são descartados — assim apenas tráfego externo entrante é contabilizado.
+
+**Thread `portscan-eval` (ciclo de 2s):** mantém uma janela deslizante de 60 segundos por IP de origem. A cada 2 segundos, poda entradas expiradas e atualiza `_active_scans` com os IPs que atingiram o limiar de portas distintas.
+
+**Limiar:** `_PORTSCAN_THRESHOLD = 10` portas distintas de um mesmo IP em 60 segundos.
+
+**Graceful degradation:** se `tcpdump` não estiver instalado ou o processo não tiver permissão, a thread encerra silenciosamente. `port_scan_detected` permanece sempre `false` — o restante da coleta não é afetado.
+
+**Permissão necessária:** root ou `cap_net_raw` (atendido automaticamente quando instalado via `install.sh`).
+
+#### Campos retornados por `get_active_connections()`
 
 | Campo | Descrição |
 |-------|-----------|
 | `connections[].local_port` | Porta local |
 | `connections[].remote_ip` | IP remoto |
 | `connections[].remote_port` | Porta remota |
-| `connections[].state` | Estado da conexão |
+| `connections[].state` | Estado da conexão (`ESTABLISHED`, `SYN_SENT`, etc.) |
 | `total` | Total de conexões rastreadas |
-| `port_scan_detected` | `true` se `syn_sent_count >= 10` |
-| `syn_sent_count` | Portas remotas distintas em SYN_SENT |
+| `port_scan_detected` | `true` se algum IP atingiu o limiar de portas distintas |
+| `scan_sources` | `{ip_atacante: qtd_portas_distintas, ...}` — IPs ativos no scan |
 
 ### 7.7 Process Coleta
 
@@ -651,9 +665,14 @@ Enviado a cada 5 segundos. Endpoint: `POST /api/connections`
     { "local_port": 22, "remote_ip": "192.168.1.100", "remote_port": 54321, "state": "ESTABLISHED" }
   ],
   "total":              1,
-  "port_scan_detected": false,
-  "syn_sent_count":     0
+  "port_scan_detected": true,
+  "scan_sources": {
+    "10.0.0.5": 45
+  }
 }
+```
+
+`scan_sources` é um dicionário `{ip_atacante: qtd_portas_distintas_em_60s}`. Contém apenas IPs que ultrapassaram o limiar de 10 portas. Quando não há scan, o campo é `{}` e `port_scan_detected` é `false`.
 ```
 
 ### 8.5 Payload de Heartbeat
@@ -943,6 +962,7 @@ MONITOR_LOG_LEVEL=INFO
 | `lspci` | pciutils | Chipset discovery | Não |
 | `journalctl` | systemd | Logs | Não |
 | `timedatectl` | systemd | Timezone | Não |
+| `tcpdump` | tcpdump | Captura de pacotes SYN para detecção de port scan | Sim (root ou cap_net_raw) |
 
 ---
 
@@ -1039,6 +1059,7 @@ sudo ./install.sh
 | `dmidecode` | root | Detalhes de RAM e placa-mãe |
 | `smartctl` | root | Saúde do disco (S.M.A.R.T.) |
 | `psutil.net_connections()` | root para outros usuários | Conexões TCP de processos de outros usuários |
+| `tcpdump` | root ou `cap_net_raw` | Captura de pacotes SYN para detecção de port scan entrante |
 
 Para adicionar usuário ao grupo `adm` (auth.log sem root):
 
@@ -1074,3 +1095,4 @@ sudo systemctl daemon-reload
 ---
 
 *Documentação gerada em 20/05/2026 — v5.0 | Semana 7: IOPS, bytes/sec, top processos, retry queue, heartbeat, --debug-exec*
+*Atualizado em 29/05/2026 — v5.1 | Detecção de port scan migrada de SYN_SENT (saída) para tcpdump entrante com janela deslizante de 60s e avaliação a cada 2s. Campo `syn_sent_count` substituído por `scan_sources`.*
