@@ -29,6 +29,12 @@ class Metric:
             disk_total_mb = db.Column(db.BigInteger, nullable=True)
             net_sent = db.Column('net_sent_bytes', db.BigInteger, nullable=True)
             net_recv = db.Column('net_recv_bytes', db.BigInteger, nullable=True)
+            disk_read_iops = db.Column('read_iops', db.Float, nullable=True)
+            disk_write_iops = db.Column('write_iops', db.Float, nullable=True)
+            disk_read_bytes_per_sec = db.Column('read_bytes_per_sec', db.Float, nullable=True)
+            disk_write_bytes_per_sec = db.Column('write_bytes_per_sec', db.Float, nullable=True)
+            net_sent_per_sec = db.Column('net_sent_bytes_per_sec', db.Float, nullable=True)
+            net_recv_per_sec = db.Column('net_recv_bytes_per_sec', db.Float, nullable=True)
 
             # Relacionamento com host
             host = db.relationship('HostModel', back_populates='metrics')
@@ -49,7 +55,13 @@ class Metric:
                     'disk_free_mb': self.disk_free_mb,
                     'disk_total_mb': self.disk_total_mb,
                     'net_sent': self.net_sent,
-                    'net_recv': self.net_recv
+                    'net_recv': self.net_recv,
+                    'disk_read_iops': self.disk_read_iops,
+                    'disk_write_iops': self.disk_write_iops,
+                    'disk_read_bytes_per_sec': self.disk_read_bytes_per_sec,
+                    'disk_write_bytes_per_sec': self.disk_write_bytes_per_sec,
+                    'net_sent_per_sec': self.net_sent_per_sec,
+                    'net_recv_per_sec': self.net_recv_per_sec,
                 }
 
         return MetricModel

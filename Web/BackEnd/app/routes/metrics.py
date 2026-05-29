@@ -44,6 +44,12 @@ def create_metric_blueprint(db, HostModel, AgentModel, MetricModel):
                 disk_total_mb=normalized['disk_total_mb'],
                 net_sent=normalized['net_sent_bytes'],
                 net_recv=normalized['net_recv_bytes'],
+                disk_read_iops=normalized['disk_read_iops'],
+                disk_write_iops=normalized['disk_write_iops'],
+                disk_read_bytes_per_sec=normalized['disk_read_bytes_per_sec'],
+                disk_write_bytes_per_sec=normalized['disk_write_bytes_per_sec'],
+                net_sent_per_sec=normalized['net_sent_bytes_per_sec'],
+                net_recv_per_sec=normalized['net_recv_bytes_per_sec'],
             )
 
             host.last_seen = datetime.utcnow()
@@ -171,6 +177,12 @@ def _normalize_metrics_payload(dados, remote_addr):
         'disk_total_mb': _bytes_to_mb(disk_total_bytes),
         'net_sent_bytes': _safe_int(network.get('bytes_sent') or data.get('net_sent') or data.get('net_sent_bytes')),
         'net_recv_bytes': _safe_int(network.get('bytes_recv') or data.get('net_recv') or data.get('net_recv_bytes')),
+        'disk_read_iops': _number(disk.get('read_iops')),
+        'disk_write_iops': _number(disk.get('write_iops')),
+        'disk_read_bytes_per_sec': _number(disk.get('read_bytes_per_sec')),
+        'disk_write_bytes_per_sec': _number(disk.get('write_bytes_per_sec')),
+        'net_sent_bytes_per_sec': _number(network.get('bytes_sent_per_sec')),
+        'net_recv_bytes_per_sec': _number(network.get('bytes_recv_per_sec')),
     }
 
 

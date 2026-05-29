@@ -44,7 +44,8 @@ export const api = {
   // ALERTAS (agora dentro do objeto api)
   getAlerts: async (status = 'active') => {
     const params = status ? `?status=${status}` : '';
-    return request(`/api/alerts${params}`);
+    const data = await request(`/api/alerts${params}`);
+    return data.alerts || [];
   },
   resolveAlert: async (alertId) => {
     return request(`/api/alerts/${alertId}/resolve`, {

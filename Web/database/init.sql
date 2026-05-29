@@ -57,7 +57,13 @@ CREATE TABLE metrics (
     disk_free_mb BIGINT,
     disk_total_mb BIGINT,
     net_sent_bytes BIGINT,
-    net_recv_bytes BIGINT
+    net_recv_bytes BIGINT,
+    read_iops FLOAT,
+    write_iops FLOAT,
+    read_bytes_per_sec FLOAT,
+    write_bytes_per_sec FLOAT,
+    net_sent_bytes_per_sec FLOAT,
+    net_recv_bytes_per_sec FLOAT
 );
 CREATE INDEX idx_metrics_host_ts ON metrics (host_id, timestamp DESC);
 CREATE INDEX idx_metrics_ts ON metrics (timestamp);
@@ -90,7 +96,9 @@ CREATE TABLE alerts (
     source_ip INET NOT NULL,
     timestamp TIMESTAMPTZ DEFAULT NOW(),
     severity VARCHAR(20) DEFAULT 'medium',
-    metodos VARCHAR(20)
+    metodos VARCHAR(20),
+    resolved BOOLEAN NOT NULL DEFAULT FALSE,
+    resolved_at TIMESTAMPTZ
 );
 CREATE INDEX idx_alerts_host_ts ON alerts (host_id, timestamp DESC);
 CREATE INDEX idx_alerts_type_ts ON alerts (alert_type, timestamp DESC);

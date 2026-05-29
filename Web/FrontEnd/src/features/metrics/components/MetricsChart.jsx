@@ -58,6 +58,14 @@ export function MetricsChart({ metrics, title }) {
         tension: 0.3,
         fill: true,
       },
+      {
+        label: 'Disco (%)',
+        data: validMetrics.map(m => toChartNumber(m.disk_percent)),
+        borderColor: 'rgb(234, 179, 8)',
+        backgroundColor: 'rgba(234, 179, 8, 0.1)',
+        tension: 0.3,
+        fill: true,
+      },
     ],
   };
 

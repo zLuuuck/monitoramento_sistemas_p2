@@ -101,9 +101,30 @@ def garantir_schema_alerts():
         app.logger.warning('Nao foi possivel garantir schema de alerts: %s', erro)
 
 
+def garantir_schema_iops():
+    """Adiciona colunas de IOPS de disco e taxas de rede em bancos sem schema atualizado."""
+    comandos = [
+        'ALTER TABLE metrics ADD COLUMN IF NOT EXISTS read_iops FLOAT',
+        'ALTER TABLE metrics ADD COLUMN IF NOT EXISTS write_iops FLOAT',
+        'ALTER TABLE metrics ADD COLUMN IF NOT EXISTS read_bytes_per_sec FLOAT',
+        'ALTER TABLE metrics ADD COLUMN IF NOT EXISTS write_bytes_per_sec FLOAT',
+        'ALTER TABLE metrics ADD COLUMN IF NOT EXISTS net_sent_bytes_per_sec FLOAT',
+        'ALTER TABLE metrics ADD COLUMN IF NOT EXISTS net_recv_bytes_per_sec FLOAT',
+    ]
+    try:
+        with app.app_context():
+            for comando in comandos:
+                db.session.execute(db.text(comando))
+            db.session.commit()
+    except Exception as erro:
+        db.session.rollback()
+        app.logger.warning('Nao foi possivel garantir schema de IOPS: %s', erro)
+
+
 garantir_schema_discovery()
 garantir_schema_metrics()
 garantir_schema_alerts()
+garantir_schema_iops()
 
 
 # Registra os Blueprints de rotas

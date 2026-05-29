@@ -78,7 +78,7 @@ return (
                     >
                     {alert.severity?.toUpperCase() || 'MÉDIO'}
                     </span>
-                    <span className="font-mono text-sm">{alert.type || 'Desconhecido'}</span>
+                    <span className="font-mono text-sm">{alert.alert_type || 'Desconhecido'}</span>
                 </div>
                 <p className="text-sm text-gray-600">
                     IP: {alert.source_ip || 'N/A'} |{' '}
