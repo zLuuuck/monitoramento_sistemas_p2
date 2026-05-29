@@ -41,6 +41,9 @@ class Alert:
             # Campo herdado do schema da Beatriz (método de ataque, ex: "password")
             metodos = db.Column(db.String(20), nullable=True)
 
+            # Descrição legível do alerta (ex: "45 portas varridas em 60s de 10.0.0.5")
+            message = db.Column(db.Text, nullable=True)
+
             # Campos adicionados na Semana 5 para controle de resolução
             # ATENÇÃO: estas colunas precisam existir no banco.
             # Se o banco foi criado com o init.sql original (sem elas), rodar:
@@ -63,6 +66,7 @@ class Alert:
                     'timestamp':   self.timestamp.isoformat() if self.timestamp else None,
                     'severity':    self.severity,
                     'metodos':     self.metodos,
+                    'message':     self.message,
                     'resolved':    self.resolved,
                     'resolved_at': self.resolved_at.isoformat() if self.resolved_at else None,
                 }

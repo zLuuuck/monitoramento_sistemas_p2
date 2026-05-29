@@ -101,6 +101,21 @@ def garantir_schema_alerts():
         app.logger.warning('Nao foi possivel garantir schema de alerts: %s', erro)
 
 
+def garantir_schema_alerts_message():
+    """Adiciona coluna message à tabela alerts para descrição legível do alerta."""
+    comandos = [
+        'ALTER TABLE alerts ADD COLUMN IF NOT EXISTS message TEXT',
+    ]
+    try:
+        with app.app_context():
+            for comando in comandos:
+                db.session.execute(db.text(comando))
+            db.session.commit()
+    except Exception as erro:
+        db.session.rollback()
+        app.logger.warning('Nao foi possivel garantir schema de message em alerts: %s', erro)
+
+
 def garantir_schema_iops():
     """Adiciona colunas de IOPS de disco e taxas de rede em bancos sem schema atualizado."""
     comandos = [
@@ -124,6 +139,7 @@ def garantir_schema_iops():
 garantir_schema_discovery()
 garantir_schema_metrics()
 garantir_schema_alerts()
+garantir_schema_alerts_message()
 garantir_schema_iops()
 
 

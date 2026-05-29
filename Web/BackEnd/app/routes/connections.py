@@ -65,8 +65,8 @@ def register_connections_routes(app, db, HostModel, ActiveConnectionModel, Alert
 
         # --- Listas do payload ---
         conexoes          = dados.get('connections', [])
-        port_scan_flag    = dados.get('port_scan_detected', False)
-        syn_sent_count    = dados.get('syn_sent_count', 0)
+        scan_sources      = dados.get('scan_sources', {})   # {attacker_ip: distinct_port_count}
+        port_scan_flag    = dados.get('port_scan_detected', bool(scan_sources))
 
         # --- Persistência das conexões ---
         registros_salvos = 0
@@ -101,39 +101,41 @@ def register_connections_routes(app, db, HostModel, ActiveConnectionModel, Alert
             return jsonify({'erro': f'Falha ao salvar conexões: {str(erro)}'}), 500
 
         # --- Detecção de port scan ---
-        # O agente realiza a análise de SYN_SENT no lado dele e sinaliza port_scan_detected=true.
-        # O backend identifica o IP atacante real a partir da lista de conexões recebidas:
-        # em um port scan, o mesmo IP externo aparece em múltiplas conexões com portas
-        # de destino variadas — o mais frequente é o provável scanner.
-        # Usar primary_ip seria errado: registraria o próprio servidor como atacante.
-        alerta_criado = False
+        # O agente usa tcpdump para detectar SYN entrantes e envia scan_sources:
+        # {ip_atacante: qtd_portas_distintas}. O backend cria um alerta por IP.
+        # Fallback para payloads antigos (sem scan_sources): usa heurística de frequência.
+        alertas_criados = 0
 
         if port_scan_flag:
-            if conexoes:
-                # Conta ocorrências de cada remote_ip na lista de conexões
-                contagem = Counter(
-                    c.get('remote_ip', '') for c in conexoes if c.get('remote_ip')
-                )
-                # O IP mais frequente é o provável scanner
-                ip_atacante = contagem.most_common(1)[0][0] if contagem else primary_ip
+            if scan_sources:
+                # Novo modelo: agente fornece IPs atacantes diretamente com contagem
+                for ip_atacante, port_count in scan_sources.items():
+                    criado = check_port_scan_fn(
+                        db, AlertModel, host_id,
+                        ip_atacante, int(port_count),
+                    )
+                    if criado:
+                        alertas_criados += 1
             else:
-                # Fallback: lista vazia não deveria ocorrer com port_scan_detected=true
-                ip_atacante = primary_ip
-
-            alerta_criado = check_port_scan_fn(
-                db,
-                AlertModel,
-                host_id,
-                ip_origem=ip_atacante,   # IP real do scanner, não o do próprio host
-            )
+                # Fallback: payload antigo sem scan_sources
+                if conexoes:
+                    contagem = Counter(
+                        c.get('remote_ip', '') for c in conexoes if c.get('remote_ip')
+                    )
+                    ip_atacante = contagem.most_common(1)[0][0] if contagem else primary_ip
+                else:
+                    ip_atacante = primary_ip
+                criado = check_port_scan_fn(db, AlertModel, host_id, ip_atacante, 0)
+                if criado:
+                    alertas_criados += 1
 
         return jsonify({
-            'mensagem':      'Conexões recebidas com sucesso',
-            'host_id':       host_id,
-            'total_salvo':   registros_salvos,
-            'syn_sent_count': syn_sent_count,
+            'mensagem':       'Conexões recebidas com sucesso',
+            'host_id':        host_id,
+            'total_salvo':    registros_salvos,
             'port_scan_flag': port_scan_flag,
-            'alerta_criado': alerta_criado,
+            'scan_sources':   scan_sources,
+            'alertas_criados': alertas_criados,
         }), 201
 
     # Registra o blueprint na aplicação

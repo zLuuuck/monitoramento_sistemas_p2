@@ -1,25 +1,126 @@
 # =============================================================================
 # coleta/connections_coleta/connections.py
 #
-# Coleta conexões TCP ativas e detecta possível port scan.
+# Coleta conexões TCP ativas e detecta port scans ENTRANTES via tcpdump.
 #
 # Comportamento:
-#   - Usa psutil.net_connections() para listar conexões TCP ativas.
-#   - Filtra estados relevantes: ESTABLISHED, SYN_SENT, TIME_WAIT, CLOSE_WAIT.
-#   - Detecta port scan quando >= _PORTSCAN_THRESHOLD conexões SYN_SENT
-#     apontam para portas distintas.
+#   - Thread tcpdump: captura pacotes TCP SYN de origem externa em tempo real.
+#   - Thread eval (2s): mantém janela deslizante de 60s e atualiza _active_scans.
+#   - get_active_connections(): retorna conexões ativas + estado atual de detecção.
+#   - Detecção: >= _PORTSCAN_THRESHOLD portas distintas do mesmo IP em 60s → scan.
+#   - Graceful degradation: se tcpdump não estiver instalado ou sem permissão,
+#     a detecção é desabilitada silenciosamente (port_scan_detected sempre False).
 # =============================================================================
 
 import psutil
+import subprocess
+import threading
+import re
+import time
+from collections import defaultdict
+from datetime import datetime, timedelta
 
-_PORTSCAN_THRESHOLD = 10  # SYN_SENT para portas distintas → possível port scan
+_PORTSCAN_WINDOW    = 60   # janela deslizante em segundos
+_PORTSCAN_THRESHOLD = 10   # portas distintas de um mesmo IP → scan detectado
+_EVAL_INTERVAL      = 2    # segundos entre avaliações da janela
+
+_lock = threading.Lock()
+_syn_window: dict  = defaultdict(list)  # {src_ip: [(datetime, dst_port), ...]}
+_active_scans: dict = {}                # {src_ip: distinct_port_count} — atualizado a cada 2s
+
+# Regex para extrair src_ip, src_port, dst_ip, dst_port da saída do tcpdump
+_TCPDUMP_RE = re.compile(
+    r'(\d{1,3}(?:\.\d{1,3}){3})\.(\d+)\s*>\s*(\d{1,3}(?:\.\d{1,3}){3})\.(\d+):'
+)
+
+
+def _local_ips() -> set:
+    """Retorna todos os IPs configurados neste host para filtrar pacotes de saída."""
+    ips = {"127.0.0.1", "::1"}
+    try:
+        for addrs in psutil.net_if_addrs().values():
+            for addr in addrs:
+                ips.add(addr.address)
+    except Exception:
+        pass
+    return ips
+
+
+_LOCAL_IPS = _local_ips()
+
+
+def _thread_tcpdump() -> None:
+    """
+    Thread daemon: captura pacotes TCP SYN entrantes via tcpdump.
+
+    Filtra apenas pacotes de origem externa (não LOCAL_IPS) para evitar
+    contar conexões de saída legítimas do próprio host como port scan.
+    """
+    try:
+        proc = subprocess.Popen(
+            [
+                "tcpdump", "-n", "-l", "-i", "any",
+                "tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack == 0",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            bufsize=1,
+        )
+        for line in proc.stdout:
+            m = _TCPDUMP_RE.search(line)
+            if not m:
+                continue
+            src_ip   = m.group(1)
+            dst_port = int(m.group(4))
+            if src_ip in _LOCAL_IPS:
+                continue  # pacote de saída deste host — ignora
+            with _lock:
+                _syn_window[src_ip].append((datetime.utcnow(), dst_port))
+    except FileNotFoundError:
+        pass   # tcpdump não instalado — detecção desabilitada silenciosamente
+    except Exception:
+        pass
+
+
+def _thread_eval() -> None:
+    """
+    Thread daemon: a cada 2 segundos, poda a janela deslizante e atualiza _active_scans.
+
+    Um IP entra em _active_scans quando acumulou >= _PORTSCAN_THRESHOLD portas
+    distintas na janela de 60s. Sai automaticamente quando a janela expira.
+    """
+    while True:
+        time.sleep(_EVAL_INTERVAL)
+        now    = datetime.utcnow()
+        cutoff = now - timedelta(seconds=_PORTSCAN_WINDOW)
+        with _lock:
+            # Poda entradas fora da janela
+            for ip in list(_syn_window.keys()):
+                _syn_window[ip] = [
+                    (ts, p) for ts, p in _syn_window[ip] if ts > cutoff
+                ]
+                if not _syn_window[ip]:
+                    del _syn_window[ip]
+
+            # Atualiza dicionário de scans ativos
+            _active_scans.clear()
+            for ip, entries in _syn_window.items():
+                distinct = len({p for _, p in entries})
+                if distinct >= _PORTSCAN_THRESHOLD:
+                    _active_scans[ip] = distinct
+
+
+# Inicia as threads como daemon — encerram junto com o processo principal
+threading.Thread(target=_thread_tcpdump, daemon=True, name="tcpdump-capture").start()
+threading.Thread(target=_thread_eval,    daemon=True, name="portscan-eval").start()
 
 _TRACKED_STATES = {"ESTABLISHED", "SYN_SENT", "TIME_WAIT", "CLOSE_WAIT"}
 
 
 def get_active_connections() -> dict:
     """
-    Retorna conexões TCP ativas e indicador de port scan.
+    Retorna conexões TCP ativas e o estado atual de detecção de port scan.
 
     Retorno:
         {
@@ -32,49 +133,41 @@ def get_active_connections() -> dict:
                 },
                 ...
             ],
-            "total":             int,
+            "total":              int,
             "port_scan_detected": bool,
-            "syn_sent_count":    int   # portas distintas em SYN_SENT
+            "scan_sources":       {src_ip: distinct_port_count, ...}
         }
     """
     try:
         raw = psutil.net_connections(kind="tcp")
     except Exception as e:
+        with _lock:
+            scans = dict(_active_scans)
         return {
-            "connections": [],
-            "total": 0,
-            "port_scan_detected": False,
-            "syn_sent_count": 0,
-            "error": str(e),
+            "connections":        [],
+            "total":              0,
+            "port_scan_detected": bool(scans),
+            "scan_sources":       scans,
+            "error":              str(e),
         }
 
     connections = []
-    syn_sent_remote_ports = set()
-
     for conn in raw:
         if conn.status not in _TRACKED_STATES:
             continue
-
-        remote_ip   = conn.raddr.ip   if conn.raddr else None
-        remote_port = conn.raddr.port if conn.raddr else None
-        local_port  = conn.laddr.port if conn.laddr else None
-
         connections.append({
-            "local_port":  local_port,
-            "remote_ip":   remote_ip,
-            "remote_port": remote_port,
+            "local_port":  conn.laddr.port if conn.laddr else None,
+            "remote_ip":   conn.raddr.ip   if conn.raddr else None,
+            "remote_port": conn.raddr.port if conn.raddr else None,
             "state":       conn.status,
         })
 
-        if conn.status == "SYN_SENT" and remote_port is not None:
-            syn_sent_remote_ports.add(remote_port)
-
-    syn_sent_count    = len(syn_sent_remote_ports)
-    port_scan_detected = syn_sent_count >= _PORTSCAN_THRESHOLD
+    with _lock:
+        scans = dict(_active_scans)
 
     return {
         "connections":        connections,
         "total":              len(connections),
-        "port_scan_detected": port_scan_detected,
-        "syn_sent_count":     syn_sent_count,
+        "port_scan_detected": bool(scans),
+        "scan_sources":       scans,   # {ip_atacante: qtd_portas_distintas}
     }

@@ -83,6 +83,7 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
             timestamp   = datetime.utcnow(),
             severity    = 'high',
             metodos     = 'password',
+            message     = f'Força bruta SSH: {total_falhas} tentativas em 60s de {ip_origem}',
             resolved    = False,
             resolved_at = None,
         )
@@ -107,7 +108,7 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
         return False
 
 
-def check_port_scan(db, AlertModel, host_id: int, ip_origem: str) -> bool:
+def check_port_scan(db, AlertModel, host_id: int, ip_origem: str, port_count: int = 0) -> bool:
     """
     Registra um alerta de port scan quando o agente sinaliza detecção.
 
@@ -125,8 +126,8 @@ def check_port_scan(db, AlertModel, host_id: int, ip_origem: str) -> bool:
         db         — instância do SQLAlchemy (para db.session)
         AlertModel — modelo de alertas (injetado para evitar import circular)
         host_id    — ID do host onde o port scan foi detectado
-        ip_origem  — IP associado ao alerta (primary_ip do host nesta versão;
-                     campo dedicado pode ser adicionado pelo agente futuramente)
+        ip_origem  — IP do atacante (fornecido pelo agente via scan_sources)
+        port_count — número de portas distintas varridas (0 = desconhecido)
 
     Retorna:
         bool — True se um novo alerta foi criado, False caso contrário.
@@ -150,13 +151,19 @@ def check_port_scan(db, AlertModel, host_id: int, ip_origem: str) -> bool:
             return False
 
         # Passo 2: cria novo alerta de port scan
+        msg = (
+            f'Varredura de portas: {port_count} portas distintas em 60s de {ip_origem}'
+            if port_count
+            else f'Varredura de portas detectada de {ip_origem}'
+        )
         novo_alerta = AlertModel(
             host_id     = host_id,
             alert_type  = 'port_scan',
             source_ip   = ip_origem,
             timestamp   = datetime.utcnow(),
             severity    = 'high',
-            metodos     = None,   # campo não aplicável para port scan
+            metodos     = None,
+            message     = msg,
             resolved    = False,
             resolved_at = None,
         )

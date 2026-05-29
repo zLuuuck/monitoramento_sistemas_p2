@@ -97,6 +97,7 @@ CREATE TABLE alerts (
     timestamp TIMESTAMPTZ DEFAULT NOW(),
     severity VARCHAR(20) DEFAULT 'medium',
     metodos VARCHAR(20),
+    message TEXT,
     resolved BOOLEAN NOT NULL DEFAULT FALSE,
     resolved_at TIMESTAMPTZ
 );

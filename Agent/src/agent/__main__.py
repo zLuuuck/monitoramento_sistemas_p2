@@ -189,24 +189,26 @@ def main():
             logger.exception("Erro na coleta de logs")
 
         # -----------------------------------------------------------------
-        # CONEXÕES TCP (detecção de port scan)
+        # CONEXÕES TCP (detecção de port scan entrante via tcpdump)
         # -----------------------------------------------------------------
         try:
             conn_data    = collect_connections()
             timestamp    = datetime.now(timezone.utc).isoformat()
+            scan_sources = conn_data.get("scan_sources", {})
             conn_payload = {
                 "global":             connections_global,
                 "timestamp":          timestamp,
                 "connections":        conn_data.get("connections", []),
                 "total":              conn_data.get("total", 0),
                 "port_scan_detected": conn_data.get("port_scan_detected", False),
-                "syn_sent_count":     conn_data.get("syn_sent_count", 0),
+                "scan_sources":       scan_sources,
             }
             if conn_data.get("port_scan_detected"):
-                logger.warning(
-                    "ALERTA: possivel port scan detectado — %d portas SYN_SENT distintas",
-                    conn_data["syn_sent_count"],
-                )
+                for ip, port_count in scan_sources.items():
+                    logger.warning(
+                        "ALERTA: port scan ENTRANTE de %s — %d portas distintas em 60s",
+                        ip, port_count,
+                    )
             if debug_exec:
                 print(json.dumps(conn_payload, indent=2, default=str))
             else:
