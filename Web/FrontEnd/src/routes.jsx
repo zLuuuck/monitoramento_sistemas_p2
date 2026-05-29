@@ -25,7 +25,7 @@ const router = createBrowserRouter([
       },
       {
         path: '/alerts',
-        element: <AlertsPage />,
+        element: <AlertsPage />, //precisa adicionar /ednpointsh
       },
     ],
   },

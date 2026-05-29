@@ -8,7 +8,7 @@ export function TopTabs({ activeSubTab, onSubTabChange, hostType }) {
     { id: 'network', name: 'Rede', icon: 'network' },
   ];
 
-  return (
+  return ( //da uma olhada aqui tbm, pode ter algo aqui quebrando;
     <div className="border-b border-gray-200 bg-white">
       <div className="flex space-x-8 px-6">
         {subTabs.map((tab) => (

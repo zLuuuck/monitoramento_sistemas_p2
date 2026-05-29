@@ -3,6 +3,23 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Layout } from './shared/components/Layout';
 import { api } from './shared/services/api';
 import './App.css';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+
+//tem que mudar algo aqui pra aquela barra funcionar
+
+// Componente para alternar o tema (pode ficar aqui ou mover para outro arquivo)
+function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
+  return (
+    <button
+      onClick={toggleTheme}
+      className="px-3 py-2 rounded-lg border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600"
+      title={theme === 'light' ? 'Modo escuro' : 'Modo claro'}
+    >
+      {theme === 'light' ? '🌙' : '☀️'}
+    </button>
+  );
+}
 
 function App() {
   const [selectedHost, setSelectedHost] = useState('');
@@ -63,30 +80,33 @@ function App() {
   const selectedHostInfo = hostsDisponiveis.find((host) => host.id === selectedHost);
 
   return (
-    <Layout hostType={selectedDiscovery?.is_virtualized ? 'virtual' : 'physical'}>
-      {/* Seletor Global de Host no Topo das Páginas */}
-      <div className="flex justify-end mb-6">
-        <div className="flex items-center gap-3">
-          <label className="text-gray-600 text-sm font-medium">Host:</label>
-          <select
-            value={selectedHost}
-            onChange={(e) => setSelectedHost(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-2 bg-white focus:outline-none"
-            disabled={hostsDisponiveis.length === 0}
-          >
-            {hostsDisponiveis.length === 0 && <option value="">Nenhum host</option>}
-            {hostsDisponiveis.map((host) => (
-              <option key={host.id} value={host.id}>
-                {host.name} {host.status === 'offline' && '(Offline)'}
-              </option>
-            ))}
-          </select>
+    <ThemeProvider>
+      <Layout hostType={selectedDiscovery?.is_virtualized ? 'virtual' : 'physical'}>
+        {/* Seletor Global de Host no Topo das Páginas */}
+        <div className="flex justify-end mb-6">
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <label className="text-gray-600 dark:text-gray-300 text-sm font-medium">Host:</label>
+            <select
+              value={selectedHost}
+              onChange={(e) => setSelectedHost(e.target.value)}
+              className="border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-white dark:bg-gray-800 dark:text-white focus:outline-none"
+              disabled={hostsDisponiveis.length === 0}
+            >
+              {hostsDisponiveis.length === 0 && <option value="">Nenhum host</option>}
+              {hostsDisponiveis.map((host) => (
+                <option key={host.id} value={host.id}>
+                  {host.name} {host.status === 'offline' && '(Offline)'}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-      </div>
 
-      {/* O Outlet injeta a subpágina da rota atual e distribui os dados compartilhados via context */}
-      <Outlet context={{ selectedHost, metrics, loading, metricsError, selectedDiscovery, selectedHostInfo }} />
-    </Layout>
+        {/* O Outlet injeta a subpágina da rota atual e distribui os dados compartilhados via context */}
+        <Outlet context={{ selectedHost, metrics, loading, metricsError, selectedDiscovery, selectedHostInfo }} />
+      </Layout>
+    </ThemeProvider>
   );
 }
 
