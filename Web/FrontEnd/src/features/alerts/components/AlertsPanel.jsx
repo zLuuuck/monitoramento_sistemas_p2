@@ -45,7 +45,6 @@ const handleResolve = async (alertId) => {
     if (loading && alerts.length === 0) {
     return (
         <div className="bg-white rounded-lg shadow p-4">
-        <h2 className="text-xl font-bold mb-3">Alertas de Segurança</h2>
         <div className="text-gray-500">Carregando alertas...</div>
         </div>
     );
@@ -54,7 +53,6 @@ const handleResolve = async (alertId) => {
 if (error) {
     return (
         <div className="bg-white rounded-lg shadow p-4">
-        <h2 className="text-xl font-bold mb-3">Alertas de Segurança</h2>
         <div className="text-red-500">{error}</div>
         </div>
     );
@@ -62,7 +60,6 @@ if (error) {
 
 return (
     <div className="bg-white rounded-lg shadow p-4">
-        <h2 className="text-xl font-bold mb-3">Alertas de Segurança</h2>
     {alerts.length === 0 ? (
         <p className="text-gray-500">Nenhum alerta ativo.</p>
         ) : (

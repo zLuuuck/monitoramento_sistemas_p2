@@ -14,7 +14,7 @@ export function DashboardPage() {
   return (
     <section className="mb-8">
       <div className="mb-4">
-        <h2 className="text-xl font-bold text-gray-800">Discovery do Host</h2>
+        <h2 className="text-xl font-bold text-page">Discovery do Host</h2>
         <p className="text-sm text-gray-500">Dados coletados sobre hardware, virtualização e rede.</p>
       </div>
       {selectedDiscovery ? (
@@ -34,16 +34,24 @@ export function MetricsPage() {
   if (metricsError) return <div className="text-red-500 p-4">{metricsError}</div>;
 
   return (
-    <div className="space-y-6">
-      {metrics.length > 0 ? (
-        <>
-          <MetricsChart metrics={metrics} title={`Métricas - ${selectedHostInfo?.name}`} />
-          <MetricCards latestMetric={metrics[metrics.length - 1]} />
-        </>
-      ) : (
-        <div className="bg-white rounded-lg shadow-md p-6 text-gray-500">Nenhuma métrica encontrada para este host.</div>
-      )}
-    </div>
+    <section className="mb-8">
+      <div className="mb-4">
+        <h2 className="text-xl font-bold text-page">Métricas do Host</h2>
+        <p className="text-sm text-page opacity-80">
+          Gráficos e indicadores de desempenho do host selecionado.
+        </p>
+      </div>
+      <div className="space-y-6">
+        {metrics.length > 0 ? (
+          <>
+            <MetricsChart metrics={metrics} title={`Métricas - ${selectedHostInfo?.name}`} />
+            <MetricCards latestMetric={metrics[metrics.length - 1]} />
+          </>
+        ) : (
+          <div className="bg-white rounded-lg shadow-md p-6 text-gray-500">Nenhuma métrica encontrada para este host.</div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -55,7 +63,15 @@ export function LogsPage() {
 
 // 4. ABA ALERTAS
 export function AlertsPage() {
-  // Se o seu AlertsPanel precisar do ID do host futuramente, você pode pegar aqui!
-  // const { selectedHost } = useOutletContext();
-  return <AlertsPanel />;
+  return (
+    <section className="mb-8">
+      <div className="mb-4">
+        <h2 className="text-xl font-bold text-page">Alertas de Segurança</h2>
+        <p className="text-sm text-page opacity-80">
+          Eventos e notificações de segurança detectados no host.
+        </p>
+      </div>
+      <AlertsPanel />
+    </section>
+  );
 }

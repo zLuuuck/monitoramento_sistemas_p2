@@ -1,52 +1,32 @@
 @import "tailwindcss";
 
-/* Estilos base para o modo claro (já vêm do Tailwind, mas vamos reforçar) */
+/* ========== MODO CLARO (padrão) ========== */
 :root {
-    --bg-page: #f3f4f6;    /* bg-gray-100 */
-    --text-page: #111827;  /* text-gray-900 */
+    --bg-page: #f3f4f6;      /* fundo da página */
+    --text-page: #111827;     /* cor dos textos (escuro) */
     --card-bg: #ffffff;
     --card-border: #e5e7eb;
-}
-:root {
-    --bg-page: #f3f4f6;
-    --text-page: #111827;
-    --card-bg: #ffffff;
-    --card-border: #e5e7eb;
-    --sidebar-bg: #111827;   /* adicione esta linha */
+    --sidebar-bg: #ffffff;    /* ← fundo da sidebar BRANCO no modo claro */
 }
 
+/* ========== MODO ESCURO ========== */
 .dark {
     --bg-page: #111827;
-    --text-page: #f3f4f6;
+    --text-page: #f3f4f6;     /* cor dos textos (claro) */
     --card-bg: #1f2937;
     --card-border: #374151;
-    --sidebar-bg: #030712;   /* adicione esta linha (mais escuro) */
-}
-/* Modo escuro: quando <html class="dark"> */
-.dark {
-    --bg-page: #111827;    /* bg-gray-900 */
-    --text-page: #f3f4f6;  /* text-gray-100 */
-    --card-bg: #1f2937;    /* bg-gray-800 */
-    --card-border: #374151;
+    --sidebar-bg: #030712;    /* fundo da sidebar escuro */
 }
 
-/* Aplica as variáveis nos elementos principais */
+/* Aplica as variáveis */
 body {
     background-color: var(--bg-page);
     color: var(--text-page);
     transition: background-color 0.3s, color 0.3s;
 }
 
-/* Você pode adicionar classes utilitárias se quiser usar em componentes específicos */
-.bg-page {
-    background-color: var(--bg-page);
-}
-.text-page {
-    color: var(--text-page);
-}
-.bg-card {
-    background-color: var(--card-bg);
-}
-.border-card {
-    border-color: var(--card-border);
-}
+/* Classes utilitárias (opcional) */
+.bg-page { background-color: var(--bg-page); }
+.text-page { color: var(--text-page); }
+.bg-card { background-color: var(--card-bg); }
+.border-card { border-color: var(--card-border); }
