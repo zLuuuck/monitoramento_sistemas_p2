@@ -16,7 +16,7 @@ function ThemeToggle() {
       className="px-3 py-2 rounded-lg border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600"
       title={theme === 'light' ? 'Modo escuro' : 'Modo claro'}
     >
-      {theme === 'light' ? '🌙' : '☀️'}
+      {theme === 'light' ? '☀️' : '🌙'}
     </button>
   );
 }

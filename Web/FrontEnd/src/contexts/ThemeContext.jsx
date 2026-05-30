@@ -1,38 +1,39 @@
-import { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 
 const ThemeContext = createContext();
 
 export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }) => {
-  // Carrega preferência salva ou sistema
-const getInitialTheme = () => {
-    const saved = localStorage.getItem('theme');
-    if (saved === 'dark') return 'dark';
-    if (saved === 'light') return 'light';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    };
+const [theme, setTheme] = useState('light');
 
-const [theme, setTheme] = useState(getInitialTheme);
-
+  // Inicialização: carrega preferência salva
 useEffect(() => {
-    const root = document.documentElement;
-    // ADICIONA a classe 'dark' APENAS quando o tema for 'dark'
-    if (theme === 'dark') {
-        root.classList.add('dark');
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark') {
+        setTheme('dark');
+        document.documentElement.classList.add('dark');
     } else {
-        root.classList.remove('dark');
+        setTheme('light');
+        document.documentElement.classList.remove('dark');
     }
-    localStorage.setItem('theme', theme);
-}, [theme]);
+}, []);
 
+  // Toggle: altera o tema e aplica/remove a classe imediatamente
 const toggleTheme = () => {
-    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    if (newTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', newTheme);
 };
 
 return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
         {children}
     </ThemeContext.Provider>
-    );
+);
 };
