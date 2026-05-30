@@ -5,18 +5,19 @@ const ThemeContext = createContext();
 export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }) => {
-  // Verifica preferência salva ou do sistema
+  // Carrega preferência salva ou sistema
 const getInitialTheme = () => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) return savedTheme;
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark') return 'dark';
+    if (saved === 'light') return 'light';
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-};
+    };
 
 const [theme, setTheme] = useState(getInitialTheme);
 
 useEffect(() => {
-    // Aplica a classe no elemento raiz (<html>)
     const root = document.documentElement;
+    // ADICIONA a classe 'dark' APENAS quando o tema for 'dark'
     if (theme === 'dark') {
         root.classList.add('dark');
     } else {

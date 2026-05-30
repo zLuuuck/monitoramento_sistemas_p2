@@ -1,1 +1,32 @@
 @import "tailwindcss";
+
+/* Cores para o MODO CLARO (agora com cores claras) */
+:root {
+    --bg-page: #f3f4f6;        /* cinza claro */
+    --text-page: #111827;      /* texto escuro */
+    --card-bg: #ffffff;        /* branco */
+    --card-border: #e5e7eb;    /* borda cinza clara */
+    --sidebar-bg: #111827;     /* sidebar escura (pode manter) */
+}
+
+/* Cores para o MODO ESCURO (agora com cores escuras) */
+.dark {
+    --bg-page: #111827;        /* cinza escuro */
+    --text-page: #f3f4f6;      /* texto claro */
+    --card-bg: #1f2937;        /* cinza médio escuro */
+    --card-border: #374151;    /* borda cinza escura */
+    --sidebar-bg: #030712;     /* sidebar mais escura */
+}
+
+/* Aplica as variáveis */
+body {
+    background-color: var(--bg-page);
+    color: var(--text-page);
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* Classes utilitárias (opcional) */
+.bg-page { background-color: var(--bg-page); }
+.text-page { color: var(--text-page); }
+.bg-card { background-color: var(--card-bg); }
+.border-card { border-color: var(--card-border); }
