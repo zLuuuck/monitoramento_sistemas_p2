@@ -183,7 +183,7 @@ export function SettingsPage() {
               onClick={toggleTheme}
               className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
             >
-              {theme === 'light' ? '🌙 Modo escuro' : '☀️ Modo claro'}
+              {theme === 'light' ? '☀️ Modo claro' : '🌙 Modo escuro'}
             </button>
           </div>
         </div>
