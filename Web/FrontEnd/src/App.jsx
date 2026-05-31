@@ -104,7 +104,7 @@ function App() {
         </div>
 
         {/* O Outlet injeta a subpágina da rota atual e distribui os dados compartilhados via context */}
-        <Outlet context={{ selectedHost, metrics, loading, metricsError, selectedDiscovery, selectedHostInfo }} />
+        <Outlet context={{ selectedHost, metrics, loading, metricsError, selectedDiscovery, selectedHostInfo, discovery, discoveryLoading, discoveryError }} />
       </Layout>
     </ThemeProvider>
   );
