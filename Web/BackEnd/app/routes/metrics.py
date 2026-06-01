@@ -4,14 +4,14 @@ from flask import Blueprint, jsonify, request
 from sqlalchemy import or_
 
 
-def register_metric_routes(app, db, HostModel, AgentModel, MetricModel):
+def register_metric_routes(app, db, HostModel, AgentModel, MetricModel, AlertModel=None, check_resource_alert_fn=None):
     """Registra as rotas de metricas no app Flask."""
     app.register_blueprint(
-        create_metric_blueprint(db, HostModel, AgentModel, MetricModel)
+        create_metric_blueprint(db, HostModel, AgentModel, MetricModel, AlertModel, check_resource_alert_fn)
     )
 
 
-def create_metric_blueprint(db, HostModel, AgentModel, MetricModel):
+def create_metric_blueprint(db, HostModel, AgentModel, MetricModel, AlertModel=None, check_resource_alert_fn=None):
     metrics_bp = Blueprint('metrics', __name__, url_prefix='/api')
 
     @metrics_bp.route('/metrics', methods=['POST'])
@@ -60,6 +60,12 @@ def create_metric_blueprint(db, HostModel, AgentModel, MetricModel):
 
             db.session.add(metric)
             db.session.commit()
+
+            # Verifica limiares de recursos e cria alertas se necessário
+            if AlertModel is not None and check_resource_alert_fn is not None:
+                check_resource_alert_fn(db, AlertModel, host.id, 'cpu_high',  normalized['cpu_percent']    or 0.0, 80.0)
+                check_resource_alert_fn(db, AlertModel, host.id, 'mem_high',  normalized['memory_percent'] or 0.0, 80.0)
+                check_resource_alert_fn(db, AlertModel, host.id, 'disk_high', normalized['disk_percent']   or 0.0, 80.0)
 
             return jsonify({
                 'message': 'Metrica salva com sucesso',

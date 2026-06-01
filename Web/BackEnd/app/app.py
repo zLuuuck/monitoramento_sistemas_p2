@@ -153,10 +153,10 @@ from .routes import (
 
 # Semana 6: importação do blueprint de conexões e da função de detecção
 from .routes.connections import register_connections_routes
-from .utils.detection import check_port_scan
+from .utils.detection import check_port_scan, check_resource_alert
 
 register_discovery_routes(app, db, HostModel, AgentModel, HostDiscoveryModel, MetricModel)
-register_metric_routes(app, db, HostModel, AgentModel, MetricModel)
+register_metric_routes(app, db, HostModel, AgentModel, MetricModel, AlertModel, check_resource_alert)
 register_log_routes(app, db, HostModel, LogEntryModel, AlertModel)
 register_alerts_routes(app, db, HostModel, AlertModel)
 
