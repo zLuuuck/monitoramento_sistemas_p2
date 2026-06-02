@@ -56,31 +56,52 @@ def _thread_tcpdump() -> None:
     Filtra apenas pacotes de origem externa (não LOCAL_IPS) para evitar
     contar conexões de saída legítimas do próprio host como port scan.
     """
+    import logging as _logging
+    _log = _logging.getLogger(__name__)
+
+    # Tenta encontrar tcpdump no PATH e em locais comuns
+    tcpdump_bin = "tcpdump"
+    for candidate in ("/usr/bin/tcpdump", "/usr/sbin/tcpdump", "/sbin/tcpdump"):
+        import os as _os
+        if _os.path.isfile(candidate):
+            tcpdump_bin = candidate
+            break
+
     try:
         proc = subprocess.Popen(
             [
-                "tcpdump", "-n", "-l", "-i", "any",
+                tcpdump_bin, "-n", "-l", "-i", "any",
                 "tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack == 0",
             ],
             stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
             text=True,
             bufsize=1,
         )
+        _log.info("tcpdump iniciado (pid=%s, bin=%s)", proc.pid, tcpdump_bin)
+        _log.info("IPs locais filtrados: %s", _LOCAL_IPS)
+        pacotes_capturados = 0
         for line in proc.stdout:
             m = _TCPDUMP_RE.search(line)
             if not m:
+                _log.debug("tcpdump linha sem match: %r", line[:120])
                 continue
             src_ip   = m.group(1)
             dst_port = int(m.group(4))
             if src_ip in _LOCAL_IPS:
                 continue  # pacote de saída deste host — ignora
+            pacotes_capturados += 1
+            if pacotes_capturados <= 5 or pacotes_capturados % 50 == 0:
+                _log.info("SYN capturado #%d: src=%s dst_port=%d", pacotes_capturados, src_ip, dst_port)
             with _lock:
                 _syn_window[src_ip].append((datetime.utcnow(), dst_port))
+        # tcpdump encerrou — loga stderr para diagnóstico
+        stderr_out = proc.stderr.read() if proc.stderr else ''
+        _log.warning("tcpdump encerrou (rc=%s): %s", proc.returncode, stderr_out[:200])
     except FileNotFoundError:
-        pass   # tcpdump não instalado — detecção desabilitada silenciosamente
-    except Exception:
-        pass
+        _log.warning("tcpdump não encontrado — detecção de port scan desabilitada")
+    except Exception as exc:
+        _log.warning("tcpdump thread erro: %s", exc)
 
 
 def _thread_eval() -> None:
@@ -107,6 +128,11 @@ def _thread_eval() -> None:
             _active_scans.clear()
             for ip, entries in _syn_window.items():
                 distinct = len({p for _, p in entries})
+                import logging as _l
+                _l.getLogger(__name__).debug(
+                    "eval: ip=%s entries=%d distinct=%d threshold=%d",
+                    ip, len(entries), distinct, _PORTSCAN_THRESHOLD,
+                )
                 if distinct >= _PORTSCAN_THRESHOLD:
                     _active_scans[ip] = distinct
 
