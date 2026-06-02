@@ -3,23 +3,9 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Layout } from './shared/components/Layout';
 import { api } from './shared/services/api';
 import './App.css';
-import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { ThemeProvider } from './contexts/ThemeContext'; // ← removeu useTheme
 
-//tem que mudar algo aqui pra aquela barra funcionar
-
-// Componente para alternar o tema (pode ficar aqui ou mover para outro arquivo)
-function ThemeToggle() {
-  const { theme, toggleTheme } = useTheme();
-  return (
-    <button
-      onClick={toggleTheme}
-      className="px-3 py-2 rounded-lg border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600"
-      title={theme === 'light' ? 'Modo claro' : 'Modo escuro'}
-    >
-      {theme === 'light' ? '☀️' : '🌙'}
-    </button>
-  );
-}
+// Componente ThemeToggle foi removido
 
 function App() {
   const [selectedHost, setSelectedHost] = useState('');
@@ -82,10 +68,9 @@ function App() {
   return (
     <ThemeProvider>
       <Layout hostType={selectedDiscovery?.is_virtualized ? 'virtual' : 'physical'}>
-        {/* Seletor Global de Host no Topo das Páginas */}
+        {/* Seletor Global de Host no Topo das Páginas (sem o ThemeToggle) */}
         <div className="flex justify-end mb-6">
           <div className="flex items-center gap-3">
-            <ThemeToggle />
             <label className="text-gray-600 dark:text-gray-300 text-sm font-medium">Host:</label>
             <select
               value={selectedHost}
