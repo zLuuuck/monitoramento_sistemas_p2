@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "properties": {
+    "titulo":     { "type": "string" },
+    "mensagem":   { "type": "string" },
+    "severidade": { "type": "string" },
+    "icone":      { "type": "string" },
+    "origem":     { "type": "string" },
+    "timestamp":  { "type": "string" },
+    "link":       { "type": "string" }
+  }
+}

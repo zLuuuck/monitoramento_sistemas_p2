@@ -1,0 +1,101 @@
+{
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.4",
+  "body": [
+    {
+      "type": "Container",
+      "style": "attention",
+      "bleed": true,
+      "items": [
+        {
+          "type": "ColumnSet",
+          "columns": [
+            {
+              "type": "Column",
+              "width": "auto",
+              "verticalContentAlignment": "Center",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "@{triggerBody()?['icone']}",
+                  "size": "ExtraLarge",
+                  "spacing": "None"
+                }
+              ]
+            },
+            {
+              "type": "Column",
+              "width": "stretch",
+              "verticalContentAlignment": "Center",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "MONITOR DE SEGURANÇA",
+                  "weight": "Bolder",
+                  "color": "Light",
+                  "size": "Small",
+                  "spacing": "None",
+                  "isSubtle": true
+                },
+                {
+                  "type": "TextBlock",
+                  "text": "@{triggerBody()?['titulo']}",
+                  "weight": "Bolder",
+                  "color": "Light",
+                  "size": "Large",
+                  "wrap": true,
+                  "spacing": "None"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Container",
+      "spacing": "Medium",
+      "items": [
+        {
+          "type": "TextBlock",
+          "text": "@{triggerBody()?['mensagem']}",
+          "wrap": true,
+          "size": "Medium",
+          "spacing": "Small"
+        }
+      ]
+    },
+    {
+      "type": "Container",
+      "style": "emphasis",
+      "spacing": "Medium",
+      "items": [
+        {
+          "type": "FactSet",
+          "facts": [
+            {
+              "title": "🖥️ Host",
+              "value": "@{triggerBody()?['origem']}"
+            },
+            {
+              "title": "🚨 Severidade",
+              "value": "@{triggerBody()?['severidade']}"
+            },
+            {
+              "title": "🕐 Horário",
+              "value": "@{triggerBody()?['timestamp']}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.OpenUrl",
+      "title": "🔗 Abrir Dashboard",
+      "url": "@{triggerBody()?['link']}"
+    }
+  ]
+}
