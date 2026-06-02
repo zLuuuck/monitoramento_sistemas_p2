@@ -29,6 +29,9 @@ services:
       - DATABASE_URL=postgresql://monitor:monitor@postgres:5432/monitor
       - FLASK_ENV=development
       - FLASK_DEBUG=1
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     depends_on:
       postgres:
         condition: service_healthy
