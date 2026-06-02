@@ -20,7 +20,7 @@ def enviar_alerta_teams(titulo: str, mensagem: str, severidade: str = 'info',
     """
     url = os.getenv('TEAMS_WEBHOOK_URL', '')
     if not url:
-        logger.debug('TEAMS_WEBHOOK_URL não configurado — alerta não enviado')
+        logger.warning('TEAMS_WEBHOOK_URL não configurado — alerta não enviado')
         return False
 
     # Mapeia severidade → emoji para facilitar leitura no card
@@ -51,7 +51,7 @@ def enviar_alerta_teams(titulo: str, mensagem: str, severidade: str = 'info',
             )
             return False
 
-        logger.info('Alerta Teams enviado: %s | status=%s', titulo, r.status_code)
+        logger.warning('Alerta Teams ENVIADO: %s | status=%s', titulo, r.status_code)
         return True
 
     except requests.exceptions.Timeout:
