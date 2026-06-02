@@ -2,6 +2,8 @@ from flask import Blueprint, jsonify, request
 from sqlalchemy import or_
 from datetime import datetime, timezone
 
+from ..utils.auth import require_api_key
+
 
 def register_discovery_routes(app, db, HostModel, AgentModel, HostDiscoveryModel, MetricModel):
     """Registra as rotas de discovery no app Flask."""
@@ -14,6 +16,7 @@ def create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel, Me
     discovery_bp = Blueprint('discovery', __name__, url_prefix='/api')
 
     @discovery_bp.route('/discovery', methods=['POST'])
+    @require_api_key
     def post_discovery():
         """
         Recebe e persiste o discovery gerado pelo Agent.

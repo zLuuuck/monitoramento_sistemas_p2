@@ -13,6 +13,7 @@ from ..utils.parsers import parse_auth_log
 
 # Detecção de brute force — Semana 5 (sem alteração)
 from ..utils.detection import check_brute_force
+from ..utils.auth import require_api_key
 
 
 def register_log_routes(app, db, HostModel, LogEntryModel, AlertModel):
@@ -31,6 +32,7 @@ def create_log_blueprint(app, db, HostModel, LogEntryModel, AlertModel):
     logs_bp = Blueprint('logs', __name__, url_prefix='/api')
 
     @logs_bp.route('/logs', methods=['POST'])
+    @require_api_key
     def post_logs():
         """
         Recebe logs do sistema operacional enviados pelo agente e persiste no banco.

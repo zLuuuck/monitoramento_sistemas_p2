@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
 from sqlalchemy import or_
 
+from ..utils.auth import require_api_key
+
 
 def register_metric_routes(app, db, HostModel, AgentModel, MetricModel, AlertModel=None, check_resource_alert_fn=None):
     """Registra as rotas de metricas no app Flask."""
@@ -15,6 +17,7 @@ def create_metric_blueprint(db, HostModel, AgentModel, MetricModel, AlertModel=N
     metrics_bp = Blueprint('metrics', __name__, url_prefix='/api')
 
     @metrics_bp.route('/metrics', methods=['POST'])
+    @require_api_key
     def post_metrics():
         """Recebe metricas continuas do agente, normaliza e persiste."""
         try:

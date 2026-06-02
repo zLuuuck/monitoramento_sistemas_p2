@@ -7,6 +7,8 @@ from collections import Counter
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 
+from ..utils.auth import require_api_key
+
 # Blueprint criado aqui — registro feito em app.py via register_connections_routes()
 connections_bp = Blueprint('connections', __name__)
 
@@ -28,6 +30,7 @@ def register_connections_routes(app, db, HostModel, ActiveConnectionModel, Alert
     """
 
     @connections_bp.route('/api/connections', methods=['POST'])
+    @require_api_key
     def receber_conexoes():
         """
         Recebe o payload do agente com as conexões TCP ativas do host.

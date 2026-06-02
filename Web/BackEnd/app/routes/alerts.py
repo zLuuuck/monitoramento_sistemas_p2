@@ -5,6 +5,8 @@
 from flask import Blueprint, jsonify, request
 from datetime import datetime
 
+from ..utils.auth import require_api_key
+
 
 def register_alerts_routes(app, db, HostModel, AlertModel):
     """Registra as rotas de alertas no app Flask."""
@@ -92,6 +94,7 @@ def create_alerts_blueprint(db, HostModel, AlertModel):
             }), 500
 
     @alerts_bp.route('/alerts/<int:alerta_id>/resolve', methods=['PATCH'])
+    @require_api_key
     def resolve_alert(alerta_id):
         """
         Marca um alerta como resolvido.
