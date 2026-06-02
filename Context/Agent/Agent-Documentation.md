@@ -1,6 +1,6 @@
 # Agent Monitor — Documentação Técnica
 
-**Versão 5.0 | Maio 2026**
+**Versão 5.1 | Junho 2026**
 
 | Campo             | Valor                                              |
 |-------------------|----------------------------------------------------|
@@ -20,21 +20,7 @@
 4. [Fluxo de Execução](#4-fluxo-de-execução)
 5. [Módulo: global_information](#5-módulo-global_information)
 6. [Módulo: discovery](#6-módulo-discovery)
-   - 6.1 CPU Discovery
-   - 6.2 Memory Discovery
-   - 6.3 Disk Discovery
-   - 6.4 Network Discovery
-   - 6.5 Motherboard Discovery
-   - 6.6 System Discovery
-   - 6.7 Tools Discovery
 7. [Módulo: coleta](#7-módulo-coleta)
-   - 7.1 CPU Coleta
-   - 7.2 Memory Coleta
-   - 7.3 Disk Coleta *(IOPS)*
-   - 7.4 Network Coleta *(bytes/sec)*
-   - 7.5 Logs Coleta
-   - 7.6 Connections Coleta
-   - 7.7 Process Coleta *(Top Processos)*
 8. [Estrutura dos Payloads](#8-estrutura-dos-payloads)
 9. [Módulo: utils](#9-módulo-utils)
 10. [Módulo: sender](#10-módulo-sender)
@@ -53,7 +39,7 @@ O Agent Monitor é um agente de monitoramento Linux escrito em Python 3.12. Ele 
 
 **Discovery** — coleta uma vez, na inicialização, um inventário completo de hardware e sistema operacional do host.
 
-**Coleta Contínua** — a cada 5 segundos, envia via HTTP POST:
+**Coleta Contínua** — a cada ~5 segundos, envia via HTTP POST:
 - Heartbeat mínimo (sinal de vida independente das métricas)
 - Métricas de CPU, memória, disco (com IOPS) e rede (com bytes/sec)
 - Top 15 processos por CPU, RAM, disco e conexões de rede
@@ -69,8 +55,6 @@ O agente é distribuído como um executável único gerado com PyInstaller (`--o
 ---
 
 ## 2. Cronograma
-
-**Objetivo:** Desenvolver um agente nativo (Linux) que coleta métricas do sistema e logs de segurança, enviando-os via HTTP para o servidor central.
 
 | Semana | Período       | Foco Principal                                    | Status |
 |--------|---------------|---------------------------------------------------|--------|
@@ -91,11 +75,12 @@ O agente é distribuído como um executável único gerado com PyInstaller (`--o
 - Fila de retry persistente (`utils/retry_queue.py`) com enfileiramento em JSON local
 - Heartbeat dedicado (`POST /api/heartbeat`) independente das métricas
 - Flag `--debug-exec` para exibir payloads no terminal sem enviar ao backend
+- **Fix de compatibilidade PyInstaller:** limpeza de `LD_LIBRARY_PATH` antes de spawnar tcpdump (ver seção 7.6)
 
 ### Período de Pitch (06 – 12/06)
 
 - **P.1** Garantir que o agente está funcionando na VM que será usada na apresentação
-- **P.2** Preparar roteiro de demonstração: `systemctl status linux-agent` → simular ataque SSH → mostrar alerta no dashboard
+- **P.2** Preparar roteiro de demonstração: `systemctl status linux-agent` → simular ataque SSH → mostrar alerta no dashboard → simular port scan com nmap → mostrar alerta
 - **P.3** Estar disponível para suporte técnico durante a apresentação
 
 ---
@@ -107,11 +92,10 @@ Agent/
 ├── pyproject.toml
 ├── install.sh                      ← instala como serviço systemd
 ├── linux-agent.service             ← definição do serviço
-├── agent.spec                      ← spec gerado pelo PyInstaller
 ├── Agent_Exec/
 │   ├── main.py                     ← entry point do PyInstaller
-│   ├── dist/                       ← binário final gerado
-│   └── build/                      ← artefatos intermediários
+│   ├── dist/                       ← binário final gerado (não versionado)
+│   └── build/                      ← artefatos intermediários (não versionados)
 └── src/
     └── agent/
         ├── __init__.py
@@ -121,33 +105,12 @@ Agent/
         ├── discovery/
         │   ├── __init__.py
         │   ├── cpu_discovery/
-        │   │   ├── cpu.py
-        │   │   ├── cpu_physical.py
-        │   │   └── cpu_virtual.py
         │   ├── mem_discovery/
-        │   │   ├── mem.py
-        │   │   ├── mem_physical.py
-        │   │   └── mem_virtual.py
         │   ├── disk_discovery/
-        │   │   ├── disk.py
-        │   │   ├── disk_physical.py
-        │   │   └── disk_virtual.py
         │   ├── network_discovery/
-        │   │   ├── network.py
-        │   │   ├── network_physical.py
-        │   │   └── network_virtual.py
         │   ├── motherboard_discovery/
-        │   │   ├── motherboard.py
-        │   │   └── motherboard_physical.py
         │   ├── system_discovery/
-        │   │   ├── system.py
-        │   │   ├── system_physical.py
-        │   │   └── system_virtual.py
         │   └── tools_discovery/
-        │       ├── tools.py
-        │       ├── tools_checker.py
-        │       ├── tools_physical.py
-        │       └── tools_virtual.py
         ├── coleta/
         │   ├── collector.py                        ← orquestrador
         │   ├── cpu_coleta/cpu.py
@@ -155,7 +118,7 @@ Agent/
         │   ├── disk_coleta/disk.py                 ← inclui IOPS
         │   ├── network_coleta/network.py            ← inclui bytes/sec
         │   ├── logs_coleta/logs.py
-        │   ├── connections_coleta/connections.py
+        │   ├── connections_coleta/connections.py   ← tcpdump + port scan
         │   └── process_coleta/processes.py         ← top processos
         └── utils/
             ├── parsers.py
@@ -165,6 +128,14 @@ Agent/
             ├── shell.py
             └── logger.py                           ← logging rotativo
 ```
+
+**Arquivos ignorados pelo git (`.gitignore`):**
+
+| Caminho | Motivo |
+|---------|--------|
+| `Agent/Agent_Exec/dist/` | Binário compilado — gerado localmente, não versionado |
+| `Agent/Agent_Exec/build/` | Artefatos intermediários do PyInstaller |
+| `Agent/.spec/` e `*.spec` | Spec files do PyInstaller |
 
 **Diretórios em runtime (criados pelo `install.sh`):**
 
@@ -179,15 +150,13 @@ Agent/
 
 ## 4. Fluxo de Execução
 
-Ao ser iniciado, o agente segue este fluxo:
-
 | Etapa | Descrição |
 |-------|-----------|
 | 1 | `build_global_information("discovery")` — resolve identidade, detecta ambiente, persiste IDs em disco |
 | 2 | `get_tools_info()` — verifica e instala dependências se necessário |
 | 3 | `run_discovery()` — executa todos os módulos de discovery via `_safe_collect()` |
 | 4 | `send_discovery(discovery)` — envia payload ao backend (`POST /api/discovery`) |
-| 5 | Loop infinito (5s): **flush retry → heartbeat → métricas → logs → conexões** |
+| 5 | Loop infinito (~5s): **flush retry → heartbeat → métricas → logs → conexões** |
 
 **Detalhe do loop contínuo:**
 
@@ -205,22 +174,12 @@ Ao ser iniciado, o agente segue este fluxo:
 └───────────────────────────────────────────────────────────┘
 ```
 
-**Flag `--install-deps`:** força instalação de ferramentas ausentes sem prompt interativo.
-
-**Flag `--debug-exec`:** exibe cada payload no terminal via `json.dumps()` em vez de enviá-los ao backend. Útil para validar o formato dos dados em desenvolvimento ou na VM antes de apontar para o servidor real.
+**Flag `--debug-exec`:** exibe cada payload no terminal via `json.dumps()` em vez de enviá-los ao backend.
 
 ```bash
-# Com o venv (desenvolvimento)
-python -m agent --debug-exec
-
-# Com o binário instalado
-/opt/monitor-agent/agent --debug-exec
-
-# Filtrar só os JSONs, sem logs no terminal
-/opt/monitor-agent/agent --debug-exec 2>/dev/null
+/opt/monitor-agent/agent --debug-exec          # com logs no stderr
+/opt/monitor-agent/agent --debug-exec 2>/dev/null  # só JSONs
 ```
-
-**Resiliência por isolamento:** cada módulo de discovery é chamado via `_safe_collect()`, que captura exceções individualmente. Se um módulo falhar, o campo fica com `{"error": "<mensagem>"}` e o agente continua.
 
 ---
 
@@ -228,19 +187,13 @@ python -m agent --debug-exec
 
 **Arquivo:** `agent/global_information/global_information.py`
 
-Monta o bloco `global` que encabeça todos os payloads (discovery, métricas, logs, conexões e heartbeat). É chamado uma vez por tipo de coleta na inicialização. Centraliza a detecção de ambiente.
+Monta o bloco `global` que encabeça todos os payloads. Centraliza a detecção de ambiente.
 
-### Funções internas
-
-**`_load_or_create_id(filename)`** — Lê o ID do arquivo em `~/.agent/<filename>`. Se não existir ou for inválido, gera um número de 5 dígitos (10000–99999) e salva.
-
-**`_get_hostname()`** — Retorna o FQDN via `socket.getfqdn()`. Fallback: `socket.gethostname()`.
+**`_load_or_create_id(filename)`** — Lê o ID do arquivo em `~/.agent/<filename>`. Se não existir, gera um número de 5 dígitos (10000–99999) e salva.
 
 **`_get_primary_ip()`** — Determina o IP primário conectando um socket UDP ao `8.8.8.8:80`. Nenhum pacote é enviado — consulta a tabela de roteamento do kernel.
 
-**`_detect_environment()`** — Executa `lscpu` e verifica o campo `Hypervisor Vendor`. Se presente, o host é virtualizado.
-
-**`_build_notes(is_virtualized)`** — Gera lista de notas informativas para o backend sobre campos indisponíveis em VM.
+**`_detect_environment()`** — Executa `lscpu` e verifica o campo `Hypervisor Vendor`.
 
 ### Payload gerado
 
@@ -250,175 +203,56 @@ Monta o bloco `global` que encabeça todos os payloads (discovery, métricas, lo
   "schema_version":  "1.0",
   "agent_id":        "38472",
   "host_id":         "71203",
-  "hostname":        "servidor-01.exemplo.com",
-  "primary_ip":      "192.168.1.42",
+  "hostname":        "teste-ubuntu",
+  "primary_ip":      "10.10.10.1",
   "environment": {
     "is_virtualized": true,
     "hypervisor":     "VMware"
   },
-  "notes": [
-    "cpu topology reflects VM vCPU allocation, not physical cores",
-    "memory slots unavailable in virtualized environments",
-    "disk is virtual — smartctl data unavailable",
-    "network hardware fields (speed, driver, bus_info) unavailable in VM",
-    "motherboard section absent in virtualized environments"
-  ]
+  "notes": [...]
 }
 ```
-
-| Campo | Descrição |
-|-------|-----------|
-| `collection_type` | `"discovery"`, `"metrics"`, `"logs"`, `"connections"` ou `"heartbeat"` |
-| `schema_version` | Versão do schema — incrementar em breaking changes |
-| `agent_id` | ID único do agente persistido em `~/.agent/agent_id.txt` |
-| `host_id` | ID único do host persistido em `~/.agent/host_id.txt` |
-| `hostname` | FQDN ou hostname do sistema |
-| `primary_ip` | IP da rota de saída (interface preferida) |
-| `environment` | `is_virtualized` + `hypervisor` |
-| `notes` | Lista de avisos sobre campos indisponíveis (vazia em físico) |
 
 ---
 
 ## 6. Módulo: discovery
 
-O módulo de discovery é executado uma única vez após a inicialização e coleta o inventário completo de hardware e SO. Todos os sub-módulos recebem `is_virtualized` como parâmetro e delegam para o handler `_physical` ou `_virtual` correspondente.
+Executado uma única vez após a inicialização. Todos os sub-módulos recebem `is_virtualized` e delegam para o handler `_physical` ou `_virtual` correspondente.
 
 ### 6.1 CPU Discovery
 
-**Arquivos:** `discovery/cpu_discovery/cpu.py`, `cpu_physical.py`, `cpu_virtual.py`
-
-**Fontes de dados:**
-- `lscpu` — modelo, fabricante, arquitetura, número de CPUs lógicas, threads por core, hipervisor
-- `/proc/cpuinfo` — dados complementares por núcleo lógico
-- `sysfs` (`/sys/devices/system/cpu/cpu0/cpufreq/`) — frequências base, máxima e mínima em kHz
-
-**Hardware físico:** coleta `model_name`, `vendor`, `architecture`, `threads_per_core`, `cores_logical`, frequências. A frequência base é buscada primeiro no sysfs e depois em `lscpu` como fallback.
-
-**Ambiente virtualizado:** a topologia reflete a alocação de vCPUs. `threads_per_core` retorna `null` quando genérico (`"1"`).
-
-| Campo | Descrição |
-|-------|-----------|
-| `model_name` | Modelo do processador |
-| `vendor` | Fabricante (Intel, AMD...) |
-| `architecture` | Arquitetura (x86_64, arm64...) |
-| `topology.vcpus` | vCPUs alocados (somente VMs) |
-| `topology.cores_logical` | CPUs lógicas (somente físico) |
-| `frequency.base_mhz` | Frequência base com campo `source` |
-| `frequency.max_mhz` | Frequência máxima com campo `source` |
-| `frequency.min_mhz` | Frequência mínima com campo `source` |
+**Fontes:** `lscpu`, `/proc/cpuinfo`, sysfs (`/sys/devices/system/cpu/`)
 
 ### 6.2 Memory Discovery
 
-**Arquivos:** `discovery/mem_discovery/mem.py`, `mem_physical.py`, `mem_virtual.py`
-
-**Fontes de dados:**
-- `/proc/meminfo` — total, disponível, livre, buffers, cached, swap
-- `dmidecode -t memory` (somente físico, requer root) — slots físicos, fabricante, tipo DDR, velocidade
-
-| Campo | Descrição |
-|-------|-----------|
-| `total_bytes` | RAM total em bytes |
-| `swap_total_bytes` | Swap total em bytes |
-| `slots` | `null` em VM; lista de módulos em físico |
+**Fontes:** `/proc/meminfo`, `dmidecode -t memory` (somente físico, root)
 
 ### 6.3 Disk Discovery
 
-**Arquivos:** `discovery/disk_discovery/disk.py`, `disk_physical.py`, `disk_virtual.py`
-
-**Fontes de dados:**
-- `lsblk -J -b -o NAME,SIZE,TYPE,ROTA,MOUNTPOINT,FSTYPE,LABEL,UUID,MODEL,VENDOR,SERIAL,TRAN,RM`
-- `smartctl -i -j` (somente físico, requer root)
-
-**Resolução de tipo de disco (`resolve_disk_type`):**
-
-| Prioridade | Condição | Resultado |
-|------------|----------|-----------|
-| 1 | `is_virtual=True` | `"Virtual"` |
-| 2 | `rotation_rate=0` | `"SSD"` |
-| 3 | `rotation_rate>0` | `"HDD"` |
-| 4 | `rota_flag` do lsblk | `"HDD"` ou `"SSD"` |
-| 5 | sem dados | `"Unknown"` |
-
-| Campo | Descrição |
-|-------|-----------|
-| `device` | Caminho do dispositivo (ex: `/dev/sda`) |
-| `model` / `vendor` / `serial` | Identificação do disco |
-| `type` | `HDD` \| `SSD` \| `Virtual` \| `Unknown` |
-| `interface` | `SATA` \| `NVMe` \| `SCSI` \| `USB`... |
-| `size_bytes` | Tamanho do disco em bytes |
-| `health` | `smart_passed`, `power_on_hours`, `temperature_celsius` (`null` em VM) |
-| `partitions` | Lista recursiva de partições com `role` inferido |
+**Fontes:** `lsblk -J`, `smartctl -i -j` (somente físico, root)
 
 ### 6.4 Network Discovery
 
-**Arquivos:** `discovery/network_discovery/network.py`, `network_physical.py`, `network_virtual.py`
-
-**Fontes de dados:**
-- `ip -j addr show`, `ip -j link show`, `ip -j route show default`
-- `sysfs` (`/sys/class/net/<iface>/`) — speed, duplex, driver, bus_info (somente físico)
-
-| Campo | Descrição |
-|-------|-----------|
-| `total_interfaces` | Número de interfaces |
-| `default_gateway` | `gateway` e `interface` da rota padrão |
-| `interfaces[].name` | Nome da interface |
-| `interfaces[].mac` | Endereço MAC |
-| `interfaces[].mtu` | MTU |
-| `interfaces[].state` | Estado operacional |
-| `interfaces[].ipv4` / `ipv6` | Endereços com prefixo, escopo e broadcast |
-| `interfaces[].speed_mbps` | Velocidade em Mbps (somente físico) |
-| `interfaces[].driver` | Driver do kernel (somente físico) |
+**Fontes:** `ip -j addr show`, `ip -j link show`, `ip -j route show default`, sysfs (somente físico)
 
 ### 6.5 Motherboard Discovery
 
-**Arquivos:** `discovery/motherboard_discovery/motherboard.py`, `motherboard_physical.py`
-
-**Fontes de dados:** `dmidecode -t 0/2/4/9/17`, `lspci`
-
-**Ambiente virtualizado:** o campo `motherboard` retorna `null` — o hipervisor não expõe informações úteis.
-
-| Campo | Descrição |
-|-------|-----------|
-| `manufacturer` / `product_name` | Fabricante e modelo |
-| `chipset` | Chipset via lspci (`null` em VM) |
-| `bios` | `vendor`, `version`, `release_date`, `revision` |
-| `cpu_sockets` | Total de sockets e quantos populados |
-| `ram_slots` | Total, usados e livres |
-| `expansion_slots` | Lista de slots PCIe |
+**Fontes:** `dmidecode -t 0/2/4/9/17`, `lspci`  
+Retorna `null` em ambientes virtualizados.
 
 ### 6.6 System Discovery
 
-**Arquivos:** `discovery/system_discovery/system.py`, `system_physical.py`, `system_virtual.py`
-
-**Fontes de dados:** `/etc/os-release`, `uname -a`, `hostname -f`, `/proc/uptime`, `timedatectl`
-
-| Campo | Descrição |
-|-------|-----------|
-| `hostname` | Nome completo do host |
-| `os.name` / `pretty_name` | Nome e versão amigável do SO |
-| `kernel.release` / `version` / `machine` | Dados do kernel |
-| `timezone` | Fuso horário configurado |
-| `uptime_seconds` | Tempo de atividade em segundos |
+**Fontes:** `/etc/os-release`, `uname -a`, `hostname -f`, `/proc/uptime`, `timedatectl`
 
 ### 6.7 Tools Discovery
 
-**Arquivos:** `discovery/tools_discovery/tools.py`, `tools_checker.py`, `tools_physical.py`, `tools_virtual.py`
-
-Verifica quais ferramentas externas estão disponíveis e, opcionalmente, instala as ausentes. Executado primeiro dentro do `run_discovery()`.
-
-**Ferramentas verificadas em físico:** `lscpu`, `lsblk`, `ip`, `dmidecode`, `smartctl`, `ethtool`, `lspci`, `journalctl`, `timedatectl`
-
-**Ferramentas verificadas em VM:** `lscpu`, `lsblk`, `ip`, `journalctl`, `timedatectl`
-
-**Lógica de instalação:** verifica via `shutil.which` → detecta gerenciador de pacotes (`apt`, `dnf`, `pacman`, `zypper`) → instala se `--install-deps` ou terminal interativo com confirmação do usuário.
+Verifica ferramentas externas e instala ausentes se autorizado. Executado antes dos demais módulos.
 
 ---
 
 ## 7. Módulo: coleta
 
-O módulo de coleta executa em loop infinito a cada 5 segundos. Todos os sub-módulos usam `psutil` para acessar informações do sistema.
-
-**Arquivo principal:** `coleta/collector.py`
+Loop contínuo a cada 5 segundos. Todos os sub-módulos usam `psutil`.
 
 ```python
 def collect_all():
@@ -429,103 +263,125 @@ def collect_all():
         "network":   get_network_usage(),    # inclui bytes/sec
         "processes": get_top_processes(),    # top 15 por categoria
     }
-
-def collect_auth_logs() -> list[dict]:
-    return get_new_auth_log_lines()
-
-def collect_connections() -> dict:
-    return get_active_connections()
 ```
 
 ### 7.1 CPU Coleta
 
-**Arquivo:** `coleta/cpu_coleta/cpu.py`
-
-Usa `psutil.cpu_percent(interval=1)`, que mede o uso durante 1 segundo.
-
-| Campo | Descrição |
-|-------|-----------|
-| `percent` | Percentual de uso da CPU (0–100) |
+Usa `psutil.cpu_percent(interval=1)`.
 
 ### 7.2 Memory Coleta
 
-**Arquivo:** `coleta/mem_coleta/mem.py`
-
 Usa `psutil.virtual_memory()`.
-
-| Campo | Descrição |
-|-------|-----------|
-| `total` | RAM total em bytes |
-| `used` | Memória utilizada em bytes |
-| `percent` | Percentual de uso (0–100) |
 
 ### 7.3 Disk Coleta
 
-**Arquivo:** `coleta/disk_coleta/disk.py`
-
-Usa `psutil.disk_usage('/')` para espaço e `psutil.disk_io_counters()` para I/O. Os campos de IOPS e bytes/sec são calculados como **delta** entre o ciclo atual e o anterior (variáveis de módulo `_prev_io` e `_prev_time`). No **primeiro ciclo**, esses campos não são incluídos no payload — o backend deve tratá-los como ausentes/`null`.
-
-| Campo | Descrição |
-|-------|-----------|
-| `total` | Espaço total em bytes |
-| `used` | Espaço utilizado em bytes |
-| `percent` | Percentual de uso (0–100) |
-| `read_iops` | Operações de leitura por segundo *(ausente no 1º ciclo)* |
-| `write_iops` | Operações de escrita por segundo *(ausente no 1º ciclo)* |
-| `read_bytes_per_sec` | Bytes lidos por segundo *(ausente no 1º ciclo)* |
-| `write_bytes_per_sec` | Bytes escritos por segundo *(ausente no 1º ciclo)* |
+Usa `psutil.disk_usage('/')` para espaço e `psutil.disk_io_counters()` para I/O. IOPS e bytes/sec calculados como delta entre ciclos — **ausentes no primeiro ciclo**.
 
 ### 7.4 Network Coleta
 
-**Arquivo:** `coleta/network_coleta/network.py`
-
-Usa `psutil.net_io_counters()`. Os contadores acumulados (`bytes_sent`, `bytes_recv`) refletem o total desde o boot. As taxas por segundo são calculadas como **delta** entre ciclos, da mesma forma que o IOPS do disco.
-
-| Campo | Descrição |
-|-------|-----------|
-| `bytes_sent` | Total de bytes enviados desde o boot (acumulado) |
-| `bytes_recv` | Total de bytes recebidos desde o boot (acumulado) |
-| `bytes_sent_per_sec` | Bytes enviados por segundo *(ausente no 1º ciclo)* |
-| `bytes_recv_per_sec` | Bytes recebidos por segundo *(ausente no 1º ciclo)* |
+Usa `psutil.net_io_counters()`. Taxas por segundo calculadas como delta — **ausentes no primeiro ciclo**.
 
 ### 7.5 Logs Coleta
 
-**Arquivo:** `coleta/logs_coleta/logs.py`
+Lê `/var/log/auth.log` incrementalmente, rastreando byte offset e inode em `~/.agent/auth_log_state.json`.
 
-Lê `/var/log/auth.log` de forma incremental, rastreando byte offset e inode em `~/.agent/auth_log_state.json`.
-
-- **Primeira execução:** envia as últimas 100 linhas e salva posição no final
+- **Primeira execução:** envia as últimas 100 linhas
 - **Execuções seguintes:** envia apenas linhas novas
-- **Rotação detectada:** inode diferente → reinicia leitura do novo arquivo
-
-**Permissão necessária:** grupo `adm` ou root.
-
-```json
-{
-  "timestamp": "2026-05-18T14:35:00+00:00",
-  "raw_line":  "May 18 14:35:00 server sshd[123]: Failed password for root from 192.168.1.100"
-}
-```
+- **Rotação detectada:** inode diferente → reinicia leitura
 
 ### 7.6 Connections Coleta
 
 **Arquivo:** `coleta/connections_coleta/connections.py`
 
-Combina `psutil.net_connections(kind="tcp")` para listar conexões ativas com **detecção de port scan entrante via tcpdump**.
+Combina `psutil.net_connections(kind="tcp")` para conexões ativas com **detecção de port scan via tcpdump**.
 
 #### Detecção de port scan (tcpdump)
 
-Duas threads daemon são iniciadas no momento do import do módulo:
+Duas threads daemon são iniciadas no momento do **import do módulo** (ao ser importado pelo agente, não a cada ciclo):
 
-**Thread `tcpdump-capture`:** executa `tcpdump -n -l -i any` com filtro `tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack == 0`, capturando cada pacote SYN que chega à máquina. Pacotes cujo IP de origem pertence ao próprio host (IPs locais resolvidos via `psutil.net_if_addrs()`) são descartados — assim apenas tráfego externo entrante é contabilizado.
+**Thread `tcpdump-capture`:**
 
-**Thread `portscan-eval` (ciclo de 2s):** mantém uma janela deslizante de 60 segundos por IP de origem. A cada 2 segundos, poda entradas expiradas e atualiza `_active_scans` com os IPs que atingiram o limiar de portas distintas.
+Executa tcpdump com filtro para capturar apenas pacotes TCP SYN sem ACK (novos pedidos de conexão entrantes):
+
+```
+tcpdump -n -l -i any "tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack == 0"
+```
+
+Pacotes cujo IP de origem pertence ao próprio host (resolvidos via `psutil.net_if_addrs()`) são descartados — assim apenas tráfego **externo entrante** é contabilizado.
+
+**Regex de extração da saída do tcpdump:**
+```python
+r'(\d{1,3}(?:\.\d{1,3}){3})\.(\d+)\s*>\s*(\d{1,3}(?:\.\d{1,3}){3})\.(\d+):'
+```
+Extrai: `src_ip`, `src_port`, `dst_ip`, `dst_port`.
+
+**Thread `portscan-eval` (ciclo de 2s):**
+
+Mantém janela deslizante de 60 segundos por IP de origem. A cada 2 segundos, poda entradas expiradas e atualiza `_active_scans` com IPs que atingiram o limiar.
 
 **Limiar:** `_PORTSCAN_THRESHOLD = 10` portas distintas de um mesmo IP em 60 segundos.
 
-**Graceful degradation:** se `tcpdump` não estiver instalado ou o processo não tiver permissão, a thread encerra silenciosamente. `port_scan_detected` permanece sempre `false` — o restante da coleta não é afetado.
+#### Fix crítico: LD_LIBRARY_PATH e PyInstaller
 
-**Permissão necessária:** root ou `cap_net_raw` (atendido automaticamente quando instalado via `install.sh`).
+Quando o agente é empacotado com PyInstaller (`--onefile`), o binário extrai suas bibliotecas para um diretório temporário (`/tmp/_MEIxxxxxx/`) e define `LD_LIBRARY_PATH` apontando para ele. Qualquer subprocesso filho herda essa variável.
+
+O problema: o `tcpdump` herdava o `LD_LIBRARY_PATH` do PyInstaller e carregava a `libpcap.so` do diretório temporário (incompatível com o tcpdump do sistema), resultando em **zero pacotes capturados** — o loop `for line in proc.stdout:` nunca avançava.
+
+**Solução implementada:** antes de spawnar o tcpdump, copia e limpa o ambiente do processo:
+
+```python
+import os as _os
+clean_env = _os.environ.copy()
+clean_env.pop('LD_LIBRARY_PATH', None)
+clean_env.pop('LD_PRELOAD', None)
+
+proc = subprocess.Popen(
+    [tcpdump_bin, "-n", "-l", "-i", "any",
+     "tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack == 0"],
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    text=True,
+    bufsize=1,
+    env=clean_env,   # ← usa ambiente limpo, sem LD_LIBRARY_PATH do PyInstaller
+)
+```
+
+Isso garante que o tcpdump carregue a libpcap do sistema operacional, não a versão bundlada.
+
+#### Resolução do binário tcpdump
+
+Para evitar depender do PATH (que pode estar incompleto em ambientes systemd), o módulo busca o binário em locais comuns antes de recorrer ao PATH:
+
+```python
+tcpdump_bin = "tcpdump"
+for candidate in ("/usr/bin/tcpdump", "/usr/sbin/tcpdump", "/sbin/tcpdump"):
+    if os.path.isfile(candidate):
+        tcpdump_bin = candidate
+        break
+```
+
+#### Logging de diagnóstico
+
+O módulo emite logs em nível INFO/DEBUG para facilitar diagnóstico:
+
+```
+INFO  tcpdump iniciado (pid=12345, bin=/usr/bin/tcpdump)
+INFO  IPs locais filtrados: {'127.0.0.1', '10.10.10.1', '::1', ...}
+INFO  SYN capturado #1: src=10.10.10.26 dst_port=22
+INFO  SYN capturado #2: src=10.10.10.26 dst_port=80
+...
+INFO  SYN capturado #50: src=10.10.10.26 dst_port=443   ← a cada 50 pacotes
+WARNING  tcpdump encerrou (rc=1): <stderr>               ← se o processo morrer
+```
+
+Para ver esses logs na VM:
+```bash
+journalctl -u linux-agent -f | grep -E "tcpdump|SYN|port_scan|IPs locais"
+```
+
+#### Graceful degradation
+
+Se `tcpdump` não estiver instalado ou o processo não tiver `cap_net_raw`, a thread encerra silenciosamente. `port_scan_detected` permanece sempre `false`. O restante da coleta (conexões TCP via psutil) não é afetado.
 
 #### Campos retornados por `get_active_connections()`
 
@@ -541,41 +397,20 @@ Duas threads daemon são iniciadas no momento do import do módulo:
 
 ### 7.7 Process Coleta
 
-**Arquivo:** `coleta/process_coleta/processes.py`
-
-Usa `psutil.process_iter()` para iterar sobre todos os processos e retornar quatro listas de top 15, cada uma ordenada por um critério diferente.
-
-**Comportamento da CPU:** `cpu_percent` usa cache interno do psutil. No primeiro ciclo (início do agente) todos os processos retornam `0.0` — a partir do segundo ciclo os valores são precisos.
-
-**Comportamento do disco:** `disk_bytes` é o valor acumulado de bytes lidos + escritos desde que o processo foi iniciado (não é taxa por segundo). O backend pode calcular delta entre amostras se necessário.
-
-**Comportamento de rede:** psutil não expõe bytes de rede por processo sem leitura complexa de `/proc`. O campo `open_connections` (número de conexões TCP/UDP abertas) é usado como proxy de atividade de rede.
+Usa `psutil.process_iter()` para retornar quatro listas de top 15 processos.
 
 ```python
-def _top(key: str) -> list:
-    return sorted(procs, key=lambda x: x[key], reverse=True)[:n]
-
 return {
-    "top_cpu":     _top("cpu_percent"),
-    "top_memory":  _top("memory_rss"),
-    "top_disk":    _top("disk_bytes"),
-    "top_network": _top("open_connections"),
+    "top_cpu":     sorted(procs, key=lambda x: x["cpu_percent"], reverse=True)[:15],
+    "top_memory":  sorted(procs, key=lambda x: x["memory_rss"],  reverse=True)[:15],
+    "top_disk":    sorted(procs, key=lambda x: x["disk_bytes"],  reverse=True)[:15],
+    "top_network": sorted(procs, key=lambda x: x["open_connections"], reverse=True)[:15],
 }
 ```
 
-**Campos por processo:**
+**`cpu_percent`:** retorna `0.0` no primeiro ciclo (psutil precisa de dois snapshots para calcular delta).
 
-| Campo | Descrição |
-|-------|-----------|
-| `pid` | ID do processo |
-| `name` | Nome do executável |
-| `username` | Usuário que o executa |
-| `cpu_percent` | % de CPU utilizada |
-| `memory_rss` | Memória RAM física (RSS) em bytes |
-| `disk_bytes` | Total de bytes lidos + escritos (acumulado desde o início do processo) |
-| `open_connections` | Número de conexões TCP/UDP abertas |
-
-**Tratamento de permissão:** processos de outros usuários podem lançar `AccessDenied` no `p.connections()`. Nesses casos, `open_connections` é definido como `0` e o processo continua nas demais listas.
+**`disk_bytes`:** total acumulado desde o início do processo, não taxa por segundo.
 
 ---
 
@@ -583,111 +418,91 @@ return {
 
 ### 8.1 Payload de Discovery
 
-Enviado uma vez na inicialização. Endpoint: `POST /api/discovery`
-
 ```json
 {
-  "global": { "collection_type": "discovery", "..." },
-  "system":      { "..." },
-  "cpu":         { "..." },
-  "memory":      { "..." },
-  "disk":        { "..." },
-  "network":     { "..." },
-  "motherboard": { "..." },
+  "global": { "collection_type": "discovery", "host_id": "71203", "primary_ip": "10.10.10.1", "..." },
+  "system":      { "hostname": "teste-ubuntu", "os": {...}, "kernel": {...}, "uptime_seconds": 808 },
+  "cpu":         { "model_name": "AMD Ryzen 5", "topology": {"vcpus": 2}, "frequency": {...} },
+  "memory":      { "total": {"bytes": 2013175808, "gb": 1.87} },
+  "disk":        { "disks": [{"device": "/dev/sda", "size": {"bytes": 32212254720}}] },
+  "network":     { "interfaces": [...] },
+  "motherboard": null,
   "tools":       { "..." }
 }
 ```
 
 ### 8.2 Payload de Métricas
 
-Enviado a cada 5 segundos. Endpoint: `POST /api/metrics`
-
 ```json
 {
   "type":      "metrics",
-  "global":    { "collection_type": "metrics", "agent_id": "38472", "host_id": "71203", "..." },
-  "timestamp": "2026-05-20T14:35:00.123456+00:00",
+  "global":    { "collection_type": "metrics", "host_id": "71203", "..." },
+  "timestamp": "2026-06-02T19:24:45.000000+00:00",
   "data": {
-    "timestamp": "2026-05-20T14:35:00.123456+00:00",
     "cpu":    { "percent": 23.5 },
-    "memory": { "total": 8589934592, "used": 4294967296, "percent": 50.0 },
+    "memory": { "total": 2013175808, "used": 1006587904, "percent": 50.0 },
     "disk": {
-      "total":              107374182400,
-      "used":               53687091200,
-      "percent":            50.0,
-      "read_iops":          45.2,
-      "write_iops":         12.8,
-      "read_bytes_per_sec": 184320.0,
-      "write_bytes_per_sec":52428.8
+      "total": 32212254720, "used": 16106127360, "percent": 50.0,
+      "read_iops": 45.2, "write_iops": 12.8,
+      "read_bytes_per_sec": 184320.0, "write_bytes_per_sec": 52428.8
     },
     "network": {
-      "bytes_sent":         1048576,
-      "bytes_recv":         5242880,
-      "bytes_sent_per_sec": 2048.5,
-      "bytes_recv_per_sec": 10240.0
+      "bytes_sent": 1048576, "bytes_recv": 5242880,
+      "bytes_sent_per_sec": 2048.5, "bytes_recv_per_sec": 10240.0
     },
     "processes": {
-      "top_cpu": [
-        { "pid": 1234, "name": "python3", "username": "root", "cpu_percent": 45.2, "memory_rss": 52428800, "disk_bytes": 1048576, "open_connections": 3 }
-      ],
-      "top_memory": [ { "..." } ],
-      "top_disk":   [ { "..." } ],
-      "top_network":[ { "..." } ]
+      "top_cpu":     [{ "pid": 122298, "name": "agent", "username": "root", "cpu_percent": 2.1, "..." }],
+      "top_memory":  [...],
+      "top_disk":    [...],
+      "top_network": [{ "pid": 122298, "name": "agent", "open_connections": 3, "..." }]
     }
   }
 }
 ```
 
-> **Nota:** `read_iops`, `write_iops`, `read_bytes_per_sec`, `write_bytes_per_sec`, `bytes_sent_per_sec` e `bytes_recv_per_sec` estão **ausentes** no payload do primeiro ciclo (sem dados anteriores para calcular delta). O backend deve tratar ausência desses campos como `null`.
+> `read_iops`, `write_iops`, `read_bytes_per_sec`, `write_bytes_per_sec`, `bytes_sent_per_sec` e `bytes_recv_per_sec` estão **ausentes no primeiro ciclo**.
 
 ### 8.3 Payload de Log
 
-Enviado uma linha por request. Endpoint: `POST /api/logs`
-
 ```json
 {
-  "global":    { "collection_type": "logs", "..." },
+  "global":    { "collection_type": "logs", "host_id": "71203", "..." },
   "log_type":  "auth",
-  "timestamp": "2026-05-18T14:35:00+00:00",
-  "raw_line":  "May 18 14:35:00 server sshd[123]: Failed password for root from 192.168.1.100"
+  "timestamp": "2026-06-02T19:24:58+00:00",
+  "raw_line":  "Jun  2 19:24:58 teste-ubuntu sshd[999]: Failed password for root from 10.10.10.26 port 54321 ssh2"
 }
 ```
 
 ### 8.4 Payload de Conexões
 
-Enviado a cada 5 segundos. Endpoint: `POST /api/connections`
-
 ```json
 {
-  "global":    { "collection_type": "connections", "..." },
-  "timestamp": "2026-05-20T14:35:00.123456+00:00",
+  "global":    { "collection_type": "connections", "host_id": "71203", "primary_ip": "10.10.10.1" },
+  "timestamp": "2026-06-02T19:24:58.000000+00:00",
   "connections": [
-    { "local_port": 22, "remote_ip": "192.168.1.100", "remote_port": 54321, "state": "ESTABLISHED" }
+    { "local_port": 22, "remote_ip": "10.10.10.26", "remote_port": 54321, "state": "ESTABLISHED" }
   ],
-  "total":              1,
+  "total": 1,
   "port_scan_detected": true,
   "scan_sources": {
-    "10.0.0.5": 45
+    "10.10.10.26": 1000
   }
 }
 ```
 
-`scan_sources` é um dicionário `{ip_atacante: qtd_portas_distintas_em_60s}`. Contém apenas IPs que ultrapassaram o limiar de 10 portas. Quando não há scan, o campo é `{}` e `port_scan_detected` é `false`.
-```
+`scan_sources` é `{}` e `port_scan_detected` é `false` quando não há scan ativo.
 
 ### 8.5 Payload de Heartbeat
-
-Enviado no início de cada ciclo (antes das métricas). Endpoint: `POST /api/heartbeat`
 
 ```json
 {
   "type":      "heartbeat",
-  "global":    { "collection_type": "metrics", "agent_id": "38472", "host_id": "71203", "..." },
-  "timestamp": "2026-05-20T14:35:00.123456+00:00"
+  "global":    { "collection_type": "metrics", "host_id": "71203", "..." },
+  "timestamp": "2026-06-02T19:24:45.000000+00:00"
 }
 ```
 
-**Finalidade:** permite ao backend distinguir "agente vivo mas com falha na coleta de métricas" de "agente morto". Falhas no heartbeat são logadas em `DEBUG` e **nunca enfileiradas** para retry — um heartbeat stale não tem valor.
+Heartbeats **nunca são enfileirados** — um heartbeat stale não tem valor.
 
 ---
 
@@ -695,68 +510,52 @@ Enviado no início de cada ciclo (antes das métricas). Endpoint: `POST /api/hea
 
 ### `agent/utils/parsers.py`
 
-Todos os parsers centralizados. Nenhuma chamada shell acontece aqui — apenas transformação de dados.
+Parsers centralizados de saída de comandos shell. Nenhuma chamada shell acontece aqui.
 
-| Seção | Funções | Usada por |
-|-------|---------|-----------|
-| Parsers de CPU | `parse_lscpu()`, `parse_cpuinfo()` | `cpu_*`, `global_information` |
-| Parsers de Memória | `parse_meminfo()`, `parse_dmidecode_memory()`, `parse_dmi_size_to_mb()` | `mem_*` |
-| Parsers de Disco | `parse_lsblk()`, `parse_smartctl()`, `resolve_disk_type()`, `resolve_disk_interface()`, `resolve_partition_role()` | `disk_*` |
-| Parsers de Rede | `parse_ip_addr()`, `parse_ip_link()`, `parse_default_gateway()`, `build_network_interface()` | `network_*` |
-| Parsers de SO | `parse_os_release()`, `parse_uname()`, `parse_uptime_seconds()`, `clean_hostname()`, `clean_timezone()` | `system_*` |
-| Parsers de Placa-mãe | `parse_baseboard()`, `parse_bios()`, `parse_cpu_sockets()`, `parse_memory_slots_summary()`, `parse_system_slots()` | `motherboard_*` |
-| Conversão de unidades | `kb_to_bytes()`, `bytes_to_gb()`, `safe_float()`, `safe_int()` | Geral |
-| Sanitização | `_clean()`, `sanitize_string()`, `read_sysfs_khz_to_mhz()` | Geral |
+| Seção | Funções |
+|-------|---------|
+| CPU | `parse_lscpu()`, `parse_cpuinfo()` |
+| Memória | `parse_meminfo()`, `parse_dmidecode_memory()`, `parse_dmi_size_to_mb()` |
+| Disco | `parse_lsblk()`, `parse_smartctl()`, `resolve_disk_type()`, `resolve_disk_interface()` |
+| Rede | `parse_ip_addr()`, `parse_ip_link()`, `parse_default_gateway()` |
+| SO | `parse_os_release()`, `parse_uname()`, `parse_uptime_seconds()` |
+| Placa-mãe | `parse_baseboard()`, `parse_bios()`, `parse_cpu_sockets()`, `parse_memory_slots_summary()` |
 
 ### `agent/utils/shell.py`
 
 | Função | Descrição |
 |--------|-----------|
-| `run(cmd)` | Executa comando com `LC_ALL=C`. Retorna `stdout` ou `None` em qualquer falha. Timeout: 10s. |
+| `run(cmd)` | Executa comando com `LC_ALL=C`. Retorna `stdout` ou `None`. Timeout: 10s. |
 | `run_permissive(cmd)` | Retorna `stdout` mesmo com exit code não-zero. Usado para `smartctl`. Timeout: 15s. |
 
-> **`LC_ALL=C` é obrigatório** — garante saída em inglês independente do locale. Sem isso, `lscpu` em português retorna `"Arquitetura"` em vez de `"Architecture"`, quebrando os parsers silenciosamente.
+> **`LC_ALL=C` é obrigatório** — garante saída em inglês independente do locale. Sem isso, `lscpu` em português quebra os parsers silenciosamente.
 
 ### `agent/utils/logger.py`
-
-Configura o sistema de logging. Singleton via `get_logger()` — todos os módulos importam o mesmo logger instance.
-
-**Saídas:**
 
 | Handler | Destino | Configuração |
 |---------|---------|--------------|
 | `StreamHandler` | stdout → journald | `[YYYY-MM-DD HH:MM:SS] [LEVEL] mensagem` |
 | `RotatingFileHandler` | `/var/log/monitor-agent/agent.log` | 10 MB por arquivo, 5 backups |
 
-**`log_payload(logger, label, payload)`:** loga o JSON completo apenas em nível `DEBUG`. Chamada em `__main__.py` (discovery) e `sender.py` (antes de cada POST).
-
-**`logger.exception()`:** usado em todos os blocos `except` — registra mensagem + traceback completo automaticamente.
-
 ### `agent/utils/retry_queue.py`
 
-Fila de retry persistente em disco. Armazena payloads que falharam por `ConnectionError` ou `Timeout` para reenvio automático no próximo ciclo.
-
-**Funções públicas:**
+Fila de retry persistente em disco.
 
 | Função | Descrição |
 |--------|-----------|
-| `enqueue(payload, url)` | Adiciona item à fila. Se `MAX_ITEMS` atingido, o item mais antigo é descartado. |
-| `load_queue()` | Lê e retorna a fila atual como lista. |
-| `save_queue(queue)` | Persiste a fila no arquivo. |
+| `enqueue(payload, url)` | Adiciona item à fila (descarta mais antigo se MAX_ITEMS atingido) |
+| `load_queue()` | Lê e retorna a fila atual |
+| `save_queue(queue)` | Persiste a fila |
 
-**Arquivo:** `QUEUE_FILE` = `/var/cache/monitor-agent/retry_queue.json` (configurável via `MONITOR_RETRY_FILE`)
-
-**Limite:** `MAX_ITEMS` = 50 (configurável via `MONITOR_RETRY_MAX`)
-
-**Corrupção:** se o arquivo JSON estiver corrompido, é descartado silenciosamente com `WARNING` no log e a fila recomeça vazia.
+**Arquivo:** `/var/cache/monitor-agent/retry_queue.json`  
+**Limite:** 50 itens  
+**Corrupção:** descartada silenciosamente com WARNING
 
 ---
 
 ## 10. Módulo: sender
 
 **Arquivo:** `agent/utils/sender.py`
-
-Responsável por enviar os payloads ao backend via HTTP POST, gerenciar a fila de retry e enviar o heartbeat.
 
 ### URLs configuradas
 
@@ -777,36 +576,7 @@ TOKEN           = os.getenv("MONITOR_TOKEN", "")
 | `Content-Type` | `application/json` |
 | `Authorization` | `Bearer {TOKEN}` (somente se `MONITOR_TOKEN` não for vazio) |
 
-### Funções públicas
-
-| Função | Endpoint | Comportamento em falha |
-|--------|----------|------------------------|
-| `send_discovery(data)` | `POST /api/discovery` | Enfileira em `ConnectionError`/`Timeout` |
-| `send_metrics(data)` | `POST /api/metrics` | Enfileira em `ConnectionError`/`Timeout` |
-| `send_log(data)` | `POST /api/logs` | Enfileira em `ConnectionError`/`Timeout` |
-| `send_connections(data)` | `POST /api/connections` | Enfileira em `ConnectionError`/`Timeout` |
-| `send_heartbeat(data)` | `POST /api/heartbeat` | Falha logada em `DEBUG`, **nunca enfileirada** |
-| `flush_retry_queue()` | Itera sobre a fila | Para no 1º item que falhar (conexão ainda caída) |
-
-### Lógica de retry
-
-```
-flush_retry_queue():
-  para cada item na fila:
-    tenta POST
-    se ConnectionError/Timeout:
-      mantém este item + todos os seguintes
-      interrompe (conexão ainda caída)
-    se HTTPError (4xx/5xx):
-      descarta item (servidor rejeitou — não adianta retentar)
-    se sucesso:
-      remove item da fila
-  salva fila restante
-```
-
-`flush_retry_queue()` é chamado uma vez no início de cada ciclo em `__main__.py`, antes de qualquer envio novo.
-
-### Tratamento de erros em `send_data()`
+### Tratamento de erros
 
 | Exceção | Ação |
 |---------|------|
@@ -818,21 +588,6 @@ flush_retry_queue():
 ---
 
 ## 11. Organização como Módulo Python
-
-### `pyproject.toml`
-
-```toml
-[project]
-name    = "agent-monitor"
-version = "1.0.0"
-dependencies = ["psutil", "requests"]
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[project.scripts]
-agent = "agent.__main__:main"
-```
 
 ### Instalação em modo editável (desenvolvimento)
 
@@ -851,32 +606,9 @@ agent --install-deps    # força instalação de ferramentas ausentes
 agent --debug-exec      # exibe payloads no terminal sem enviar ao backend
 ```
 
-`--debug-exec` substitui o `--dry-run` anterior. Imprime cada payload JSON no stdout em vez de enviá-lo. Útil para:
-- Validar o formato dos dados durante desenvolvimento
-- Verificar os JSONs antes de apontar para o servidor real
-- Debug sem depender da disponibilidade do backend
-
-```bash
-# Filtrar apenas os JSONs (sem linhas de log no stderr)
-/opt/monitor-agent/agent --debug-exec 2>/dev/null
-```
-
 ---
 
 ## 12. Geração do Executável com PyInstaller
-
-O agente é distribuído como um binário Linux único, sem dependência de Python na máquina alvo.
-
-### Entry point
-
-`Agent_Exec/main.py` é minimal — apenas importa e chama `main()`:
-
-```python
-from agent.__main__ import main
-
-if __name__ == "__main__":
-    main()
-```
 
 ### Comando de geração
 
@@ -888,26 +620,34 @@ pyinstaller --onefile -n agent \
   Agent_Exec/main.py
 ```
 
-| Flag | Descrição |
-|------|-----------|
-| `--onefile` | Empacota tudo em um único binário autocontido |
-| `-n agent` | Nome do executável gerado |
-| `--paths src` | Adiciona `src/` ao PYTHONPATH interno do PyInstaller |
-| `--distpath` | Saída do binário final (`Agent_Exec/dist/`) |
-
 O binário final fica em `Agent_Exec/dist/agent`.
+
+### Problema com LD_LIBRARY_PATH (PyInstaller)
+
+Binários `--onefile` do PyInstaller extraem suas bibliotecas para `/tmp/_MEIxxxxxx/` e sobrescrevem `LD_LIBRARY_PATH` para apontar para esse diretório. **Todo processo filho herda esse `LD_LIBRARY_PATH`**, o que fazia o tcpdump carregar uma `libpcap.so` incompatível e capturar zero pacotes.
+
+A solução (já implementada em `connections.py`) é remover essas variáveis do ambiente antes de spawnar qualquer subprocesso que dependa de bibliotecas do sistema:
+
+```python
+clean_env = os.environ.copy()
+clean_env.pop('LD_LIBRARY_PATH', None)
+clean_env.pop('LD_PRELOAD', None)
+proc = subprocess.Popen([tcpdump_bin, ...], env=clean_env)
+```
 
 ### Atualizar o binário instalado
 
 ```bash
-# Opção 1 — substituição direta
+# Opção 1 — substituição direta (mais rápida)
 sudo systemctl stop linux-agent
 sudo cp Agent_Exec/dist/agent /opt/monitor-agent/agent
 sudo systemctl start linux-agent
 
-# Opção 2 — reinstalação completa (reconfigura se necessário)
+# Opção 2 — reinstalação completa
 sudo ./install.sh
 ```
+
+> **Atenção:** após `git pull` na VM, sempre verificar se o binário instalado em `/opt/monitor-agent/agent` está atualizado. Um binário antigo não reflete mudanças no código fonte.
 
 ---
 
@@ -921,20 +661,18 @@ sudo ./install.sh
 | `MONITOR_LOGS_URL` | `{BASE}/api/logs` | Override do endpoint de logs |
 | `MONITOR_CONNECTIONS_URL` | `{BASE}/api/connections` | Override do endpoint de conexões |
 | `MONITOR_HEARTBEAT_URL` | `{BASE}/api/heartbeat` | Override do endpoint de heartbeat |
-| `MONITOR_TOKEN` | `""` | Bearer token (opcional — sem header Auth se vazio) |
+| `MONITOR_TOKEN` | `""` | Bearer token — sem header Auth se vazio |
 | `MONITOR_LOG_LEVEL` | `INFO` | Nível de log: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
 | `MONITOR_RETRY_FILE` | `/var/cache/monitor-agent/retry_queue.json` | Caminho da fila de retry |
 | `MONITOR_RETRY_MAX` | `50` | Máximo de itens na fila de retry |
 
-**`MONITOR_TOKEN`:** opcional. Se vazio, o header `Authorization` não é incluído nas requisições.
-
-**`MONITOR_LOG_LEVEL=DEBUG`:** loga os JSONs completos de cada payload antes de enviá-los — útil para depurar a integração com o backend.
+**`MONITOR_LOG_LEVEL=DEBUG`:** loga os JSONs completos de cada payload e mensagens de debug do tcpdump antes de enviá-los.
 
 **Exemplo de arquivo `/etc/monitor-agent/env`:**
 
 ```ini
-MONITOR_API_BASE_URL=http://192.168.1.50:5000
-MONITOR_TOKEN=
+MONITOR_API_BASE_URL=http://api.monitoramento.lan
+MONITOR_TOKEN=sua_api_key_aqui
 MONITOR_LOG_LEVEL=INFO
 ```
 
@@ -962,7 +700,8 @@ MONITOR_LOG_LEVEL=INFO
 | `lspci` | pciutils | Chipset discovery | Não |
 | `journalctl` | systemd | Logs | Não |
 | `timedatectl` | systemd | Timezone | Não |
-| `tcpdump` | tcpdump | Captura de pacotes SYN para detecção de port scan | Sim (root ou cap_net_raw) |
+| `tcpdump` | tcpdump | Captura de SYN para detecção de port scan | Sim (root ou cap_net_raw) |
+| `binutils` | binutils | Necessário para compilar com PyInstaller | Sim (build only) |
 
 ---
 
@@ -974,52 +713,16 @@ MONITOR_LOG_LEVEL=INFO
 | `global_information` | `global_information/global_information.py` | Bloco de identidade dos payloads |
 | `discovery.*` | `discovery/*/` | Inventário de hardware/SO (executado uma vez) |
 | `coleta.collector` | `coleta/collector.py` | Orquestrador da coleta contínua |
-| `coleta.cpu_coleta` | `coleta/cpu_coleta/cpu.py` | % CPU via psutil |
-| `coleta.mem_coleta` | `coleta/mem_coleta/mem.py` | Uso de RAM via psutil |
-| `coleta.disk_coleta` | `coleta/disk_coleta/disk.py` | Uso de disco + IOPS via psutil |
-| `coleta.network_coleta` | `coleta/network_coleta/network.py` | Bytes I/O + bytes/sec via psutil |
+| `coleta.connections_coleta` | `coleta/connections_coleta/connections.py` | Conexões TCP + detecção de port scan via tcpdump |
 | `coleta.logs_coleta` | `coleta/logs_coleta/logs.py` | Leitura incremental de auth.log |
-| `coleta.connections_coleta` | `coleta/connections_coleta/connections.py` | Conexões TCP + detecção de port scan |
 | `coleta.process_coleta` | `coleta/process_coleta/processes.py` | Top 15 processos por CPU, RAM, disco e conexões |
-| `utils.parsers` | `utils/parsers.py` | Parsers de saída de comandos shell |
 | `utils.sender` | `utils/sender.py` | HTTP POST + retry + heartbeat |
 | `utils.retry_queue` | `utils/retry_queue.py` | Fila de retry persistente em JSON |
-| `utils.shell` | `utils/shell.py` | Wrapper de subprocess com `LC_ALL=C` |
-| `utils.serializer` | `utils/serializer.py` | Serialização JSON |
 | `utils.logger` | `utils/logger.py` | Logging rotativo em `/var/log/monitor-agent/agent.log` |
 
 ---
 
 ## 16. Observações Importantes
-
-### Sistema de Logging
-
-| Handler | Consulta |
-|---------|---------|
-| journald | `journalctl -u linux-agent -f` |
-| Arquivo rotativo | `tail -f /var/log/monitor-agent/agent.log` |
-
-**`MONITOR_LOG_LEVEL=DEBUG`** loga os JSONs completos de cada payload antes de enviá-los. Ativar temporariamente:
-
-```bash
-sudo nano /etc/monitor-agent/env   # alterar para: MONITOR_LOG_LEVEL=DEBUG
-sudo systemctl restart linux-agent
-tail -f /var/log/monitor-agent/agent.log
-```
-
-### Fila de Retry
-
-Payloads que falham por `ConnectionError` ou `Timeout` são persistidos em `/var/cache/monitor-agent/retry_queue.json`. O agente tenta reenviá-los automaticamente no início do próximo ciclo.
-
-- **Limite:** 50 itens. Ao estourar, o item mais antigo é descartado com `WARNING` no log.
-- **Erros HTTP (4xx/5xx)** não são enfileirados — o servidor rejeitou o payload, retentar não resolve.
-- **Heartbeats** nunca são enfileirados — sinal de vida stale não tem valor.
-
-Para inspecionar a fila manualmente:
-
-```bash
-cat /var/cache/monitor-agent/retry_queue.json | python3 -m json.tool
-```
 
 ### Gerenciamento do Serviço
 
@@ -1028,57 +731,49 @@ sudo systemctl start linux-agent      # iniciar
 sudo systemctl stop linux-agent       # parar
 sudo systemctl restart linux-agent    # reiniciar
 sudo systemctl status linux-agent     # verificar status
-sudo systemctl enable linux-agent     # habilitar no boot
-sudo systemctl disable linux-agent    # desabilitar no boot
+sudo journalctl -u linux-agent -f     # logs em tempo real
 ```
 
-### Atualizar o Agente
+### Diagnóstico do tcpdump (port scan)
 
 ```bash
-# Compilar novo binário primeiro:
-source .ambiente_venv/bin/activate
-pyinstaller --onefile -n agent --paths src --distpath Agent_Exec/dist --workpath Agent_Exec/build Agent_Exec/main.py
+# Ver se tcpdump está capturando pacotes:
+journalctl -u linux-agent -f | grep -E "tcpdump|SYN|IPs locais|port_scan"
 
-# Substituir e reiniciar:
+# Testar captura manualmente (fora do agente):
+sudo tcpdump -n -l -i any "tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack == 0"
+
+# Verificar se LD_LIBRARY_PATH está presente no ambiente do serviço:
+sudo cat /proc/$(pgrep -f linux-agent)/environ | tr '\0' '\n' | grep LD_LIBRARY
+```
+
+### Atualizar o Agente na VM
+
+```bash
+# 1. Na máquina de desenvolvimento: commit + push das alterações
+# 2. Na VM:
+git pull
+source .ambiente_venv/bin/activate
+pyinstaller --onefile -n agent --paths src \
+  --distpath Agent_Exec/dist --workpath Agent_Exec/build \
+  Agent_Exec/main.py
 sudo systemctl stop linux-agent
 sudo cp Agent_Exec/dist/agent /opt/monitor-agent/agent
 sudo systemctl start linux-agent
+journalctl -u linux-agent -f
 ```
 
-Ou, para reinstalação completa com reconfiguração:
-
-```bash
-sudo ./install.sh
-```
-
-### Permissões
+### Permissões necessárias
 
 | Recurso | Permissão | Motivo |
 |---------|-----------|--------|
 | `/var/log/auth.log` | Grupo `adm` ou root | Leitura de logs de autenticação |
 | `dmidecode` | root | Detalhes de RAM e placa-mãe |
 | `smartctl` | root | Saúde do disco (S.M.A.R.T.) |
-| `psutil.net_connections()` | root para outros usuários | Conexões TCP de processos de outros usuários |
-| `tcpdump` | root ou `cap_net_raw` | Captura de pacotes SYN para detecção de port scan entrante |
+| `psutil.net_connections()` | root | Conexões TCP de todos os processos |
+| `tcpdump` | root ou `cap_net_raw` | Captura de pacotes SYN |
 
-Para adicionar usuário ao grupo `adm` (auth.log sem root):
-
-```bash
-sudo usermod -a -G adm $USER
-# Fazer logout e login para aplicar
-```
-
-### Sincronização com Backend
-
-Antes de modificar o formato de qualquer payload, validar com a equipe de Backend (Douglas e Fernando) o formato exato esperado. Em particular:
-
-- **IOPS e bytes/sec** podem estar ausentes no primeiro ciclo — o backend deve aceitar payload sem esses campos.
-- **`data.processes`** é uma estrutura nova — verificar se o endpoint `/api/metrics` já trata esse campo.
-- **`POST /api/heartbeat`** é um endpoint novo que precisa ser implementado no backend.
-
-### Firewall
-
-A porta do servidor backend (ex: `5000`) deve estar acessível a partir da máquina do agente.
+O `install.sh` garante que o serviço rode como root, atendendo todas as permissões acima automaticamente.
 
 ### Desinstalar
 
@@ -1086,13 +781,11 @@ A porta do servidor backend (ex: `5000`) deve estar acessível a partir da máqu
 sudo systemctl stop linux-agent
 sudo systemctl disable linux-agent
 sudo rm /etc/systemd/system/linux-agent.service
-sudo rm -rf /opt/monitor-agent
-sudo rm -rf /etc/monitor-agent
-sudo rm -rf /var/cache/monitor-agent
+sudo rm -rf /opt/monitor-agent /etc/monitor-agent /var/cache/monitor-agent
 sudo systemctl daemon-reload
 ```
 
 ---
 
-*Documentação gerada em 20/05/2026 — v5.0 | Semana 7: IOPS, bytes/sec, top processos, retry queue, heartbeat, --debug-exec*
-*Atualizado em 29/05/2026 — v5.1 | Detecção de port scan migrada de SYN_SENT (saída) para tcpdump entrante com janela deslizante de 60s e avaliação a cada 2s. Campo `syn_sent_count` substituído por `scan_sources`.*
+*Documentação atualizada em 02/06/2026 — v5.1*  
+*Adições: fix LD_LIBRARY_PATH para PyInstaller, resolução explícita do binário tcpdump, logging de diagnóstico do tcpdump, nota sobre binutils para compilação, validação completa de brute force e port scan.*

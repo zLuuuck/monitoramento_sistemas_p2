@@ -1,5 +1,5 @@
 # Backend Monitor — Documentação Técnica Completa
-**Versão do código:** 4.0.0 | **Última atualização:** Maio 2026  
+**Versão do código:** 5.0.0 | **Última atualização:** Junho 2026  
 **Projeto:** Monitoramento de Sistemas P2 — UTP / PADS3
 
 ---
@@ -33,6 +33,7 @@ O Backend Monitor é uma **API REST** desenvolvida em Python/Flask que atua como
 [Agentes Linux]
       │
       │  HTTP POST (push — agente inicia)
+      │  Authorization: Bearer {API_KEY}
       ▼
 [Nginx :80]
       │
@@ -41,20 +42,21 @@ O Backend Monitor é uma **API REST** desenvolvida em Python/Flask que atua como
 
 [Frontend React]
       │
-      │  HTTP GET
+      │  HTTP GET  (com API key em sessionStorage)
       └─ /api/*  → backend Flask :5000
 ```
 
 O backend **nunca** inicia conexão com os agentes. Toda comunicação é iniciada pelo agente (modelo push).
 
-### Quatro funções principais
+### Cinco funções principais
 
 | Função | O que faz |
 |--------|-----------|
 | **Ingestão de Discovery** | Recebe inventário de hardware/SO na inicialização do agente |
-| **Ingestão de Métricas** | Recebe snapshots de CPU/RAM/disco/rede a cada 5 segundos |
+| **Ingestão de Métricas** | Recebe snapshots de CPU/RAM/disco/rede a cada ~6 segundos |
 | **Ingestão de Logs** | Recebe linhas brutas do `auth.log`, aplica parsing estruturado |
-| **Detecção de Segurança** | Detecta brute force SSH (≥5 falhas em 60s) e port scan (via flag do agente) |
+| **Detecção de Segurança** | Detecta brute force SSH (≥5 falhas/60s) e port scan (via flag do agente) |
+| **Autenticação** | API key para agentes; PANEL_PASSWORD + API key para o painel web |
 
 ---
 
@@ -70,8 +72,7 @@ O backend **nunca** inicia conexão com os agentes. Toda comunicação é inicia
 | Flask-SQLAlchemy | 3.1.1 |
 | psycopg2-binary | 2.9.9 |
 | python-dotenv | 1.0.1 |
-
-> **Nota:** O PDF de capa (v4.0) menciona Python 3.13. O `Dockerfile` real usa `python:3.12-alpine`.
+| requests | (para Teams webhook) |
 
 ### Infraestrutura
 
@@ -83,15 +84,19 @@ O backend **nunca** inicia conexão com os agentes. Toda comunicação é inicia
 
 ### Variáveis de ambiente (`.env`)
 
-| Variável | Descrição | Padrão |
-|----------|-----------|--------|
-| `DATABASE_URL` | String de conexão PostgreSQL | `postgresql://monitor:monitor@localhost:5432/monitor` |
-| `FLASK_ENV` | Modo de execução | `development` |
-| `FLASK_DEBUG` | Ativa hot reload | `1` |
-| `PORT` | Porta do Flask | `5000` |
-| `API_KEY` | Token de autenticação (presente no `.env.example`) | — |
+| Variável | Descrição | Obrigatório |
+|----------|-----------|-------------|
+| `DATABASE_URL` | String de conexão PostgreSQL | Sim (fallback: `postgresql://monitor:monitor@localhost:5432/monitor`) |
+| `FLASK_ENV` | Modo de execução | Não |
+| `FLASK_DEBUG` | Ativa hot reload | Não |
+| `PORT` | Porta do Flask | Não (padrão 5000) |
+| `API_KEY` | Token de autenticação — **fallback** se não houver chave no banco | Não |
+| `PANEL_PASSWORD` | Senha do painel web — validada em `POST /api/auth/login` | Sim (sem ele o login retorna 503) |
+| `TEAMS_WEBHOOK_URL` | Webhook do Microsoft Teams para notificações | Não |
 
-> **Atenção:** `API_KEY` está no `.env.example` mas **não está implementado** em nenhum middleware ou rota. Os endpoints não realizam autenticação por token no código atual.
+> **API_KEY:** gerada via `POST /api/settings/apikey/generate` e persistida na tabela `app_settings`. O valor no `.env` só é usado como fallback se o banco não tiver uma chave.  
+> **PANEL_PASSWORD:** não precisa ir para o banco — é lida diretamente do ambiente via `os.environ.get('PANEL_PASSWORD')`.  
+> **`.env` não é versionado** — usar `scp` para copiar para a VM antes de `docker compose up`.
 
 ---
 
@@ -120,8 +125,10 @@ BackEnd/
 │   │   └── connections.py       # POST /api/connections
 │   └── utils/
 │       ├── __init__.py          # Exporta parse_ssh_log, count_failed_logins, check_brute_force
+│       ├── auth.py              # require_api_key — decorator de autenticação
 │       ├── parsers.py           # Parsing de auth.log + count_failed_logins()
-│       └── detection.py         # check_brute_force() + check_port_scan()
+│       ├── detection.py         # check_brute_force() + check_port_scan() + check_resource_alert()
+│       └── teams.py             # enviar_alerta_teams() — webhook Microsoft Teams
 ├── nginx/
 │   └── nginx.conf               # Proxy reverso
 ├── requirements.txt
@@ -150,9 +157,26 @@ Todos os modelos seguem o padrão **Wrapper + `get_model(db)`**: uma classe Pyth
 ### Detalhes relevantes
 
 - **Hot reload do backend:** Volume `./BackEnd/app:/app/app` monta o código diretamente no container. Alterações em `.py` têm efeito imediato com `FLASK_DEBUG=1`.
-- **Healthcheck do postgres:** O `entrypoint.sh` usa `nc -z postgres 5432` (netcat) em loop de 1 segundo para aguardar o banco antes de iniciar o Flask.
-- **init.sql:** Montado em `/docker-entrypoint-initdb.d/` — executado automaticamente pelo PostgreSQL na **primeira inicialização** do volume. O backend **não usa** `db.create_all()`.
-- **Nginx:** Lê `nginx.conf` como volume somente-leitura. Não precisa ser reconstruído para alterações de configuração.
+- **Carregamento do `.env`:** `env_file` aponta para `./BackEnd/.env` com `required: false` — o container sobe mesmo sem o arquivo; variáveis ausentes causam degradação controlada (ex.: PANEL_PASSWORD retorna 503 no login).
+- **Healthcheck do postgres:** O `entrypoint.sh` usa `nc -z postgres 5432` em loop de 1 segundo para aguardar o banco antes de iniciar o Flask.
+- **init.sql:** Executado pelo PostgreSQL na **primeira inicialização** do volume. O backend **não usa** `db.create_all()`.
+- **Nginx:** Lê `nginx.conf` como volume somente-leitura.
+
+### docker-compose.yml — trecho relevante do backend
+
+```yaml
+backend:
+  build: ./BackEnd
+  volumes:
+    - ./BackEnd/app:/app/app   # Hot Reload
+  env_file:
+    - path: ./BackEnd/.env
+      required: false          # não quebra se .env não existir na VM
+  environment:
+    - DATABASE_URL=postgresql://monitor:monitor@postgres:5432/monitor
+    - FLASK_ENV=development
+    - FLASK_DEBUG=1
+```
 
 ### entrypoint.sh
 
@@ -194,66 +218,60 @@ ENTRYPOINT ["./entrypoint.sh"]
 3. Configura `SQLALCHEMY_DATABASE_URI` via `DATABASE_URL`
 4. Inicializa `SQLAlchemy(app)`
 5. Chama `registrar_modelos(db)` — instancia todos os 7 modelos
-6. Executa as 5 funções de migração de schema
-7. Registra os 5 blueprints de rotas
+6. Executa as 8 funções de migração de schema
+7. Chama `_notificar_alertas_ativos()` — notifica Teams sobre alertas ativos no startup
+8. Carrega API key do banco via `_load_api_key_from_db()`
+9. Registra os 5 blueprints de rotas
 
 ### Migrações de schema automáticas
 
-O banco é criado pelo `init.sql` e pode ser mais antigo que o código. As funções abaixo adicionam colunas via `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` na inicialização, sem exigir recriação do container.
+O banco é criado pelo `init.sql` e pode ser mais antigo que o código. As funções abaixo adicionam/alteram colunas via SQL na inicialização, sem exigir recriação do container.
 
-| Função | Colunas adicionadas | Tabela |
-|--------|---------------------|--------|
-| `garantir_schema_discovery()` | `os_name`, `os_version`, `kernel_release`, `uptime_seconds`, `motherboard` | `host_discovery` |
-| `garantir_schema_metrics()` | `memory_used_mb`, `memory_free_mb`, `memory_total_mb`, `disk_used_mb`, `disk_free_mb`, `disk_total_mb` | `metrics` |
-| `garantir_schema_alerts()` | `resolved` (BOOLEAN), `resolved_at` (TIMESTAMPTZ) | `alerts` |
-| `garantir_schema_alerts_message()` | `message` (TEXT) | `alerts` |
-| `garantir_schema_iops()` | `read_iops`, `write_iops`, `read_bytes_per_sec`, `write_bytes_per_sec`, `net_sent_bytes_per_sec`, `net_recv_bytes_per_sec` | `metrics` |
+| Função | Operação | Tabela |
+|--------|----------|--------|
+| `garantir_schema_discovery()` | ADD COLUMN IF NOT EXISTS `os_name`, `os_version`, `kernel_release`, `uptime_seconds`, `motherboard` | `host_discovery` |
+| `garantir_schema_metrics()` | ADD COLUMN IF NOT EXISTS `memory_used_mb`, `memory_free_mb`, `memory_total_mb`, `disk_used_mb`, `disk_free_mb`, `disk_total_mb` | `metrics` |
+| `garantir_schema_alerts()` | ADD COLUMN IF NOT EXISTS `resolved` (BOOLEAN), `resolved_at` (TIMESTAMPTZ) | `alerts` |
+| `garantir_schema_alerts_message()` | ADD COLUMN IF NOT EXISTS `message` (TEXT) | `alerts` |
+| `garantir_schema_iops()` | ADD COLUMN IF NOT EXISTS `read_iops`, `write_iops`, `read_bytes_per_sec`, `write_bytes_per_sec`, `net_sent_bytes_per_sec`, `net_recv_bytes_per_sec` | `metrics` |
+| `garantir_schema_settings()` | CREATE TABLE IF NOT EXISTS `app_settings` | — |
+| `garantir_schema_connections_ip()` | ALTER COLUMN `src_ip`, `dst_ip` TYPE VARCHAR(45) | `active_connections` |
+| `garantir_schema_alerts_source_ip()` | ALTER COLUMN `source_ip` TYPE VARCHAR(45) + DROP NOT NULL | `alerts` |
+
+> **Nota:** `init.sql` ainda declara `source_ip` como `INET NOT NULL` e `src_ip`/`dst_ip` como `INET`. As funções de migração convertem essas colunas para VARCHAR(45) em todo banco existente ao subir o container.
+
+### Funções de suporte ao startup
+
+**`_load_api_key_from_db()`**  
+Lê a API key da tabela `app_settings` (chave `'api_key'`). Se não encontrar, usa a variável de ambiente `API_KEY` como fallback. O valor carregado fica em `app.config['API_KEY']` e é consultado pelo `require_api_key` em toda requisição autenticada.
+
+**`_notificar_alertas_ativos()`**  
+Na inicialização do container, consulta todos os alertas com `resolved=False` e envia uma notificação Teams para cada um, para que a equipe saiba que há ameaças ativas após um restart. Usa o arquivo `/tmp/.monitor_startup_notified` como flag para não reenviar durante hot-reloads do Flask (o arquivo some apenas quando o container é reiniciado de verdade).
 
 ### Registro de blueprints (injeção de dependência)
 
 ```python
 register_discovery_routes(app, db, HostModel, AgentModel, HostDiscoveryModel, MetricModel)
-register_metric_routes(app, db, HostModel, AgentModel, MetricModel)
+register_metric_routes(app, db, HostModel, AgentModel, MetricModel, AlertModel, check_resource_alert)
 register_log_routes(app, db, HostModel, LogEntryModel, AlertModel)
 register_alerts_routes(app, db, HostModel, AlertModel)
 register_connections_routes(app, db, HostModel, ActiveConnectionModel, AlertModel, check_port_scan)
 ```
 
-O blueprint de `connections` recebe `check_port_scan` por parâmetro para evitar import circular com `detection.py`.
+O blueprint de `connections` e outros recebem funções de detecção por parâmetro para evitar import circular com `detection.py`.
 
 ### Endpoints gerais (definidos diretamente em app.py)
 
-| Endpoint | Método | Resposta |
-|----------|--------|----------|
-| `/health` | GET | `{"status": "ok"}` — 200 |
-| `/api/status` | GET | `{"status": "online", "version": "4.0.0", "timestamp": "..."}` — 200 |
-| `/api/hello` | GET | `{"message": "Olá do BackEnd Flask!"}` — 200 |
-| `/api/hosts` | GET | Lista de hosts com status online/offline |
-
-#### GET /api/hosts
-
-Parâmetro opcional: `?include_discovery=true` — inclui dados de hardware de cada host.
-
-Retorna:
-```json
-{
-  "hosts": [
-    {
-      "id": 1,
-      "hostname": "servidor-linux",
-      "ip_address": "192.168.1.10",
-      "created_at": "2026-05-01T10:00:00",
-      "last_seen": "2026-05-29T14:35:00",
-      "last_metric_at": "2026-05-29T14:34:58",
-      "status": "online",
-      "is_online": true
-    }
-  ],
-  "total": 1
-}
-```
-
-**Regra de status online/offline:** calculado em tempo real por `_is_online()` no modelo `Host`. Um host é `"online"` se sua última métrica foi recebida há **menos de 30 segundos**.
+| Endpoint | Método | Auth | Resposta |
+|----------|--------|------|----------|
+| `/health` | GET | Não | `{"status": "ok"}` — 200 |
+| `/api/status` | GET | Não | `{"status": "online", "version": "5.0.0", "timestamp": "..."}` — 200 |
+| `/api/hello` | GET | Não | `{"message": "Olá do BackEnd Flask!"}` — 200 |
+| `/api/hosts` | GET | Sim | Lista de hosts com status online/offline |
+| `/api/heartbeat` | POST | Sim | `{"status": "ok"}` — atualiza `last_seen` do host |
+| `/api/auth/login` | POST | Não | Autentica com PANEL_PASSWORD, retorna API key |
+| `/api/settings/apikey` | GET | Não | Status e prefixo da API key atual |
+| `/api/settings/apikey/generate` | POST | Não | Gera nova API key, retorna o valor uma vez |
 
 ---
 
@@ -271,11 +289,6 @@ Entidade central. Todas as outras tabelas têm FK para `host.id`.
 | `created_at` | `DateTime` | `TIMESTAMP` | Default: `utcnow` |
 | `last_seen` | `DateTime` | `TIMESTAMP` | Atualizado a cada métrica recebida |
 
-**Relacionamentos:**
-- `discovery` → `HostDiscoveryModel` (1:1, cascade delete)
-- `metrics` → `MetricModel` (1:N, lazy='dynamic')
-- `logs` → `LogEntryModel` (1:N, lazy='dynamic')
-
 **Métodos:**
 
 | Método | O que faz |
@@ -283,7 +296,6 @@ Entidade central. Todas as outras tabelas têm FK para `host.id`.
 | `to_dict()` | Serializa para JSON, inclui `status` e `is_online` calculados |
 | `_is_online(last_metric_at, timeout_seconds=30)` | `True` se última métrica < 30s atrás |
 | `_last_metric_at()` | Retorna `timestamp` da métrica mais recente |
-| `para_dict()` | Alias de `to_dict()` |
 
 ### 6.2 Agent — tabela `agents`
 
@@ -363,7 +375,7 @@ Um novo registro é inserido a cada envio do agente (~5 segundos). O histórico 
 | `raw_line` | `Text` | Linha bruta exatamente como chegou do agente, NOT NULL |
 | `parsed_data` | `JSON` | Resultado do parsing (JSONB no banco). NULL se não reconhecido |
 
-`parsed_data` quando preenchido contém pelo menos: `event_type`, `status`, `usuario`, `ip_origem`. Campos adicionais variam por tipo de evento.
+`parsed_data` quando preenchido contém pelo menos: `event_type`, `status`, `usuario`, `ip_origem`.
 
 ### 6.6 Alert — tabela `alerts`
 
@@ -371,16 +383,16 @@ Um novo registro é inserido a cada envio do agente (~5 segundos). O histórico 
 |--------|------|------------|
 | `id` | `BigInteger` PK | BIGSERIAL — gerado pelo banco |
 | `host_id` | `Integer` FK | NOT NULL |
-| `alert_type` | `String(50)` | `"brute_force"` ou `"port_scan"` |
-| `source_ip` | `String(45)` | IP de origem do ataque |
+| `alert_type` | `String(50)` | `"brute_force"`, `"port_scan"`, `"cpu_high"`, `"mem_high"`, `"disk_high"` |
+| `source_ip` | `String(45)` | IP de origem do ataque — **nullable** (NULL para alertas de recurso) |
 | `timestamp` | `DateTime` | Default: `utcnow` |
 | `severity` | `String(20)` | `"low"`, `"medium"`, `"high"`, `"critical"`. Default: `"medium"` |
-| `metodos` | `String(20)` | `"password"` para brute force; `null` para port scan |
-| `message` | `Text` | Descrição legível. Ex: `"Força bruta SSH: 8 tentativas em 60s de 10.0.0.5"` |
+| `metodos` | `String(20)` | `"password"` para brute force; `null` para demais |
+| `message` | `Text` | Descrição legível |
 | `resolved` | `Boolean` | `False` = ativo; `True` = resolvido. Default: `False` |
 | `resolved_at` | `DateTime` | Momento da resolução, nullable |
 
-> `resolved` e `resolved_at` não estavam no `init.sql` original — são adicionados por `garantir_schema_alerts()`.
+> `source_ip` foi convertido de `INET NOT NULL` para `VARCHAR(45) nullable` pela migração `garantir_schema_alerts_source_ip()`. Alertas de recurso (cpu_high, mem_high, disk_high) não têm IP de origem — o campo fica NULL.
 
 ### 6.7 ActiveConnection — tabela `active_connections`
 
@@ -397,23 +409,19 @@ Um novo registro é inserido a cada envio do agente (~5 segundos). O histórico 
 | `status` | `status` | `String(20)` | `connections[].state` |
 | `duration_sec` | `duration_sec` | `Integer` | `connections[].duration_sec` (opcional) |
 
+> `src_ip` e `dst_ip` foram convertidos de `INET` para `VARCHAR(45)` pela migração `garantir_schema_connections_ip()`.
+
 ---
 
 ## 7. Rotas (Routes)
 
-Cada arquivo cria um Blueprint Flask e expõe uma função `register_*_routes()` chamada por `app.py`. Os modelos são **injetados por parâmetro** — nenhum blueprint importa modelos diretamente.
-
-> **Exceção:** `connections.py` cria o Blueprint como variável de módulo (`connections_bp = Blueprint(...)`) em vez de dentro da função factory, diferente dos demais blueprints.
+Cada arquivo cria um Blueprint Flask e expõe uma função `register_*_routes()` chamada por `app.py`. Os modelos são **injetados por parâmetro**.
 
 ### 7.1 discovery.py
 
 #### POST /api/discovery
 
-Recebe e persiste o inventário de hardware do agente. Compatível com dois formatos de payload.
-
-**Validações:**
-- `Content-Type: application/json` obrigatório (retorna 400 se payload ausente)
-- Campo `type` ou `collection_type` aceito na raiz ou em `global.collection_type`. Se presente, deve ser `"discovery"` (retorna 400 caso contrário)
+Recebe e persiste o inventário de hardware do agente.
 
 **Fluxo de execução:**
 
@@ -423,92 +431,9 @@ Recebe e persiste o inventário de hardware do agente. Compatível com dois form
 4. Cria ou sobrescreve registro em `host_discovery` (1:1 por `host_id`)
 5. Retorna 201 com `host_id`, `agent_id`, `hostname`, `ip_host`, `is_virtualized`
 
-**Formatos de payload suportados:**
-
-*Máquina física (Linux Mint):*
-```json
-{
-  "type": "discovery",
-  "environment": { "is_virtualized": false, "hypervisor": null },
-  "cpu": {
-    "model_name": "Intel Core i5-4690",
-    "cores_logical": 4,
-    "frequency": { "base_mhz": null, "max_mhz": 3900.0 }
-  },
-  "memory": { "total_mb": 11895.33 },
-  "disk": {
-    "disks": [{ "size": { "bytes": 1000204886016, "gb": 931.51 } }]
-  }
-}
-```
-
-*VM (Ubuntu 24.04 em VMware):*
-```json
-{
-  "type": "discovery",
-  "global": { "host_id": "71203", "primary_ip": "192.168.48.129" },
-  "environment": { "is_virtualized": true, "hypervisor": "VMware" },
-  "system": {
-    "hostname": "teste-ubuntu",
-    "os": { "name": "Ubuntu", "pretty_name": "Ubuntu 24.04.4 LTS", "version_id": "24.04" },
-    "kernel": { "release": "6.8.0-110-generic" },
-    "uptime_seconds": 808
-  },
-  "cpu": {
-    "model_name": "AMD Ryzen 5 7520U",
-    "topology": { "vcpus": 2 },
-    "frequency": { "base_mhz": { "value": null }, "max_mhz": { "value": 2794.546 } }
-  },
-  "memory": { "total": { "bytes": 2013175808, "gb": 1.87 } },
-  "disk": { "disks": [{ "device": "/dev/sda", "size": { "bytes": 32212254720, "gb": 30.0 } }] },
-  "network": {
-    "default_gateway": { "interface": "ens33" },
-    "interfaces": [{ "name": "ens33", "ipv4": [{ "address": "192.168.48.129" }] }]
-  }
-}
-```
-
-**Helpers de extração (funções privadas):**
-
-| Função | Responsabilidade |
-|--------|-----------------|
-| `_extract_discovery_fields(dados, remote_addr)` | Orquestrador — retorna dict padronizado compatível com ambos os formatos |
-| `_get_cpu_freq(cpu, field, fallback)` | Extrai frequência como valor direto (físico) ou `{value: N}` (VM) |
-| `_get_primary_ip_from_network(network)` | Extrai IP da interface padrão (payload VM) |
-| `_get_disk_total_gb(dados)` | Soma o tamanho de todos os discos listados |
-| `_upsert_agent(db, AgentModel, host_id, campos)` | Cria ou atualiza agente; prioridade: `agent_id` → por `host_id` → novo |
-| `_get_nested(source, *keys, fallback)` | Acessa chaves aninhadas sem `KeyError` |
-| `_safe_int(value)` | Converte para int com fallback `None` |
-| `_bytes_to_gb(value)` | Converte bytes para GB |
-| `_get_value(source, key, fallback)` | `dict.get()` com fallback seguro |
-| `_is_host_online(last_seen, timeout_seconds=30)` | Calcula online/offline |
-| `_latest_metric_at(MetricModel, host_id)` | Retorna timestamp da métrica mais recente |
-| `_discovery_to_response(discovery, MetricModel)` | Monta resposta enriquecida com status do host |
-
-**Resolução de hostname e IP:**
-
-```
-ip_address = agent.primary_ip
-          ?? global.primary_ip
-          ?? dados.primary_ip
-          ?? _get_primary_ip_from_network(network)
-          ?? request.remote_addr
-          ?? '0.0.0.0'
-
-hostname   = agent.hostname
-          ?? global.hostname
-          ?? system.hostname
-          ?? dados.hostname
-          ?? f'host-{ip_address.replace(".", "-")}'
-```
-
 #### GET /api/discovery
 
-Retorna dados de discovery para o frontend.
-
-Parâmetro opcional: `?host_id=N` — filtra por host específico.
-
-Resposta: lista de discoveries, cada um enriquecido com `host` (id, hostname, ip, status online/offline calculado).
+Retorna dados de discovery para o frontend. Parâmetro opcional: `?host_id=N`.
 
 ---
 
@@ -516,47 +441,26 @@ Resposta: lista de discoveries, cada um enriquecido com `host` (id, hostname, ip
 
 #### POST /api/metrics
 
-Persiste um snapshot de métricas a cada envio do agente.
+Persiste um snapshot de métricas a cada envio do agente. Aciona `check_resource_alert()` para CPU, memória e disco.
 
 **Validações:**
 - Payload JSON obrigatório (400 se ausente)
-- Campo `timestamp` obrigatório (400 se ausente)
-- Host deve ser identificável por `host_id`, `hostname` ou `ip_address` (400 se impossível)
+- Campo `timestamp` obrigatório
+- Host deve ser identificável (400 se impossível)
 
 **Fluxo:**
 
-1. `_normalize_metrics_payload(dados, remote_addr)` — extrai e normaliza todos os campos
-2. `_resolve_host(db, HostModel, AgentModel, normalized)` — busca ou cria host
+1. `_normalize_metrics_payload()` — extrai e normaliza todos os campos
+2. `_resolve_host()` — busca ou cria host
 3. Cria `MetricModel`, atualiza `host.last_seen` e `agent.last_checkin`
-4. Retorna 201 com `metric_id`, `host_id`, `timestamp`
-
-**Normalização do payload (`_normalize_metrics_payload`):**
-
-Compatível com dois formatos:
-- Estrutura `global/data` (payload padrão do agente): `dados.data.cpu.percent`, `dados.data.memory.total`, etc.
-- Flat (legacy): `dados.cpu_percent`, `dados.memory_used_bytes`, etc.
-
-Conversões aplicadas:
-- `memory.total` (bytes) → `memory_total_mb` (`/ 1024²`)
-- `memory.used` (bytes) → `memory_used_mb`
-- `memory_free_mb` = `memory_total_mb - memory_used_mb` (calculado pelo backend)
-- `disk.total` (bytes) → `disk_total_mb`
-- `disk.used` (bytes) → `disk_used_mb`
-- `disk_free_mb` = `disk_total_mb - disk_used_mb`
-- Timestamp: aceita ISO 8601 (string) ou Unix timestamp (int/float)
-
-**Resolução de host (`_resolve_host`):**
-
-Tenta localizar por `host_id` OR `hostname` OR `ip_address`. Se não encontrar e `hostname` existir, cria novo host e agente. Se impossível identificar, retorna `None` (400).
+4. Chama `check_resource_alert()` para CPU, memória e disco (cria alertas se > 80%)
+5. Retorna 201 com `metric_id`, `host_id`, `timestamp`
 
 #### GET /api/metrics
 
-Parâmetros:
-- `host_id` (obrigatório) — retorna 400 se ausente, 404 se host não existe
-- `limit` (padrão 20, máximo 100)
-- `offset` (padrão 0)
+Parâmetros: `host_id` (obrigatório), `limit` (padrão 20, máximo 100), `offset` (padrão 0).
 
-Retorna métricas em **ordem cronológica crescente** (query DESC invertida para consistência de gráficos). Inclui `is_online`, `status`, `last_metric_at`, `total` (sem paginação).
+Retorna métricas em **ordem cronológica crescente**.
 
 ---
 
@@ -566,48 +470,19 @@ Retorna métricas em **ordem cronológica crescente** (query DESC invertida para
 
 Recebe uma linha de log por requisição, persiste e detecta brute force.
 
-**Validações:**
-- `host_id` obrigatório na raiz ou em `global.host_id` (400 se ausente)
-- `host_id` deve ser numérico (400 se string inválida)
-- `timestamp` obrigatório (400 se ausente)
-- `raw_line` obrigatório e não pode ser vazio/whitespace (400)
-- Host deve existir no banco (404)
-
-**Timestamp aceito:**
-- ISO 8601 string: `"2026-05-19T14:35:00Z"` ou `"2026-05-19T14:35:00+00:00"`
-- Unix timestamp (int ou float): `1716126900`
-
 **Fluxo:**
 
-1. Valida todos os campos obrigatórios
-2. Se `log_type == "auth"`: chama `parse_auth_log(raw_line)` — retorna `parsed_data` ou `None`
-3. Persiste `LogEntryModel` com `parsed_data` preenchido ou `null`
-4. **Após o commit:** se `log_type == "auth"` e `parsed_data.status == "failed"` e `ip_origem` presente → chama `check_brute_force()`
-5. Retorna 201 com `log_id`, `host_id`, `log_type`, `parsed` (bool), `event_type`, `alerta_criado` (bool)
+1. Valida `host_id`, `timestamp`, `raw_line`
+2. Se `log_type == "auth"`: chama `parse_auth_log(raw_line)`
+3. Persiste `LogEntryModel` com `parsed_data` ou `null`
+4. **Após o commit:** se `status == "failed"` e `ip_origem` presente → chama `check_brute_force()`
+5. Retorna 201 com `log_id`, `parsed`, `event_type`, `alerta_criado`
 
 > `check_brute_force()` é chamado **após** o `db.session.commit()` para garantir que a falha recém-salva já seja contabilizada na query de contagem da janela de 60 segundos.
 
-**Payload esperado:**
-```json
-{
-  "host_id": 1,
-  "timestamp": "2026-05-19T14:35:00Z",
-  "log_type": "auth",
-  "raw_line": "May 19 14:35:00 server sshd[123]: Failed password for root from 192.168.1.100 port 22 ssh2"
-}
-```
-
-`log_type` padrão: `"system"` quando não informado.
-
 #### GET /api/logs
 
-Parâmetros:
-- `host_id` (obrigatório)
-- `limit` (padrão 20, máximo 100)
-- `offset` (padrão 0)
-- `log_type` (opcional — ex: `"auth"`)
-
-Ordena do mais recente para o mais antigo (aproveita índice `idx_logs_host_ts`). Retorna `total` sem paginação para o frontend calcular páginas.
+Parâmetros: `host_id` (obrigatório), `limit`, `offset`, `log_type` (opcional).
 
 ---
 
@@ -617,25 +492,22 @@ Ordena do mais recente para o mais antigo (aproveita índice `idx_logs_host_ts`)
 
 Parâmetros:
 - `status` (padrão `"active"`) — `"active"` | `"resolved"` | `"all"`. Retorna 400 para valores inválidos
-- `host_id` (opcional) — verifica existência do host (404 se não encontrado)
-- `limit` (padrão 20, máximo 100)
-- `offset` (padrão 0)
-
-Retorna `total` antes da paginação, `status`, `limit`, `offset`.
+- `host_id` (opcional)
+- `limit` (padrão 20, máximo 100), `offset` (padrão 0)
 
 **Exemplo de resposta:**
 ```json
 {
   "alerts": [
     {
-      "id": 1,
+      "id": 42,
       "host_id": 2,
-      "alert_type": "brute_force",
-      "source_ip": "192.168.1.100",
-      "timestamp": "2026-05-21T03:14:00",
+      "alert_type": "port_scan",
+      "source_ip": "10.10.10.26",
+      "timestamp": "2026-06-02T19:26:01",
       "severity": "high",
-      "metodos": "password",
-      "message": "Força bruta SSH: 7 tentativas em 60s de 192.168.1.100",
+      "metodos": null,
+      "message": "Varredura de portas: 1000 portas distintas em 60s de 10.10.10.26",
       "resolved": false,
       "resolved_at": null
     }
@@ -653,9 +525,7 @@ Marca um alerta como resolvido.
 
 - **200 OK** — retorna alerta atualizado com `resolved=true` e `resolved_at` preenchido
 - **404 Not Found** — alerta não existe
-- **400 Bad Request** — alerta já estava resolvido (retorna `resolved_at` do momento anterior)
-
-Sem body na requisição — apenas o `id` na URL.
+- **400 Bad Request** — alerta já estava resolvido
 
 ---
 
@@ -663,17 +533,11 @@ Sem body na requisição — apenas o `id` na URL.
 
 #### POST /api/connections
 
-Recebe conexões TCP ativas coletadas pelo agente via `ss`/`netstat`.
+Recebe conexões TCP ativas coletadas pelo agente.
 
-**Campos obrigatórios:**
-- `global.host_id` (400 se ausente ou não numérico)
+**Campos obrigatórios:** `global.host_id`
 
-**Campos opcionais:**
-- `global.primary_ip` — IP do host monitorado (usado como `dst_ip`)
-- `timestamp` — aceita ISO 8601; fallback: `datetime.now(timezone.utc)`
-- `connections[]` — lista de conexões TCP
-- `scan_sources` — dict `{ip_atacante: qtd_portas}` enviado pelo agente
-- `port_scan_detected` — bool; default: `bool(scan_sources)`
+**Campos opcionais:** `global.primary_ip`, `timestamp`, `connections[]`, `scan_sources`, `port_scan_detected`
 
 **Mapeamento connections[] → active_connections:**
 
@@ -682,43 +546,77 @@ Recebe conexões TCP ativas coletadas pelo agente via `ss`/`netstat`.
 | `remote_ip` | `src_ip` | IP remoto que iniciou a conexão |
 | `remote_port` | `src_port` | Porta efêmera do lado remoto |
 | `local_port` | `dst_port` | Porta do serviço no host (ex: 22 = SSH) |
-| `state` | `status` | Estado TCP: ESTABLISHED, TIME_WAIT, etc. |
+| `state` | `status` | Estado TCP |
 | `duration_sec` | `duration_sec` | Opcional |
 | `global.primary_ip` | `dst_ip` | IP do próprio host monitorado |
-| fixo: `"tcp"` | `protocol` | Sempre TCP nesta versão |
 
 **Fluxo:**
 
 1. Valida e extrai campos globais
 2. Persiste cada conexão em `active_connections` em lote (commit único)
 3. Se `port_scan_detected == True`:
-   - **Com `scan_sources`:** itera sobre IPs atacantes e chama `check_port_scan()` por IP
-   - **Sem `scan_sources` (fallback):** usa frequência de `remote_ip` nas conexões para identificar o IP mais frequente como atacante
+   - **Com `scan_sources`:** itera sobre IPs atacantes → `check_port_scan()` por IP
+   - **Sem `scan_sources` (fallback):** IP mais frequente em `connections[].remote_ip`
 4. Retorna 201 com `total_salvo`, `port_scan_flag`, `scan_sources`, `alertas_criados`
 
-**Resposta:**
-```json
-{
-  "mensagem": "Conexões recebidas com sucesso",
-  "host_id": 1,
-  "total_salvo": 5,
-  "port_scan_flag": true,
-  "scan_sources": { "10.0.0.5": 47 },
-  "alertas_criados": 1
-}
-```
+> **Exceção:** `connections.py` cria o Blueprint como variável de módulo (`connections_bp = Blueprint(...)`) em vez de dentro da função factory, diferente dos demais blueprints.
 
 ---
 
 ## 8. Utilitários (Utils)
 
-### 8.1 parsers.py
+### 8.1 auth.py
 
-Contém os parsers de linhas do `/var/log/auth.log` e a função de contagem de falhas.
+Contém o decorator `require_api_key` aplicado a todas as rotas que recebem dados dos agentes ou expõem dados sensíveis ao frontend.
+
+```python
+@require_api_key
+def endpoint():
+    ...
+```
+
+**Lógica:**
+1. Extrai o header `Authorization: Bearer {token}`
+2. Compara com `app.config['API_KEY']` (carregado do banco no startup)
+3. Se inválido ou ausente: retorna 401
+
+**Rotas protegidas (decoradas com `@require_api_key`):**
+- `POST /api/heartbeat`
+- `GET /api/hosts`
+- `POST /api/connections`
+- Demais rotas de ingestão e consulta (discovery, metrics, logs, alerts)
+
+---
+
+### 8.2 teams.py
+
+Envia notificações para o Microsoft Teams via webhook configurado em `TEAMS_WEBHOOK_URL`.
+
+**Função pública:**
+
+```python
+enviar_alerta_teams(titulo, mensagem, severidade, origem)
+```
+
+**Comportamento:** se `TEAMS_WEBHOOK_URL` não estiver configurado, a função retorna silenciosamente sem erro. Usado em `check_brute_force()`, `check_port_scan()`, `check_resource_alert()` e `_notificar_alertas_ativos()`.
+
+**Cores por severidade:**
+
+| Severidade | Cor Teams |
+|------------|-----------|
+| `critical` | Vermelho |
+| `warning` | Amarelo |
+| `info` | Azul |
+
+---
+
+### 8.3 parsers.py
+
+Parsers de `/var/log/auth.log` e função de contagem de falhas.
 
 #### parse_auth_log(raw_line) — Orquestrador principal
 
-Ponto de entrada usado por `logs.py`. Tenta cada parser na ordem de especificidade e retorna o primeiro resultado não-`None`. Falhas em parsers individuais são isoladas (não propagam para os próximos).
+Tenta cada parser na ordem de especificidade e retorna o primeiro resultado não-`None`.
 
 **Ordem dos parsers (`_PARSERS`):**
 
@@ -745,89 +643,9 @@ Ponto de entrada usado por `logs.py`. Tenta cada parser na ordem de especificida
 }
 ```
 
-Campos `status` (`"failed"` / `"accepted"`) e `ip_origem` são usados pelos índices JSONB do banco e pela detecção de brute force.
-
-#### parse_sudo(raw_line) → dict | None
-
-**Regex:** `sudo:\s+(\S+)\s+:\s+TTY=\S+\s+;\s+PWD=(\S+)\s+;\s+USER=(\S+)\s+;\s+COMMAND=(.+)$`
-
-**Retorna:**
-```json
-{
-  "event_type": "sudo",
-  "status": "sudo_exec",
-  "usuario": "teste",
-  "ip_origem": null,
-  "usuario_alvo": "root",
-  "comando": "/usr/bin/systemctl status linux-agent",
-  "diretorio": "/home/teste"
-}
-```
-
-#### parse_pam_auth_failure(raw_line) → dict | None
-
-**Retorna:**
-```json
-{
-  "event_type": "pam_auth_failure",
-  "status": "failed",
-  "usuario": "root",
-  "ip_origem": "10.81.243.81",
-  "servico": "sshd:auth"
-}
-```
-
-#### parse_ssh_disconnect(raw_line) → dict | None
-
-Reconhece dois padrões:
-- `Disconnected from user <usuario> <ip>` → inclui `usuario` e `ip_origem`
-- `Received disconnect from <ip>` → inclui apenas `ip_origem`
-
-**Retorna:**
-```json
-{
-  "event_type": "ssh_disconnect",
-  "status": "session_close",
-  "usuario": "teste",
-  "ip_origem": "10.81.243.81"
-}
-```
-
-#### parse_pam_session(raw_line) → dict | None
-
-Reconhece `pam_unix(...): session opened/closed`. Diferencia `cron_session`, `sudo_session` e `pam_session` pelo nome do serviço PAM.
-
-**Retorna:**
-```json
-{
-  "event_type": "pam_session",
-  "status": "session_open",
-  "usuario": "teste",
-  "ip_origem": null,
-  "servico": "sshd:session"
-}
-```
-
-#### parse_logind_session(raw_line) → dict | None
-
-Reconhece `systemd-logind[...]: New session N of user X` e `Removed session N`.
-
-**Retorna:**
-```json
-{
-  "event_type": "logind_session",
-  "status": "session_open",
-  "usuario": "teste",
-  "ip_origem": null,
-  "session_id": "20"
-}
-```
-
 #### count_failed_logins(LogEntryModel, host_id, ip_origem, janela_horas=1) → int
 
-Conta tentativas de login SSH com falha de um IP dentro de uma janela de tempo.
-
-Usa operadores JSONB nativos do PostgreSQL (`->>`), aproveitando os índices parciais criados pelo `init.sql`.
+Conta tentativas de login SSH com falha de um IP dentro de uma janela de tempo. Usa operadores JSONB nativos do PostgreSQL.
 
 **SQL equivalente:**
 ```sql
@@ -839,13 +657,11 @@ WHERE host_id       = :host_id
   AND parsed_data->>'ip_origem' = :ip_origem
 ```
 
-> **Vulnerabilidade identificada:** A query usa interpolação de string direta: `sa_text(f"parsed_data->>'ip_origem' = '{ip_origem}'")`. Isso é uma **vulnerabilidade de SQL injection** se `ip_origem` vier de input não sanitizado. O campo vem do parsing de logs, então na prática é extraído por regex e tem formato IPv4 — mas o risco existe.
-
-Retorna `0` em caso de qualquer exceção (falha silenciosa) para não interromper o fluxo de logs.
+> **Vulnerabilidade identificada:** `ip_origem` é interpolado diretamente na string SQL em vez de usar parâmetros vinculados. Na prática o risco é baixo (valor extraído por regex IPv4), mas a forma correta seria `sa_text("... = :ip").bindparams(ip=ip_origem)`.
 
 ---
 
-### 8.2 detection.py
+### 8.4 detection.py
 
 #### check_brute_force(db, LogEntryModel, AlertModel, host_id, ip_origem) → bool
 
@@ -859,64 +675,108 @@ Retorna `0` em caso de qualquer exceção (falha silenciosa) para não interromp
 2. Se `total_falhas < 5`: retorna `False`
 3. Consulta se já existe alerta ativo (`resolved=False`) para `host_id + source_ip + "brute_force"` — evita duplicatas
 4. Se já existe: retorna `False`
-5. Cria `AlertModel` com `severity="high"`, `metodos="password"`, `message="Força bruta SSH: N tentativas em 60s de IP"`
-6. `db.session.add()` + `db.session.commit()`
+5. Cria `AlertModel` com `severity="high"`, `metodos="password"`
+6. Chama `enviar_alerta_teams()`
 7. Retorna `True`
 
-Em caso de exceção interna: `rollback` silencioso, retorna `False`. Nunca interrompe o salvamento do log.
+---
 
 #### check_port_scan(db, AlertModel, host_id, ip_origem, port_count=0) → bool
 
-O agente usa `tcpdump` para detectar SYN entrantes e envia `port_scan_detected=true` com `scan_sources`. O backend apenas persiste o alerta.
+**Deduplicação por janela de tempo (2 minutos):**
+
+Ao contrário do brute force (que suprime enquanto `resolved=False`), o port scan usa uma janela temporal de cooldown:
+
+- Verifica se existe alerta com `resolved=False` criado nos últimos **2 minutos** para `host_id + ip_origem + "port_scan"`
+- Se existir alerta recente: retorna `False` — evita flood durante um scan em andamento (agente reporta a cada ~6s por ~60s)
+- Se não existir alerta recente: cria novo alerta — mesmo que haja um alerta antigo não-resolvido, um novo scan ~2min depois gera novo alerta
+
+**Motivação:** o agente reporta `port_scan_detected=true` repetidamente enquanto a janela deslizante de 60s não expirar. Sem cooldown, cada POST (a cada ~6s) criaria um novo alerta. Com cooldown de 2 minutos: 1 alerta por scan, mas novo scan após 2+ minutos gera novo alerta sem precisar resolver o anterior.
 
 **Fluxo:**
-
-1. Consulta se já existe alerta ativo de `port_scan` para `host_id + ip_origem` — evita duplicatas
-2. Gera mensagem:
-   - Com `port_count`: `"Varredura de portas: N portas distintas em 60s de IP"`
-   - Sem: `"Varredura de portas detectada de IP"`
-3. Cria `AlertModel` com `severity="high"`, `metodos=None`
-4. Retorna `True` se criado, `False` caso contrário
+```python
+cutoff = datetime.utcnow() - timedelta(minutes=2)
+alerta_recente = AlertModel.query.filter(
+    host_id == host_id,
+    source_ip == ip_origem,
+    alert_type == 'port_scan',
+    resolved == False,
+    timestamp >= cutoff,
+).first()
+```
 
 Falha silenciosa — nunca interrompe o salvamento das conexões.
 
 ---
 
+#### check_resource_alert(db, AlertModel, host_id, alert_type, valor, limiar) → bool
+
+Cria alerta se `valor > limiar` e não houver alerta ativo do mesmo tipo para o host.
+
+**Tipos suportados:** `cpu_high`, `mem_high`, `disk_high`  
+**Limiar padrão:** 80%  
+**`source_ip`:** sempre `None` (alertas de recurso não têm IP de origem)
+
+---
+
 ## 9. Referência de Endpoints
 
-| Endpoint | Método | Quem chama | Descrição |
-|----------|--------|------------|-----------|
-| `/health` | GET | Docker healthcheck | Retorna `{"status": "ok"}` — 200 |
-| `/api/status` | GET | Monitoramento | Versão e timestamp da API |
-| `/api/hello` | GET | Teste | Endpoint de verificação básica |
-| `/api/hosts` | GET | Frontend | Lista hosts com status online/offline |
-| `/api/discovery` | POST | Agente | Recebe inventário de hardware |
-| `/api/discovery` | GET | Frontend | Retorna dados de hardware |
-| `/api/metrics` | POST | Agente | Recebe snapshot de métricas (a cada 5s) |
-| `/api/metrics` | GET | Frontend | Consulta métricas com paginação |
-| `/api/logs` | POST | Agente | Recebe linha do auth.log + parsing + detecção |
-| `/api/logs` | GET | Frontend | Consulta logs com filtro e paginação |
-| `/api/alerts` | GET | Frontend | Lista alertas de segurança |
-| `/api/alerts/<id>/resolve` | PATCH | Frontend | Marca alerta como resolvido |
-| `/api/connections` | POST | Agente | Recebe conexões TCP + detecta port scan |
+| Endpoint | Método | Auth | Quem chama | Descrição |
+|----------|--------|------|------------|-----------|
+| `/health` | GET | Não | Docker healthcheck | `{"status": "ok"}` — 200 |
+| `/api/status` | GET | Não | Monitoramento | Versão e timestamp da API |
+| `/api/hello` | GET | Não | Teste | Endpoint de verificação básica |
+| `/api/auth/login` | POST | Não | Frontend | Valida PANEL_PASSWORD, retorna API key ao navegador |
+| `/api/settings/apikey` | GET | Não | Frontend | Status e prefixo da API key atual |
+| `/api/settings/apikey/generate` | POST | Não | Frontend (admin) | Gera nova API key, retorna valor uma vez |
+| `/api/hosts` | GET | Sim | Frontend | Lista hosts com status online/offline |
+| `/api/heartbeat` | POST | Sim | Agente | Atualiza `last_seen` do host |
+| `/api/discovery` | POST | Sim | Agente | Recebe inventário de hardware |
+| `/api/discovery` | GET | Sim | Frontend | Retorna dados de hardware |
+| `/api/metrics` | POST | Sim | Agente | Recebe snapshot de métricas (~5s) |
+| `/api/metrics` | GET | Sim | Frontend | Consulta métricas com paginação |
+| `/api/logs` | POST | Sim | Agente | Recebe linha do auth.log + parsing + detecção |
+| `/api/logs` | GET | Sim | Frontend | Consulta logs com filtro e paginação |
+| `/api/alerts` | GET | Sim | Frontend | Lista alertas de segurança |
+| `/api/alerts/<id>/resolve` | PATCH | Sim | Frontend | Marca alerta como resolvido |
+| `/api/connections` | POST | Sim | Agente | Recebe conexões TCP + detecta port scan |
 
-### Campos de identificação do host nos payloads do agente
+### POST /api/auth/login
 
-Os campos chegam em `global.host_id` e `global.primary_ip`. O backend localiza o host por:
-1. `host_id` (prioridade)
-2. `hostname`
-3. `ip_address`
+**Body:**
+```json
+{ "password": "senha-do-painel" }
+```
 
-Se nenhum localizar, cria novo host (exceto em `/api/logs`, que retorna 404).
+**Respostas:**
+- **200 OK:** `{ "api_key": "abc123..." }` — frontend salva no sessionStorage
+- **401 Unauthorized:** senha inválida
+- **503 Service Unavailable:** `PANEL_PASSWORD` não configurado no servidor
+- **404 Not Found:** API key não gerada ainda (ir em Configurações → Gerar)
 
 ---
 
 ## 10. Fluxos de Dados
 
-### 10.1 Discovery (inicialização do agente)
+### 10.1 Autenticação do Painel Web
 
 ```
-Agente → POST /api/discovery
+Navegador → POST /api/auth/login { password }
+                │
+                ├─ Verifica PANEL_PASSWORD (variável de ambiente)
+                ├─ [senha inválida] → 401
+                ├─ [PANEL_PASSWORD ausente] → 503
+                └─ Retorna { api_key }
+                        │
+                        └─ Frontend salva api_key no sessionStorage
+                           Inclui em todas as próximas requisições:
+                           Authorization: Bearer {api_key}
+```
+
+### 10.2 Discovery (inicialização do agente)
+
+```
+Agente → POST /api/discovery { Authorization: Bearer }
                 │
                 ├─ _extract_discovery_fields()  ← normaliza payload físico/VM
                 │
@@ -930,72 +790,54 @@ Agente → POST /api/discovery
                 └─ 201 Created { host_id, agent_id, hostname, is_virtualized }
 ```
 
-### 10.2 Métricas (a cada ~5 segundos)
+### 10.3 Métricas + Alertas de Recurso
 
 ```
-Agente → POST /api/metrics
+Agente → POST /api/metrics { Authorization: Bearer }
                 │
-                ├─ _normalize_metrics_payload()  ← bytes→MB, calcula free
-                │
-                ├─ _resolve_host()  ← busca ou cria host + agente
-                │
+                ├─ _normalize_metrics_payload()
+                ├─ _resolve_host()
                 ├─ INSERT MetricModel
-                ├─ UPDATE host.last_seen = now()
-                ├─ UPDATE agent.last_checkin = now()
                 │
-                └─ 201 Created { metric_id, host_id, timestamp }
+                ├─ check_resource_alert(cpu_percent, 80.0)
+                ├─ check_resource_alert(memory_percent, 80.0)
+                └─ check_resource_alert(disk_percent, 80.0)
+                    ├─ [valor <= limiar] → False
+                    ├─ [alerta ativo existente] → False
+                    └─ INSERT AlertModel { cpu_high/mem_high/disk_high, source_ip=None } → True
 ```
 
-### 10.3 Logs + Detecção de Brute Force
+### 10.4 Logs + Detecção de Brute Force
 
 ```
-Agente → POST /api/logs
+Agente → POST /api/logs { Authorization: Bearer }
                 │
-                ├─ Valida host_id, timestamp, raw_line
-                │
-                ├─ [se log_type == "auth"]
-                │   └─ parse_auth_log(raw_line)
-                │       ├─ parse_ssh_log()        ← tenta primeiro
-                │       ├─ parse_sudo()
-                │       ├─ parse_pam_auth_failure()
-                │       ├─ parse_ssh_disconnect()
-                │       ├─ parse_pam_session()
-                │       └─ parse_logind_session()
+                ├─ parse_auth_log(raw_line)
                 │
                 ├─ INSERT LogEntryModel { parsed_data }
                 ├─ db.session.commit()
                 │
-                ├─ [se status == "failed" e ip_origem presente]
-                │   └─ check_brute_force(host_id, ip_origem)
-                │       ├─ count_failed_logins(60s) → N falhas
-                │       ├─ [N < 5] → retorna False
-                │       ├─ [alerta ativo existente] → retorna False
-                │       └─ INSERT AlertModel { brute_force, high } → True
-                │
-                └─ 201 Created { log_id, parsed, event_type, alerta_criado }
+                └─ [status == "failed" e ip_origem presente]
+                    └─ check_brute_force(host_id, ip_origem)
+                        ├─ count_failed_logins(60s) → N falhas
+                        ├─ [N < 5] → False
+                        ├─ [alerta resolved=False existente] → False
+                        └─ INSERT AlertModel { brute_force, high } + Teams → True
 ```
 
-### 10.4 Conexões TCP + Detecção de Port Scan
+### 10.5 Conexões TCP + Detecção de Port Scan
 
 ```
-Agente → POST /api/connections
+Agente → POST /api/connections { Authorization: Bearer }
                 │
-                ├─ Valida global.host_id
-                │
-                ├─ INSERT ActiveConnectionModel (em lote, por conexão)
+                ├─ INSERT ActiveConnectionModel (em lote)
                 ├─ db.session.commit()
                 │
-                ├─ [se port_scan_detected == true]
-                │   ├─ [com scan_sources] → itera IPs atacantes
-                │   │   └─ check_port_scan(host_id, ip_atacante, port_count)
-                │   │       ├─ [alerta ativo existente] → False
-                │   │       └─ INSERT AlertModel { port_scan, high } → True
-                │   │
-                │   └─ [sem scan_sources — fallback]
-                │       └─ Counter(remote_ip) → IP mais frequente
-                │           └─ check_port_scan(host_id, ip_mais_frequente, 0)
-                │
-                └─ 201 Created { total_salvo, port_scan_flag, alertas_criados }
+                └─ [port_scan_detected == true]
+                    └─ [com scan_sources] → itera IPs atacantes
+                        └─ check_port_scan(host_id, ip_atacante, port_count)
+                            ├─ [alerta resolved=False criado há < 2min] → False
+                            └─ INSERT AlertModel { port_scan, high } + Teams → True
 ```
 
 ---
@@ -1005,41 +847,38 @@ Agente → POST /api/connections
 ### 11.1 Status Online/Offline
 
 - **Online:** última métrica recebida há **menos de 30 segundos**
-- **Offline:** sem métricas nos últimos 30 segundos ou nenhuma métrica registrada
-- Calculado em tempo real a cada chamada a `to_dict()` ou `_is_online()` — não é persistido no banco
+- Calculado em tempo real a cada `to_dict()` — não persistido no banco
 
 ### 11.2 Detecção de Brute Force SSH
 
-- **Limiar:** ≥ 5 falhas de login SSH do mesmo IP em 60 segundos
-- **Janela:** `JANELA_HORAS = 1/60` (60 segundos)
-- **Deduplicação:** apenas um alerta ativo por combinação `host_id + source_ip + "brute_force"`. Enquanto o alerta existir como `resolved=False`, novos eventos não geram duplicatas
-- **Severidade:** sempre `"high"`, método: `"password"`
-- **Falha silenciosa:** exceções internas não interrompem o salvamento do log
+- **Limiar:** ≥ 5 falhas do mesmo IP em 60 segundos
+- **Deduplicação:** um alerta ativo por `host_id + source_ip + "brute_force"` (resolved=False)
+- **Severidade:** `"high"`, método: `"password"`
 
 ### 11.3 Detecção de Port Scan
 
-- **Responsável pela análise:** o agente (via `tcpdump`, SYN tracking)
-- **Papel do backend:** apenas persiste o alerta quando `port_scan_detected=true`
-- **Fonte dos IPs:** `scan_sources` (dict `{ip: qtd_portas}`) enviado pelo agente. Fallback: IP mais frequente em `connections[].remote_ip`
-- **Deduplicação:** um alerta ativo por `host_id + source_ip + "port_scan"`
-- **Severidade:** sempre `"high"`, método: `null`
+- **Responsável pela análise:** o agente (via tcpdump, SYN tracking com janela deslizante de 60s)
+- **Papel do backend:** persiste o alerta quando `port_scan_detected=true`
+- **Deduplicação:** cooldown de 2 minutos — evita flood durante scan ativo, mas permite novos alertas para novos scans (sem precisar resolver o anterior se já passou 2+ minutos)
+- **Severidade:** `"high"`, método: `null`
 
-### 11.4 Resolução de Alertas
+### 11.4 Alertas de Recurso (CPU / Memória / Disco)
 
-- Operador aciona `PATCH /api/alerts/<id>/resolve` manualmente pelo frontend
-- Define `resolved=True` e `resolved_at=datetime.utcnow()`
-- Após resolução, nova detecção do mesmo IP **pode** gerar novo alerta (deduplicação só bloqueia enquanto `resolved=False`)
+- **Limiar:** > 80% para CPU, memória e disco
+- **Deduplicação:** um alerta ativo por `host_id + alert_type` (resolved=False)
+- **`source_ip`:** `None` — alertas de recurso não têm origem de rede
+- **Severidade:** `"high"`
 
-### 11.5 Deduplicação de Host
+### 11.5 Resolução de Alertas
 
-- Busca por OR: `ip_address = X OR hostname = Y OR id = Z`
-- Se encontrar qualquer um: atualiza campos (não cria duplicata)
-- Se não encontrar: cria novo host
+- `PATCH /api/alerts/<id>/resolve` — define `resolved=True`, `resolved_at=datetime.utcnow()`
+- Após resolução, nova detecção do mesmo IP/tipo **pode** gerar novo alerta
 
-### 11.6 Upsert de Discovery
+### 11.6 Notificações Teams no Startup
 
-- `host_discovery` tem relação 1:1 com `host` (`host_id` é PK)
-- A cada novo discovery do mesmo host: sobrescreve todos os campos (não histórico)
+- Na inicialização do container, `_notificar_alertas_ativos()` envia Teams para todos os alertas com `resolved=False`
+- Flag `/tmp/.monitor_startup_notified` evita reenvio durante hot-reloads do Flask
+- O arquivo some apenas quando o container é reiniciado de verdade (não no hot-reload)
 
 ---
 
@@ -1051,33 +890,28 @@ Agente → POST /api/connections
 |--------|----------|
 | `200 OK` | Consulta bem-sucedida (GET, PATCH /resolve) |
 | `201 Created` | Dado persistido com sucesso (POST) |
-| `400 Bad Request` | Campo obrigatório ausente, tipo inválido, alerta já resolvido, status inválido |
-| `404 Not Found` | Host ou alerta não encontrado |
+| `400 Bad Request` | Campo obrigatório ausente, tipo inválido, alerta já resolvido |
+| `401 Unauthorized` | API key ausente ou inválida; senha do painel inválida |
+| `404 Not Found` | Host ou alerta não encontrado; API key não gerada |
 | `500 Internal Server Error` | Exceção não tratada (com `db.session.rollback()`) |
+| `503 Service Unavailable` | PANEL_PASSWORD não configurado |
 
 ### Validações por endpoint
 
 | Endpoint | Campo | Validação |
 |----------|-------|-----------|
-| `POST /api/logs` | `host_id` | Obrigatório (raiz ou `global.host_id`), deve ser numérico |
-| `POST /api/logs` | `timestamp` | Obrigatório, aceita ISO 8601 ou Unix timestamp |
-| `POST /api/logs` | `raw_line` | Obrigatório, não pode ser vazio ou só whitespace |
-| `POST /api/logs` | host | Deve existir no banco (404) |
+| `POST /api/auth/login` | `password` | Obrigatório; comparado com `PANEL_PASSWORD` |
+| `POST /api/logs` | `host_id` | Obrigatório, deve ser numérico, host deve existir (404) |
+| `POST /api/logs` | `raw_line` | Obrigatório, não pode ser vazio ou whitespace |
 | `GET /api/metrics` | `host_id` | Obrigatório, deve ser numérico, host deve existir |
-| `GET /api/logs` | `host_id` | Obrigatório, deve ser numérico, host deve existir |
 | `GET /api/alerts` | `status` | Deve ser `"active"`, `"resolved"` ou `"all"` |
 | `POST /api/connections` | `global.host_id` | Obrigatório, deve ser numérico |
 | `PATCH /api/alerts/<id>/resolve` | alerta | Deve existir (404); se já resolvido retorna 400 |
-
-### Tratamento de erros
-
-Todos os blueprints usam `try/except` global que faz `db.session.rollback()` e retorna 500 com a mensagem de erro. A detecção de brute force e port scan são **sempre silenciosas** — nunca propagam erros para o endpoint chamador.
+| Todas (exceto auth/login, settings, health) | `Authorization` | `Bearer {api_key}` obrigatório → 401 se ausente/inválido |
 
 ---
 
 ## 13. Coerência com o Trabalho Acadêmico
-
-O trabalho acadêmico (Trabalho.pdf) propõe as seguintes funcionalidades. Status de implementação:
 
 | Funcionalidade proposta | Status no código |
 |------------------------|------------------|
@@ -1085,47 +919,31 @@ O trabalho acadêmico (Trabalho.pdf) propõe as seguintes funcionalidades. Statu
 | Coleta de métricas de CPU, memória, disco, rede | ✅ Implementado |
 | Coleta de inventário de hardware (discovery) | ✅ Implementado |
 | Análise de logs (auth.log) | ✅ Implementado |
-| Detecção de brute force SSH (≥5 falhas/60s) | ✅ Implementado |
-| Detecção de port scan | ✅ Implementado (via flag do agente) |
+| Detecção de brute force SSH (≥5 falhas/60s) | ✅ Implementado e validado |
+| Detecção de port scan | ✅ Implementado e validado (via tcpdump no agente) |
+| Alertas de recurso (CPU/RAM/disco > 80%) | ✅ Implementado |
 | PostgreSQL com JSONB | ✅ Implementado |
 | Docker Compose com 4 serviços | ✅ Implementado |
 | Nginx como proxy reverso | ✅ Implementado |
-| Dashboard web para visualização | ✅ Implementado no frontend (fora deste doc) |
-| Autenticação por token estático (API_KEY) | ❌ **Não implementado** — presente no `.env.example` mas sem middleware |
-| Política de retenção de dados de 7 dias | ❌ **Não implementado** — mencionado no trabalho, sem implementação no backend |
+| Dashboard web para visualização | ✅ Implementado no frontend |
+| Autenticação por token (API_KEY) | ✅ Implementado — Bearer token em todos os endpoints protegidos |
+| Senha do painel web (PANEL_PASSWORD) | ✅ Implementado — login modal no frontend |
+| Notificações Teams | ✅ Implementado — brute force, port scan, recursos e startup |
+| Política de retenção de dados de 7 dias | ⚠️ Função SQL `cleanup_old_data()` existe no banco, mas sem cron automático |
 
 ---
 
 ## 14. Divergências e Observações Técnicas
 
-### 14.1 Diferenças em relação ao PDF de documentação (v4.0)
+### 14.1 Versão Python
 
-| Item | PDF v4.0 | Código real |
-|------|----------|-------------|
-| Versão Python | 3.13 | **3.12** (Dockerfile: `python:3.12-alpine`) |
-| Entrypoint | Não documentado | `entrypoint.sh` com netcat para aguardar postgres |
-| Blueprint `connections` | Factory pattern (como os outros) | Blueprint criado como variável de módulo no topo do arquivo |
-| `to_dict()` de `Metric` | Documenta `net_sent`/`net_recv` | Campo Python é `net_sent` mas coluna no banco é `net_sent_bytes` |
+O PDF de capa (v4.0) menciona Python 3.13. O `Dockerfile` real usa `python:3.12-alpine`.
 
-### 14.2 Vulnerabilidade de SQL Injection
+### 14.2 Blueprint connections vs demais
 
-Em `app/utils/parsers.py`, função `count_failed_logins()`, linha 446:
+`connections.py` cria o Blueprint como variável de módulo (`connections_bp = Blueprint(...)`) no topo do arquivo, diferente dos outros blueprints que criam dentro da função factory. Funciona corretamente mas destoa do padrão.
 
-```python
-sa_text(f"parsed_data->>'ip_origem' = '{ip_origem}'"),
-```
-
-`ip_origem` é interpolado diretamente na string SQL. Na prática o risco é baixo porque `ip_origem` é extraído por regex que aceita apenas IPv4 (`(?:\d{1,3}\.){3}\d{1,3}`), mas a forma correta é usar parâmetros vinculados:
-
-```python
-sa_text("parsed_data->>'ip_origem' = :ip").bindparams(ip=ip_origem)
-```
-
-### 14.3 Autenticação ausente
-
-O `.env.example` documenta `API_KEY` e o Trabalho menciona "validação por token estático". No código atual **nenhum** endpoint exige autenticação. Qualquer cliente na rede pode enviar dados ou ler todos os alertas/logs/métricas.
-
-### 14.4 Nomes de atributos Python vs colunas do banco (Metric)
+### 14.3 Atributos Python vs colunas do banco (Metric)
 
 O `MetricModel` usa aliases para vários campos. Exemplo:
 
@@ -1134,16 +952,33 @@ net_sent = db.Column('net_sent_bytes', db.BigInteger, ...)  # Python: .net_sent 
 disk_read_iops = db.Column('read_iops', db.Float, ...)      # Python: .disk_read_iops | banco: read_iops
 ```
 
-O `to_dict()` usa os nomes Python (`net_sent`, `disk_read_iops`, etc.), não os nomes das colunas. O frontend precisa conhecer esses nomes.
+O `to_dict()` usa os nomes Python, não os nomes das colunas. O frontend precisa conhecer esses nomes.
 
-### 14.5 Política de retenção de dados
+### 14.4 SQL Injection em count_failed_logins
 
-O Trabalho acadêmico menciona política de retenção de 7 dias para mitigar o crescimento do banco. Essa funcionalidade **não está implementada** no backend. A tabela `metrics` cresce indefinidamente (~17280 registros por host por dia com intervalo de 5 segundos).
+Em `parsers.py`, `ip_origem` é interpolado diretamente na string SQL. Risco baixo na prática (valor extraído por regex IPv4), mas a forma correta é usar parâmetros vinculados:
 
-### 14.6 request em função helper de metrics.py
+```python
+# Atual (vulnerável):
+sa_text(f"parsed_data->>'ip_origem' = '{ip_origem}'")
 
-Em `_normalize_metrics_payload()`, há uma referência a `request.args.get('host_id')` (linha 153). Essa função é chamada dentro de uma rota Flask, então o contexto de request está disponível via proxy do Flask — funciona corretamente, mas `request` não é passado como parâmetro explicitamente, o que pode dificultar testes unitários.
+# Correto:
+sa_text("parsed_data->>'ip_origem' = :ip").bindparams(ip=ip_origem)
+```
+
+### 14.5 init.sql defasado
+
+`init.sql` ainda declara `alerts.source_ip` como `INET NOT NULL` e `active_connections.src_ip/dst_ip` como `INET`. As funções de migração no startup corrigem isso em runtime. Para novos ambientes, o schema de estado final é diferente do que está no `init.sql`.
+
+### 14.6 Política de retenção sem automação
+
+A função `cleanup_old_data(7)` existe no banco PostgreSQL mas precisa ser chamada manualmente ou via cron externo. Sem isso, as tabelas `metrics`, `logs` e `active_connections` crescem indefinidamente (~17.280 linhas/dia em `metrics` com ciclo de 5s).
+
+### 14.7 request em função helper de metrics.py
+
+Em `_normalize_metrics_payload()`, há uma referência a `request.args.get('host_id')` sem que `request` seja passado como parâmetro explícito. Funciona corretamente dentro do contexto Flask, mas dificulta testes unitários.
 
 ---
 
-*Documentação gerada com base na leitura direta do código-fonte em 29/05/2026.*
+*Documentação atualizada em 02/06/2026 — v5.0.0*  
+*Adições: autenticação (API key + PANEL_PASSWORD), Teams, alertas de recurso, migrations adicionais, check_port_scan com cooldown temporal, notificação de startup.*
