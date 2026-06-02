@@ -118,11 +118,13 @@ def check_port_scan(db, AlertModel, host_id: int, ip_origem: str, port_count: in
 
     O agente realiza a análise de SYN_SENT no lado dele e envia
     port_scan_detected=true no payload. O backend apenas persiste o alerta,
-    evitando duplicatas para o mesmo host enquanto o alerta estiver ativo.
+    suprimindo duplicatas dentro de uma janela de 2 minutos — tempo suficiente
+    para cobrir um scan em andamento (agente reporta a cada ~6s por ~60s),
+    mas que permite novos alertas quando um scan diferente ocorrer depois.
 
     Fluxo:
-        1. Verifica se já existe alerta ativo (resolved=False) para
-           host_id + ip_origem + "port_scan"
+        1. Verifica se já existe alerta não-resolvido criado nos últimos 2 min
+           para host_id + ip_origem + "port_scan"
         2. Se não existir: cria novo alerta com severity="high"
         3. Retorna True se alerta foi criado, False caso contrário
 
@@ -137,18 +139,23 @@ def check_port_scan(db, AlertModel, host_id: int, ip_origem: str, port_count: in
         bool — True se um novo alerta foi criado, False caso contrário.
         Falha silenciosa (try/except) — nunca interrompe o salvamento das conexões.
     """
+    from datetime import timedelta
+    _COOLDOWN = timedelta(minutes=2)
+
     try:
-        alerta_existente = AlertModel.query.filter_by(
-            host_id    = host_id,
-            source_ip  = ip_origem,
-            alert_type = 'port_scan',
-            resolved   = False,
+        cutoff = datetime.utcnow() - _COOLDOWN
+        alerta_recente = AlertModel.query.filter(
+            AlertModel.host_id    == host_id,
+            AlertModel.source_ip  == ip_origem,
+            AlertModel.alert_type == 'port_scan',
+            AlertModel.resolved   == False,
+            AlertModel.timestamp  >= cutoff,
         ).first()
 
-        if alerta_existente:
+        if alerta_recente:
             logger.info(
-                'Alerta de port scan já ativo (id=%s) | host_id=%s | ip=%s',
-                alerta_existente.id, host_id, ip_origem,
+                'Alerta de port scan recente (id=%s, criado=%s) | host_id=%s | ip=%s',
+                alerta_recente.id, alerta_recente.timestamp, host_id, ip_origem,
             )
             return False
 
