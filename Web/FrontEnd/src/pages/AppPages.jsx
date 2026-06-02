@@ -40,6 +40,8 @@ function ApiKeyCard() {
     try {
       const data = await api.generateApiKey();
       setGeneratedKey(data.api_key);
+      saveApiKey(data.api_key);
+      setBrowserKeyStored(true);
       await fetchKeyInfo();
     } catch (e) {
       setError(e.message || 'Erro ao gerar chave');
