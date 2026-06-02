@@ -3,21 +3,17 @@
 # numa etapa futura após o frontend ser adaptado para incluir o header.
 
 import functools
-import os
 
-from flask import jsonify, request
-
-_API_KEY = os.environ.get("API_KEY")
-if not _API_KEY:
-    raise RuntimeError(
-        "A variável de ambiente API_KEY deve estar definida antes de subir o servidor"
-    )
+from flask import current_app, jsonify, request
 
 
 def require_api_key(f):
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
-        if request.headers.get("X-API-Key") != _API_KEY:
+        api_key = current_app.config.get('API_KEY', '')
+        if not api_key:
+            return jsonify({"error": "API key not configured — generate one in Settings"}), 401
+        if request.headers.get("X-API-Key") != api_key:
             return jsonify({"error": "invalid or missing API key"}), 401
         return f(*args, **kwargs)
     return wrapper

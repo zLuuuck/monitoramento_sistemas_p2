@@ -211,6 +211,7 @@ def create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel, Me
             }), 500
 
     @discovery_bp.route('/discovery', methods=['GET'])
+    @require_api_key
     def get_discovery():
         """Retorna os dados de discovery cadastrados para exibicao no frontend."""
         try:

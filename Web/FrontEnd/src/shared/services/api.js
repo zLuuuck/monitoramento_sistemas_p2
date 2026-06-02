@@ -1,13 +1,38 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
+// A chave NÃO é lida de variáveis VITE_ — essas são embutidas no bundle pelo
+// Vite e ficam visíveis em texto plano no fonte entregue ao navegador.
+// A chave vive apenas no localStorage, definida em runtime pelo administrador.
+function getStoredApiKey() {
+  return localStorage.getItem('monitor_api_key') || '';
+}
+
+export function saveApiKey(key) {
+  if (key) {
+    localStorage.setItem('monitor_api_key', key);
+  } else {
+    localStorage.removeItem('monitor_api_key');
+  }
+}
+
+export function hasBrowserApiKey() {
+  return Boolean(localStorage.getItem('monitor_api_key'));
+}
+
 async function request(path, options = {}) {
+  const apiKey = getStoredApiKey();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...(apiKey ? { 'X-API-Key': apiKey } : {}),
       ...(options.headers || {}),
     },
     ...options,
   });
+
+  if (response.status === 401) {
+    throw new Error('AUTH_REQUIRED');
+  }
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
@@ -41,7 +66,6 @@ export const api = {
     if (log_type) url += `&log_type=${log_type}`;
     return request(url);
   },
-  // ALERTAS (agora dentro do objeto api)
   getAlerts: async (status = 'active') => {
     const params = status ? `?status=${status}` : '';
     const data = await request(`/api/alerts${params}`);
@@ -52,4 +76,9 @@ export const api = {
       method: 'PATCH',
     });
   },
+  getApiKey: () => request('/api/settings/apikey'),
+  generateApiKey: () => request('/api/settings/apikey/generate', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  }),
 };

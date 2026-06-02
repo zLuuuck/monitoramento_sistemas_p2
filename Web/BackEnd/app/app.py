@@ -3,6 +3,8 @@
 # Semana 5: registro do AlertModel e das rotas de alertas.
 # Semana 6: registro do ActiveConnectionModel, rotas de conexões e check_port_scan.
 
+import secrets
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -136,11 +138,45 @@ def garantir_schema_iops():
         app.logger.warning('Nao foi possivel garantir schema de IOPS: %s', erro)
 
 
+def garantir_schema_settings():
+    """Cria tabela de configurações do sistema se ainda não existir."""
+    try:
+        with app.app_context():
+            db.session.execute(db.text("""
+                CREATE TABLE IF NOT EXISTS app_settings (
+                    key     VARCHAR(100) PRIMARY KEY,
+                    value   TEXT,
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """))
+            db.session.commit()
+    except Exception as erro:
+        db.session.rollback()
+        app.logger.warning('Nao foi possivel garantir schema de settings: %s', erro)
+
+
+def _load_api_key_from_db() -> str:
+    """Lê a API key do banco; usa API_KEY do .env como fallback."""
+    try:
+        with app.app_context():
+            row = db.session.execute(
+                db.text("SELECT value FROM app_settings WHERE key = 'api_key'")
+            ).fetchone()
+            if row and row[0]:
+                return row[0]
+    except Exception:
+        pass
+    return os.environ.get('API_KEY', '')
+
+
 garantir_schema_discovery()
 garantir_schema_metrics()
 garantir_schema_alerts()
 garantir_schema_alerts_message()
 garantir_schema_iops()
+garantir_schema_settings()
+
+app.config['API_KEY'] = _load_api_key_from_db()
 
 
 # Registra os Blueprints de rotas
@@ -154,6 +190,7 @@ from .routes import (
 # Semana 6: importação do blueprint de conexões e da função de detecção
 from .routes.connections import register_connections_routes
 from .utils.detection import check_port_scan, check_resource_alert
+from .utils.auth import require_api_key
 
 register_discovery_routes(app, db, HostModel, AgentModel, HostDiscoveryModel, MetricModel)
 register_metric_routes(app, db, HostModel, AgentModel, MetricModel, AlertModel, check_resource_alert)
@@ -197,6 +234,7 @@ def health():
 
 
 @app.route('/api/hosts', methods=['GET'])
+@require_api_key
 def get_hosts():
     """Retorna todos os hosts cadastrados."""
     try:
@@ -214,6 +252,44 @@ def get_hosts():
 
     except Exception as erro:
         return jsonify({'erro': f'Erro ao buscar hosts: {str(erro)}'}), 500
+
+
+# ==================== SETTINGS ====================
+
+@app.route('/api/settings/apikey', methods=['GET'])
+def get_apikey_settings():
+    """Retorna status e prefixo da API key atual (nunca o valor completo)."""
+    key = app.config.get('API_KEY', '')
+    if key:
+        return jsonify({
+            'configured': True,
+            'key_prefix': key[:8] + '...' + key[-4:],
+        }), 200
+    return jsonify({'configured': False, 'key_prefix': None}), 200
+
+
+@app.route('/api/settings/apikey/generate', methods=['POST'])
+def generate_apikey():
+    """Gera uma nova API key, persiste no banco e retorna o valor uma única vez."""
+    new_key = secrets.token_hex(32)
+    try:
+        db.session.execute(
+            db.text("""
+                INSERT INTO app_settings (key, value, updated_at)
+                VALUES ('api_key', :value, NOW())
+                ON CONFLICT (key) DO UPDATE SET value = :value, updated_at = NOW()
+            """),
+            {'value': new_key},
+        )
+        db.session.commit()
+        app.config['API_KEY'] = new_key
+        return jsonify({
+            'api_key': new_key,
+            'message': 'Copie agora — não será exibida novamente',
+        }), 201
+    except Exception as erro:
+        db.session.rollback()
+        return jsonify({'erro': f'Erro ao gerar API key: {str(erro)}'}), 500
 
 
 # ==================== INICIALIZAÇÃO ====================

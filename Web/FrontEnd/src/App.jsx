@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, Link } from 'react-router-dom';
 import { Layout } from './shared/components/Layout';
 import { api } from './shared/services/api';
 import './App.css';
@@ -15,6 +15,7 @@ function App() {
   const [discovery, setDiscovery] = useState([]);
   const [discoveryLoading, setDiscoveryLoading] = useState(true);
   const [discoveryError, setDiscoveryError] = useState('');
+  const [authRequired, setAuthRequired] = useState(false);
 
   useEffect(() => {
     const carregarDiscovery = async () => {
@@ -22,11 +23,16 @@ function App() {
         setDiscoveryLoading(true);
         const dados = await api.getDiscovery();
         setDiscovery(dados);
+        setAuthRequired(false);
         if (dados.length > 0) {
           setSelectedHost((currentHost) => currentHost || String(dados[0].host_id));
         }
       } catch (error) {
-        setDiscoveryError(error.message);
+        if (error.message === 'AUTH_REQUIRED') {
+          setAuthRequired(true);
+        } else {
+          setDiscoveryError(error.message);
+        }
       } finally {
         setDiscoveryLoading(false);
       }
@@ -46,9 +52,14 @@ function App() {
         const resposta = await api.getMetrics(selectedHost);
         const dados = Array.isArray(resposta?.metrics) ? resposta.metrics : [];
         setMetrics(normalizeMetrics(dados));
+        setAuthRequired(false);
       } catch (error) {
         setMetrics([]);
-        setMetricsError(error.message);
+        if (error.message === 'AUTH_REQUIRED') {
+          setAuthRequired(true);
+        } else {
+          setMetricsError(error.message);
+        }
       } finally {
         setLoading(false);
       }
@@ -68,6 +79,25 @@ function App() {
   return (
     <ThemeProvider>
       <Layout hostType={selectedDiscovery?.is_virtualized ? 'virtual' : 'physical'}>
+        {/* Banner de autenticação inválida */}
+        {authRequired && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm">
+            <span className="text-amber-800 dark:text-amber-300">
+              API Key inválida ou não configurada neste navegador.{' '}
+              <Link to="/settings" className="font-bold underline">
+                Ir para Configurações
+              </Link>{' '}
+              para salvar a chave.
+            </span>
+            <button
+              onClick={() => setAuthRequired(false)}
+              className="flex-shrink-0 text-amber-600 hover:text-amber-800 dark:text-amber-400 text-lg leading-none"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* Seletor Global de Host no Topo das Páginas (sem o ThemeToggle) */}
         <div className="flex justify-end mb-6">
           <div className="flex items-center gap-3">

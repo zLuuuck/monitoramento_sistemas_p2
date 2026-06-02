@@ -201,6 +201,7 @@ def create_log_blueprint(app, db, HostModel, LogEntryModel, AlertModel):
             }), 500
 
     @logs_bp.route('/logs', methods=['GET'])
+    @require_api_key
     def get_logs():
         """
         Consulta logs de um host com paginação e filtro por tipo.

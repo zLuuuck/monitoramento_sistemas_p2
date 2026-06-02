@@ -82,6 +82,7 @@ def create_metric_blueprint(db, HostModel, AgentModel, MetricModel, AlertModel=N
             return jsonify({'erro': f'Erro interno ao processar metrica: {str(erro)}'}), 500
 
     @metrics_bp.route('/metrics', methods=['GET'])
+    @require_api_key
     def get_metrics():
         """Consulta metricas de um host com paginacao."""
         try:

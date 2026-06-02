@@ -19,6 +19,7 @@ def create_alerts_blueprint(db, HostModel, AlertModel):
     alerts_bp = Blueprint('alerts', __name__, url_prefix='/api')
 
     @alerts_bp.route('/alerts', methods=['GET'])
+    @require_api_key
     def get_alerts():
         """
         Retorna alertas de segurança com filtros opcionais.
