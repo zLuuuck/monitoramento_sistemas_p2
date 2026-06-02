@@ -35,10 +35,6 @@ if [[ ! -f "$BINARY_SRC" ]]; then
 
     AGENT_DIR="$(dirname "$0")"
 
-    if ! command -v pyinstaller &>/dev/null; then
-        error "pyinstaller não encontrado. Instale com: pip install pyinstaller"
-    fi
-
     if [[ ! -f "$AGENT_DIR/.ambiente_venv/bin/activate" ]]; then
         info "Criando ambiente virtual..."
         python3 -m venv "$AGENT_DIR/.ambiente_venv"
@@ -47,6 +43,10 @@ if [[ ! -f "$BINARY_SRC" ]]; then
     source "$AGENT_DIR/.ambiente_venv/bin/activate"
     pip install -e "$AGENT_DIR" --quiet
     pip install pyinstaller --quiet
+
+    if ! command -v pyinstaller &>/dev/null; then
+        error "pyinstaller não encontrado — verifique o ambiente virtual"
+    fi
 
     pyinstaller --onefile -n "$BINARY_NAME" \
         --paths "$AGENT_DIR/src" \
