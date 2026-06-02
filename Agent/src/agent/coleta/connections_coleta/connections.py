@@ -67,6 +67,13 @@ def _thread_tcpdump() -> None:
             tcpdump_bin = candidate
             break
 
+    # Limpa LD_LIBRARY_PATH do ambiente PyInstaller para que o tcpdump
+    # carregue a libpcap do sistema, não a versão bundlada no _MEIPASS.
+    import os as _os
+    clean_env = _os.environ.copy()
+    clean_env.pop('LD_LIBRARY_PATH', None)
+    clean_env.pop('LD_PRELOAD', None)
+
     try:
         proc = subprocess.Popen(
             [
@@ -77,6 +84,7 @@ def _thread_tcpdump() -> None:
             stderr=subprocess.PIPE,
             text=True,
             bufsize=1,
+            env=clean_env,
         )
         _log.info("tcpdump iniciado (pid=%s, bin=%s)", proc.pid, tcpdump_bin)
         _log.info("IPs locais filtrados: %s", _LOCAL_IPS)
