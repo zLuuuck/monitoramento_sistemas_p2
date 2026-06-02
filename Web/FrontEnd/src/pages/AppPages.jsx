@@ -16,12 +16,12 @@ export function DashboardPage() {
     <section className="mb-8">
       <div className="mb-4">
         <h2 className="text-xl font-bold text-page">Discovery do Host</h2>
-        <p className="text-sm text-gray-500">Dados coletados sobre hardware, virtualização e rede.</p>
+        <p className="text-sm text-page opacity-80">Dados coletados sobre hardware, virtualização e rede.</p>
       </div>
       {selectedDiscovery ? (
         <DiscoveryDashboard discovery={selectedDiscovery} />
       ) : (
-        <div className="bg-white rounded-lg shadow-md p-6 text-gray-500">Nenhum discovery cadastrado.</div>
+        <div className="bg-card rounded-lg shadow-md p-6 text-page opacity-70">Nenhum discovery cadastrado.</div>
       )}
     </section>
   );
@@ -49,7 +49,7 @@ export function MetricsPage() {
             <MetricCards latestMetric={metrics[metrics.length - 1]} />
           </>
         ) : (
-          <div className="bg-white rounded-lg shadow-md p-6 text-gray-500">Nenhuma métrica encontrada para este host.</div>
+          <div className="bg-card rounded-lg shadow-md p-6 text-page opacity-70">Nenhuma métrica encontrada para este host.</div>
         )}
       </div>
     </section>
@@ -82,11 +82,11 @@ export function EndpointsPage() {
   const { discovery, discoveryLoading, discoveryError } = useOutletContext();
 
   if (discoveryLoading) {
-    return <div className="p-6 text-gray-500">Carregando endpoints...</div>;
+    return <div className="bg-card rounded-lg shadow-md p-6 text-page opacity-70">Carregando endpoints...</div>;
   }
 
   if (discoveryError) {
-    return <div className="p-6 text-red-500">Erro ao carregar endpoints: {discoveryError}</div>;
+    return <div className="bg-card rounded-lg shadow-md p-6 text-red-500">Erro ao carregar endpoints: {discoveryError}</div>;
   }
 
   return (
@@ -98,30 +98,30 @@ export function EndpointsPage() {
         </p>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <div className="bg-card rounded-lg shadow-md overflow-hidden">
         {discovery && discovery.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <tr>
-                  <th className="text-left p-4 text-sm font-semibold text-gray-600">ID</th>
-                  <th className="text-left p-4 text-sm font-semibold text-gray-600">Hostname</th>
-                  <th className="text-left p-4 text-sm font-semibold text-gray-600">Status</th>
-                  <th className="text-left p-4 text-sm font-semibold text-gray-600">Tipo</th>
-                  <th className="text-left p-4 text-sm font-semibold text-gray-600">IP</th>
-                  <th className="text-left p-4 text-sm font-semibold text-gray-600">Sistema</th>
+                  <th className="text-left p-4 text-sm font-semibold text-gray-600 dark:text-gray-300">ID</th>
+                  <th className="text-left p-4 text-sm font-semibold text-gray-600 dark:text-gray-300">Hostname</th>
+                  <th className="text-left p-4 text-sm font-semibold text-gray-600 dark:text-gray-300">Status</th>
+                  <th className="text-left p-4 text-sm font-semibold text-gray-600 dark:text-gray-300">Tipo</th>
+                  <th className="text-left p-4 text-sm font-semibold text-gray-600 dark:text-gray-300">IP</th>
+                  <th className="text-left p-4 text-sm font-semibold text-gray-600 dark:text-gray-300">Sistema</th>
                 </tr>
               </thead>
               <tbody>
                 {discovery.map((item) => (
-                  <tr key={item.host_id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="p-4 text-sm">{item.host_id}</td>
-                    <td className="p-4 text-sm font-medium">{item.host?.hostname || `Host ${item.host_id}`}</td>
+                  <tr key={item.host_id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td className="p-4 text-sm text-page opacity-80">{item.host_id}</td>
+                    <td className="p-4 text-sm font-medium text-page">{item.host?.hostname || `Host ${item.host_id}`}</td>
                     <td className="p-4 text-sm">
                       <span className={`px-2 py-1 rounded-full text-xs ${
                         item.host?.status === 'online' 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-red-100 text-red-700'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' 
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
                       }`}>
                         {item.host?.status || 'offline'}
                       </span>
@@ -129,21 +129,21 @@ export function EndpointsPage() {
                     <td className="p-4 text-sm">
                       <span className={`px-2 py-1 rounded-full text-xs ${
                         item.is_virtualized
-                          ? 'bg-purple-100 text-purple-700'
-                          : 'bg-blue-100 text-blue-700'
+                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                          : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
                       }`}>
                         {item.is_virtualized ? 'Virtual' : 'Físico'}
                       </span>
                     </td>
-                    <td className="p-4 text-sm font-mono">{item.host?.ip_address || '-'}</td>
-                    <td className="p-4 text-sm">{item.operating_system || '-'}</td>
+                    <td className="p-4 text-sm font-mono text-page opacity-80">{item.host?.ip_address || '-'}</td>
+                    <td className="p-4 text-sm text-page opacity-80">{item.operating_system || '-'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <div className="p-6 text-center text-gray-500">
+          <div className="p-6 text-center text-page opacity-70">
             <Icon name="server" size="text-3xl" className="mb-2" />
             <p>Nenhum endpoint cadastrado</p>
             <p className="text-sm">Os dados do discovery aparecerão aqui automaticamente.</p>
@@ -169,7 +169,7 @@ export function SettingsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Card - Aparência */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <div className="bg-card rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-page mb-4 flex items-center gap-2">
             <Icon name="settings" size="text-lg" />
             Aparência
@@ -181,7 +181,7 @@ export function SettingsPage() {
             </div>
             <button
               onClick={toggleTheme}
-              className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+              className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-page"
             >
               {theme === 'light' ? '☀️ Modo claro' : '🌙 Modo escuro'}
             </button>
@@ -189,7 +189,7 @@ export function SettingsPage() {
         </div>
 
         {/* Card - Preferências de Monitoramento */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <div className="bg-card rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-page mb-4 flex items-center gap-2">
             <Icon name="chart" size="text-lg" />
             Monitoramento
@@ -200,7 +200,7 @@ export function SettingsPage() {
                 <p className="font-medium text-page">Intervalo de Atualização</p>
                 <p className="text-sm text-page opacity-70">Tempo entre cada coleta de métricas</p>
               </div>
-              <select className="px-3 py-1 border rounded-lg dark:bg-gray-700 dark:border-gray-600">
+              <select className="px-3 py-1 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-page">
                 <option>10 segundos</option>
                 <option>30 segundos</option>
                 <option>1 minuto</option>
@@ -211,7 +211,7 @@ export function SettingsPage() {
                 <p className="font-medium text-page">Limite de Alertas</p>
                 <p className="text-sm text-page opacity-70">Alertar quando CPU ultrapassar</p>
               </div>
-              <select className="px-3 py-1 border rounded-lg dark:bg-gray-700 dark:border-gray-600">
+              <select className="px-3 py-1 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-page">
                 <option>80%</option>
                 <option>85%</option>
                 <option>90%</option>
@@ -221,7 +221,7 @@ export function SettingsPage() {
         </div>
 
         {/* Card - Notificações */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <div className="bg-card rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-page mb-4 flex items-center gap-2">
             <Icon name="alert" size="text-lg" />
             Notificações
@@ -232,7 +232,7 @@ export function SettingsPage() {
                 <p className="font-medium text-page">Alertas por Email</p>
                 <p className="text-sm text-page opacity-70">Receber notificações por email</p>
               </div>
-              <button className="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-lg text-sm">Desativado</button>
+              <button className="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-lg text-sm text-page">Desativado</button>
             </div>
             <div className="flex items-center justify-between">
               <div>
@@ -245,7 +245,7 @@ export function SettingsPage() {
         </div>
 
         {/* Card - Sobre */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <div className="bg-card rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-page mb-4 flex items-center gap-2">
             <Icon name="info" size="text-lg" />
             Sobre o Sistema
