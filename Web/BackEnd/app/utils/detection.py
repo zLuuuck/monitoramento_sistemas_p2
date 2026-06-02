@@ -21,7 +21,8 @@ LIMIAR_MEM     = 80.0
 LIMIAR_DISK_IO = 80.0
 
 
-def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: str) -> bool:
+def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: str,
+                      hostname: str = '', host_ip: str = '') -> bool:
     """
     Verifica se um IP está realizando ataque de força bruta SSH contra um host.
 
@@ -95,10 +96,10 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
         )
 
         enviar_alerta_teams(
-            titulo    = f'Brute Force SSH detectado — Host {host_id}',
+            titulo    = f'Brute Force SSH — {hostname or f"Host {host_id}"}',
             mensagem  = novo_alerta.message,
             severidade= 'critical',
-            origem    = f'host-{host_id}',
+            origem    = f'{hostname} ({host_ip})' if hostname else f'host-{host_id}',
         )
 
         return True
@@ -112,7 +113,8 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
         return False
 
 
-def check_port_scan(db, AlertModel, host_id: int, ip_origem: str, port_count: int = 0) -> bool:
+def check_port_scan(db, AlertModel, host_id: int, ip_origem: str, port_count: int = 0,
+                    hostname: str = '', host_ip: str = '') -> bool:
     """
     Registra um alerta de port scan quando o agente sinaliza detecção.
 
@@ -185,10 +187,10 @@ def check_port_scan(db, AlertModel, host_id: int, ip_origem: str, port_count: in
         )
 
         enviar_alerta_teams(
-            titulo    = f'Port Scan detectado — Host {host_id}',
+            titulo    = f'Port Scan detectado — {hostname or f"Host {host_id}"}',
             mensagem  = msg,
             severidade= 'critical',
-            origem    = f'host-{host_id}',
+            origem    = f'{hostname} ({host_ip})' if hostname else f'host-{host_id}',
         )
 
         return True
@@ -203,7 +205,8 @@ def check_port_scan(db, AlertModel, host_id: int, ip_origem: str, port_count: in
 
 
 def check_resource_alert(db, AlertModel, host_id: int, alert_type: str,
-                         valor: float, limiar: float) -> bool:
+                         valor: float, limiar: float,
+                         hostname: str = '', host_ip: str = '') -> bool:
     """
     Cria um alerta de recurso (cpu_high / mem_high / disk_high) se valor > limiar
     e não houver alerta ativo do mesmo tipo para o host.
@@ -262,10 +265,10 @@ def check_resource_alert(db, AlertModel, host_id: int, alert_type: str,
         )
 
         enviar_alerta_teams(
-            titulo    = f'{recurso} alta — Host {host_id}',
+            titulo    = f'{recurso} alta — {hostname or f"Host {host_id}"}',
             mensagem  = msg,
             severidade= 'warning',
-            origem    = f'host-{host_id}',
+            origem    = f'{hostname} ({host_ip})' if hostname else f'host-{host_id}',
         )
 
         return True

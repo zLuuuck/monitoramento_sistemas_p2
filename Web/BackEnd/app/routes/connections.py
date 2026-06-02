@@ -110,12 +110,17 @@ def register_connections_routes(app, db, HostModel, ActiveConnectionModel, Alert
         alertas_criados = 0
 
         if port_scan_flag:
+            host      = HostModel.query.get(host_id)
+            _hn       = host.hostname    if host else ''
+            _hip      = host.ip_address  if host else primary_ip
+
             if scan_sources:
                 # Novo modelo: agente fornece IPs atacantes diretamente com contagem
                 for ip_atacante, port_count in scan_sources.items():
                     criado = check_port_scan_fn(
                         db, AlertModel, host_id,
                         ip_atacante, int(port_count),
+                        _hn, _hip,
                     )
                     if criado:
                         alertas_criados += 1
@@ -128,7 +133,7 @@ def register_connections_routes(app, db, HostModel, ActiveConnectionModel, Alert
                     ip_atacante = contagem.most_common(1)[0][0] if contagem else primary_ip
                 else:
                     ip_atacante = primary_ip
-                criado = check_port_scan_fn(db, AlertModel, host_id, ip_atacante, 0)
+                criado = check_port_scan_fn(db, AlertModel, host_id, ip_atacante, 0, _hn, _hip)
                 if criado:
                     alertas_criados += 1
 

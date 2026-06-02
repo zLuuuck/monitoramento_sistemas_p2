@@ -66,9 +66,11 @@ def create_metric_blueprint(db, HostModel, AgentModel, MetricModel, AlertModel=N
 
             # Verifica limiares de recursos e cria alertas se necessário
             if AlertModel is not None and check_resource_alert_fn is not None:
-                check_resource_alert_fn(db, AlertModel, host.id, 'cpu_high',  normalized['cpu_percent']    or 0.0, 80.0)
-                check_resource_alert_fn(db, AlertModel, host.id, 'mem_high',  normalized['memory_percent'] or 0.0, 80.0)
-                check_resource_alert_fn(db, AlertModel, host.id, 'disk_high', normalized['disk_percent']   or 0.0, 80.0)
+                _hn  = host.hostname
+                _hip = host.ip_address or ''
+                check_resource_alert_fn(db, AlertModel, host.id, 'cpu_high',  normalized['cpu_percent']    or 0.0, 80.0, _hn, _hip)
+                check_resource_alert_fn(db, AlertModel, host.id, 'mem_high',  normalized['memory_percent'] or 0.0, 80.0, _hn, _hip)
+                check_resource_alert_fn(db, AlertModel, host.id, 'disk_high', normalized['disk_percent']   or 0.0, 80.0, _hn, _hip)
 
             return jsonify({
                 'message': 'Metrica salva com sucesso',

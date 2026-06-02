@@ -176,6 +176,8 @@ def create_log_blueprint(app, db, HostModel, LogEntryModel, AlertModel):
                         AlertModel,
                         host_id,
                         ip_origem,
+                        hostname = host.hostname,
+                        host_ip  = host.ip_address or '',
                     )
 
                     if alerta_criado:
