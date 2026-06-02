@@ -176,7 +176,12 @@ backend:
     - DATABASE_URL=postgresql://monitor:monitor@postgres:5432/monitor
     - FLASK_ENV=development
     - FLASK_DEBUG=1
+  dns:
+    - 8.8.8.8
+    - 8.8.4.4
 ```
+
+> **DNS explícito:** O container backend usa DNS do Google em vez do resolver interno do Docker. Necessário para que `requests` consiga resolver domínios externos como `*.powerplatform.com` (usado pelo Power Automate). Sem isso, envios ao Teams falham com `NameResolutionError [Errno -3]`.
 
 ### entrypoint.sh
 
@@ -480,6 +485,8 @@ Recebe uma linha de log por requisição, persiste e detecta brute force.
 
 > `check_brute_force()` é chamado **após** o `db.session.commit()` para garantir que a falha recém-salva já seja contabilizada na query de contagem da janela de 60 segundos.
 
+> O objeto `host` já está disponível na rota (consultado para validar existência do host), então `host.hostname` e `host.ip_address` são passados diretamente sem consulta extra.
+
 #### GET /api/logs
 
 Parâmetros: `host_id` (obrigatório), `limit`, `offset`, `log_type` (opcional).
@@ -555,7 +562,8 @@ Recebe conexões TCP ativas coletadas pelo agente.
 1. Valida e extrai campos globais
 2. Persiste cada conexão em `active_connections` em lote (commit único)
 3. Se `port_scan_detected == True`:
-   - **Com `scan_sources`:** itera sobre IPs atacantes → `check_port_scan()` por IP
+   - Consulta `HostModel.query.get(host_id)` para obter `hostname` e `ip_address`
+   - **Com `scan_sources`:** itera sobre IPs atacantes → `check_port_scan()` por IP (com hostname/IP)
    - **Sem `scan_sources` (fallback):** IP mais frequente em `connections[].remote_ip`
 4. Retorna 201 com `total_salvo`, `port_scan_flag`, `scan_sources`, `alertas_criados`
 
@@ -590,23 +598,46 @@ def endpoint():
 
 ### 8.2 teams.py
 
-Envia notificações para o Microsoft Teams via webhook configurado em `TEAMS_WEBHOOK_URL`.
+Envia notificações para o Microsoft Teams via webhook Power Automate configurado em `TEAMS_WEBHOOK_URL`.
 
 **Função pública:**
 
 ```python
-enviar_alerta_teams(titulo, mensagem, severidade, origem)
+enviar_alerta_teams(titulo, mensagem, severidade='info', origem='backend', link='') -> bool
 ```
 
-**Comportamento:** se `TEAMS_WEBHOOK_URL` não estiver configurado, a função retorna silenciosamente sem erro. Usado em `check_brute_force()`, `check_port_scan()`, `check_resource_alert()` e `_notificar_alertas_ativos()`.
+**Comportamento:** lê `TEAMS_WEBHOOK_URL` dentro da função (não em module-level) para evitar problema de lazy loading. Se não configurado, loga `WARNING` e retorna `False` silenciosamente. Usado em `check_brute_force()`, `check_port_scan()`, `check_resource_alert()` e `_notificar_alertas_ativos()`.
 
-**Cores por severidade:**
+**Payload enviado ao Power Automate:**
 
-| Severidade | Cor Teams |
-|------------|-----------|
-| `critical` | Vermelho |
-| `warning` | Amarelo |
-| `info` | Azul |
+```json
+{
+  "titulo":     "Port Scan detectado — servidor-web",
+  "mensagem":   "Varredura de portas: 45 portas distintas em 60s de 192.168.1.10",
+  "severidade": "CRITICAL",
+  "icone":      "🔴",
+  "origem":     "servidor-web (10.10.10.5)",
+  "timestamp":  "02/06/2026 14:35:00",
+  "link":       ""
+}
+```
+
+**Mapeamento severidade → ícone:**
+
+| Severidade | Ícone | Uso |
+|------------|-------|-----|
+| `critical` | 🔴 | Brute force SSH, port scan |
+| `high` | 🟠 | — |
+| `warning` | 🟡 | Alertas de recurso (CPU/RAM/disco) |
+| `info` | 🔵 | Notificações informativas |
+
+**Logging:** sucesso e erros são logados em nível `WARNING` (visível no Flask por padrão para loggers customizados). Inclui status HTTP e primeiros 300 chars do body em caso de falha.
+
+**Integração Power Automate:**
+- O endpoint HTTP do Power Automate retorna **202 Accepted imediatamente** — o flow roda assíncrono
+- JSON schema do trigger: `Context/Teams/http-trigger-schema.json`
+- Adaptive Card JSON: `Context/Teams/adaptive-card.json`
+- Expressões dinâmicas no card: `@{triggerBody()?['campo']}`
 
 ---
 
@@ -663,11 +694,15 @@ WHERE host_id       = :host_id
 
 ### 8.4 detection.py
 
-#### check_brute_force(db, LogEntryModel, AlertModel, host_id, ip_origem) → bool
+#### check_brute_force(db, LogEntryModel, AlertModel, host_id, ip_origem, hostname='', host_ip='') → bool
 
 **Constantes:**
 - `LIMIAR_BRUTE_FORCE = 5` — mínimo de falhas para disparar alerta
 - `JANELA_HORAS = 1/60` — janela de 60 segundos
+
+**Parâmetros opcionais:**
+- `hostname` — nome do host (ex: `"servidor-web"`) — usado no título do alerta Teams
+- `host_ip` — IP do host monitorado — exibido no campo `origem` do alerta Teams
 
 **Fluxo:**
 
@@ -676,12 +711,12 @@ WHERE host_id       = :host_id
 3. Consulta se já existe alerta ativo (`resolved=False`) para `host_id + source_ip + "brute_force"` — evita duplicatas
 4. Se já existe: retorna `False`
 5. Cria `AlertModel` com `severity="high"`, `metodos="password"`
-6. Chama `enviar_alerta_teams()`
+6. Chama `enviar_alerta_teams()` com título `"Brute Force SSH — {hostname}"` (ou `"Host {id}"` se sem hostname)
 7. Retorna `True`
 
 ---
 
-#### check_port_scan(db, AlertModel, host_id, ip_origem, port_count=0) → bool
+#### check_port_scan(db, AlertModel, host_id, ip_origem, port_count=0, hostname='', host_ip='') → bool
 
 **Deduplicação por janela de tempo (2 minutos):**
 
@@ -709,13 +744,17 @@ Falha silenciosa — nunca interrompe o salvamento das conexões.
 
 ---
 
-#### check_resource_alert(db, AlertModel, host_id, alert_type, valor, limiar) → bool
+#### check_resource_alert(db, AlertModel, host_id, alert_type, valor, limiar, hostname='', host_ip='') → bool
 
 Cria alerta se `valor > limiar` e não houver alerta ativo do mesmo tipo para o host.
 
 **Tipos suportados:** `cpu_high`, `mem_high`, `disk_high`  
 **Limiar padrão:** 80%  
 **`source_ip`:** sempre `None` (alertas de recurso não têm IP de origem)
+
+**Parâmetros opcionais:**
+- `hostname` — nome do host — usado no título do alerta Teams: `"CPU alta — servidor-web"`
+- `host_ip` — IP do host — exibido no campo `origem` do alerta Teams
 
 ---
 
@@ -796,15 +835,16 @@ Agente → POST /api/discovery { Authorization: Bearer }
 Agente → POST /api/metrics { Authorization: Bearer }
                 │
                 ├─ _normalize_metrics_payload()
-                ├─ _resolve_host()
+                ├─ _resolve_host()  → retorna objeto host (com .hostname e .ip_address)
                 ├─ INSERT MetricModel
                 │
-                ├─ check_resource_alert(cpu_percent, 80.0)
-                ├─ check_resource_alert(memory_percent, 80.0)
-                └─ check_resource_alert(disk_percent, 80.0)
+                ├─ check_resource_alert(cpu_percent,  80.0, host.hostname, host.ip_address)
+                ├─ check_resource_alert(memory_percent, 80.0, host.hostname, host.ip_address)
+                └─ check_resource_alert(disk_percent,  80.0, host.hostname, host.ip_address)
                     ├─ [valor <= limiar] → False
                     ├─ [alerta ativo existente] → False
-                    └─ INSERT AlertModel { cpu_high/mem_high/disk_high, source_ip=None } → True
+                    └─ INSERT AlertModel { cpu_high/mem_high/disk_high, source_ip=None }
+                       + Teams: "CPU alta — servidor-web" → True
 ```
 
 ### 10.4 Logs + Detecção de Brute Force
@@ -812,17 +852,19 @@ Agente → POST /api/metrics { Authorization: Bearer }
 ```
 Agente → POST /api/logs { Authorization: Bearer }
                 │
+                ├─ Valida host_id → HostModel.query.get(host_id) → objeto host
                 ├─ parse_auth_log(raw_line)
                 │
                 ├─ INSERT LogEntryModel { parsed_data }
                 ├─ db.session.commit()
                 │
                 └─ [status == "failed" e ip_origem presente]
-                    └─ check_brute_force(host_id, ip_origem)
+                    └─ check_brute_force(host_id, ip_origem, host.hostname, host.ip_address)
                         ├─ count_failed_logins(60s) → N falhas
                         ├─ [N < 5] → False
                         ├─ [alerta resolved=False existente] → False
-                        └─ INSERT AlertModel { brute_force, high } + Teams → True
+                        └─ INSERT AlertModel { brute_force, high }
+                           + Teams: "Brute Force SSH — servidor-web" → True
 ```
 
 ### 10.5 Conexões TCP + Detecção de Port Scan
@@ -834,10 +876,12 @@ Agente → POST /api/connections { Authorization: Bearer }
                 ├─ db.session.commit()
                 │
                 └─ [port_scan_detected == true]
+                    ├─ HostModel.query.get(host_id) → objeto host
                     └─ [com scan_sources] → itera IPs atacantes
-                        └─ check_port_scan(host_id, ip_atacante, port_count)
+                        └─ check_port_scan(host_id, ip_atacante, port_count, host.hostname, host.ip_address)
                             ├─ [alerta resolved=False criado há < 2min] → False
-                            └─ INSERT AlertModel { port_scan, high } + Teams → True
+                            └─ INSERT AlertModel { port_scan, high }
+                               + Teams: "Port Scan detectado — servidor-web" → True
 ```
 
 ---
@@ -874,7 +918,21 @@ Agente → POST /api/connections { Authorization: Bearer }
 - `PATCH /api/alerts/<id>/resolve` — define `resolved=True`, `resolved_at=datetime.utcnow()`
 - Após resolução, nova detecção do mesmo IP/tipo **pode** gerar novo alerta
 
-### 11.6 Notificações Teams no Startup
+### 11.6 Notificações Teams
+
+**Título e origem dos alertas:** todos os alertas Teams exibem o hostname real e IP do host monitorado no lugar do ID numérico:
+- Título: `"Port Scan detectado — servidor-web"` (ou `"Port Scan detectado — Host 24233"` se hostname indisponível)
+- Origem: `"servidor-web (10.10.10.5)"` (ou `"host-24233"` se sem hostname)
+
+**Como hostname/IP chegam a cada função de detecção:**
+
+| Função | Fonte do hostname/IP |
+|--------|---------------------|
+| `check_brute_force` | `host` já consultado em `logs.py` para validação do host_id |
+| `check_resource_alert` | `host` retornado por `_resolve_host()` em `metrics.py` |
+| `check_port_scan` | `HostModel.query.get(host_id)` consultado em `connections.py` quando `port_scan_flag=True` |
+
+### 11.7 Notificações Teams no Startup
 
 - Na inicialização do container, `_notificar_alertas_ativos()` envia Teams para todos os alertas com `resolved=False`
 - Flag `/tmp/.monitor_startup_notified` evita reenvio durante hot-reloads do Flask
@@ -980,5 +1038,6 @@ Em `_normalize_metrics_payload()`, há uma referência a `request.args.get('host
 
 ---
 
-*Documentação atualizada em 02/06/2026 — v5.0.0*  
-*Adições: autenticação (API key + PANEL_PASSWORD), Teams, alertas de recurso, migrations adicionais, check_port_scan com cooldown temporal, notificação de startup.*
+*Documentação atualizada em 02/06/2026 — v5.1.0*  
+*Adições v5.0: autenticação (API key + PANEL_PASSWORD), Teams, alertas de recurso, migrations adicionais, check_port_scan com cooldown temporal, notificação de startup.*  
+*Adições v5.1: DNS explícito no docker-compose (8.8.8.8/8.8.4.4); teams.py com payload completo (icone, timestamp, link), lazy URL loading corrigido, log levels WARNING; check_brute_force/check_port_scan/check_resource_alert agora recebem hostname e host_ip e exibem nome real do host nos alertas Teams.*
