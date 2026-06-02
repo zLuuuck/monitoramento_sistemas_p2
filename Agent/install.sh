@@ -82,14 +82,14 @@ else
 fi
 
 if [[ "$RESP" == "s" || "$RESP" == "sim" ]]; then
-    read -rp "Token de autenticação [Enter para pular — sem auth]: " API_TOKEN
+    read -rp "API Key (gerada em Configurações > API Key no painel): " API_KEY_VALUE
 
     read -rp "Nível de log (DEBUG/INFO/WARNING) [padrão: INFO]: " LOG_LEVEL
     LOG_LEVEL="${LOG_LEVEL:-INFO}"
 
     cat > "$ENV_FILE" <<EOF
 MONITOR_API_BASE_URL=http://api.monitoramento.lan
-MONITOR_TOKEN=$API_TOKEN
+API_KEY=$API_KEY_VALUE
 MONITOR_LOG_LEVEL=$LOG_LEVEL
 EOF
     chmod 600 "$ENV_FILE"
