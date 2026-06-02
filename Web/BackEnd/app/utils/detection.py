@@ -237,7 +237,7 @@ def check_resource_alert(db, AlertModel, host_id: int, alert_type: str,
         novo_alerta = AlertModel(
             host_id     = host_id,
             alert_type  = alert_type,
-            source_ip   = 'system',
+            source_ip   = None,
             timestamp   = datetime.utcnow(),
             severity    = 'high',
             metodos     = None,

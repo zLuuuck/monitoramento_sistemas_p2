@@ -138,6 +138,38 @@ def garantir_schema_iops():
         app.logger.warning('Nao foi possivel garantir schema de IOPS: %s', erro)
 
 
+def garantir_schema_connections_ip():
+    """Converte src_ip/dst_ip de inet para varchar(45) se o banco foi criado com o tipo errado."""
+    try:
+        with app.app_context():
+            db.session.execute(db.text(
+                "ALTER TABLE active_connections "
+                "ALTER COLUMN src_ip TYPE VARCHAR(45) USING src_ip::text, "
+                "ALTER COLUMN dst_ip TYPE VARCHAR(45) USING dst_ip::text"
+            ))
+            db.session.commit()
+    except Exception as erro:
+        db.session.rollback()
+        app.logger.warning('garantir_schema_connections_ip: %s', erro)
+
+
+def garantir_schema_alerts_source_ip():
+    """Converte alerts.source_ip de inet para varchar(45) e permite NULL."""
+    try:
+        with app.app_context():
+            db.session.execute(db.text(
+                "ALTER TABLE alerts "
+                "ALTER COLUMN source_ip TYPE VARCHAR(45) USING source_ip::text"
+            ))
+            db.session.execute(db.text(
+                "ALTER TABLE alerts ALTER COLUMN source_ip DROP NOT NULL"
+            ))
+            db.session.commit()
+    except Exception as erro:
+        db.session.rollback()
+        app.logger.warning('garantir_schema_alerts_source_ip: %s', erro)
+
+
 def garantir_schema_settings():
     """Cria tabela de configurações do sistema se ainda não existir."""
     try:
@@ -175,6 +207,8 @@ garantir_schema_alerts()
 garantir_schema_alerts_message()
 garantir_schema_iops()
 garantir_schema_settings()
+garantir_schema_connections_ip()
+garantir_schema_alerts_source_ip()
 
 app.config['API_KEY'] = _load_api_key_from_db()
 

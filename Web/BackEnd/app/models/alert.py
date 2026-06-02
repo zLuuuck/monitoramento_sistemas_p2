@@ -29,8 +29,8 @@ class Alert:
             # Tipo do alerta — "brute_force" ou "port_scan"
             alert_type = db.Column(db.String(50), nullable=False)
 
-            # IP de origem do ataque
-            source_ip = db.Column(db.String(45), nullable=False)
+            # IP de origem do ataque (NULL para alertas de recurso como cpu_high/disk_high)
+            source_ip = db.Column(db.String(45), nullable=True)
 
             # Momento em que o alerta foi gerado
             timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
