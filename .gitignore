@@ -20,6 +20,12 @@ FrontEnd/node_modules/
 FrontEnd/dist/
 FrontEnd/.cache/
 
+# Binário compilado do agente — gerado localmente, nunca versionado
+Agent/Agent_Exec/dist/
+Agent/Agent_Exec/build/
+Agent/.spec/
+*.spec
+
 # Banco de dados
 database/*.db
 

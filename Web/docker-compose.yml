@@ -22,6 +22,8 @@ services:
     build: ./BackEnd
     volumes:
       - ./BackEnd/app:/app/app   # Hot Reload
+    env_file:
+      - ./BackEnd/.env           # carrega TEAMS_WEBHOOK_URL e PANEL_PASSWORD
     environment:
       - DATABASE_URL=postgresql://monitor:monitor@postgres:5432/monitor
       - FLASK_ENV=development

@@ -210,6 +210,48 @@ garantir_schema_settings()
 garantir_schema_connections_ip()
 garantir_schema_alerts_source_ip()
 
+
+_STARTUP_FLAG = '/tmp/.monitor_startup_notified'
+
+
+def _notificar_alertas_ativos():
+    """
+    Na inicialização do container, envia notificações Teams para alertas não resolvidos.
+    Usa um flag em /tmp para não reenviar a cada hot-reload (arquivo some no restart).
+    """
+    import os as _os
+    if _os.path.exists(_STARTUP_FLAG):
+        return
+    try:
+        open(_STARTUP_FLAG, 'w').close()
+    except Exception:
+        pass
+
+    try:
+        with app.app_context():
+            from .utils.teams import enviar_alerta_teams
+            alertas = db.session.execute(
+                db.text(
+                    "SELECT id, alert_type, host_id, message "
+                    "FROM alerts WHERE resolved = false ORDER BY id"
+                )
+            ).fetchall()
+            if not alertas:
+                return
+            app.logger.info('Startup: %d alerta(s) ativo(s) — notificando Teams', len(alertas))
+            for a in alertas:
+                enviar_alerta_teams(
+                    titulo=f'[ALERTA ATIVO] {a.alert_type} — Host {a.host_id}',
+                    mensagem=a.message or f'{a.alert_type} detectado no host {a.host_id}',
+                    severidade='warning',
+                    origem=f'startup/host-{a.host_id}',
+                )
+    except Exception as e:
+        app.logger.warning('_notificar_alertas_ativos: %s', e)
+
+
+_notificar_alertas_ativos()
+
 app.config['API_KEY'] = _load_api_key_from_db()
 
 
@@ -322,6 +364,21 @@ def get_hosts():
 
 
 # ==================== SETTINGS ====================
+
+@app.route('/api/auth/login', methods=['POST'])
+def panel_login():
+    """Autentica com a senha do painel e retorna a API key para o navegador."""
+    senha = (request.get_json(silent=True) or {}).get('password', '')
+    panel_password = os.environ.get('PANEL_PASSWORD', '')
+    if not panel_password:
+        return jsonify({'erro': 'PANEL_PASSWORD não configurado no servidor'}), 503
+    if not senha or senha != panel_password:
+        return jsonify({'erro': 'Senha inválida'}), 401
+    api_key = app.config.get('API_KEY', '')
+    if not api_key:
+        return jsonify({'erro': 'API Key não configurada — gere uma em Configurações'}), 404
+    return jsonify({'api_key': api_key}), 200
+
 
 @app.route('/api/settings/apikey', methods=['GET'])
 def get_apikey_settings():

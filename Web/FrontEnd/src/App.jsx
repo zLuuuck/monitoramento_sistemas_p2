@@ -1,11 +1,59 @@
-import { useState, useEffect } from 'react';
-import { Outlet, useLocation, Link } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { Outlet } from 'react-router-dom';
 import { Layout } from './shared/components/Layout';
-import { api } from './shared/services/api';
+import { api, saveApiKey, loginWithPassword } from './shared/services/api';
 import './App.css';
-import { ThemeProvider } from './contexts/ThemeContext'; // ← removeu useTheme
+import { ThemeProvider } from './contexts/ThemeContext';
 
-// Componente ThemeToggle foi removido
+function LoginModal({ onSuccess }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const data = await loginWithPassword(password);
+      saveApiKey(data.api_key);
+      onSuccess();
+    } catch (err) {
+      setError(err.message || 'Senha inválida');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl p-8 w-full max-w-sm">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Acesso ao Painel</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+          Digite a senha do painel para continuar.
+        </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="password"
+            autoFocus
+            placeholder="Senha do painel"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {error && <p className="text-sm text-red-500">{error}</p>}
+          <button
+            type="submit"
+            disabled={loading || !password}
+            className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
+          >
+            {loading ? 'Verificando...' : 'Entrar'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function App() {
   const [selectedHost, setSelectedHost] = useState('');
@@ -16,29 +64,29 @@ function App() {
   const [discoveryLoading, setDiscoveryLoading] = useState(true);
   const [discoveryError, setDiscoveryError] = useState('');
   const [authRequired, setAuthRequired] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  useEffect(() => {
-    const carregarDiscovery = async () => {
-      try {
-        setDiscoveryLoading(true);
-        const dados = await api.getDiscovery();
-        setDiscovery(dados);
-        setAuthRequired(false);
-        if (dados.length > 0) {
-          setSelectedHost((currentHost) => currentHost || String(dados[0].host_id));
-        }
-      } catch (error) {
-        if (error.message === 'AUTH_REQUIRED') {
-          setAuthRequired(true);
-        } else {
-          setDiscoveryError(error.message);
-        }
-      } finally {
-        setDiscoveryLoading(false);
+  const carregarDiscovery = useCallback(async () => {
+    try {
+      setDiscoveryLoading(true);
+      const dados = await api.getDiscovery();
+      setDiscovery(dados);
+      setAuthRequired(false);
+      if (dados.length > 0) {
+        setSelectedHost((currentHost) => currentHost || String(dados[0].host_id));
       }
-    };
-    carregarDiscovery();
+    } catch (error) {
+      if (error.message === 'AUTH_REQUIRED') {
+        setAuthRequired(true);
+      } else {
+        setDiscoveryError(error.message);
+      }
+    } finally {
+      setDiscoveryLoading(false);
+    }
   }, []);
+
+  useEffect(() => { carregarDiscovery(); }, [carregarDiscovery, reloadKey]);
 
   useEffect(() => {
     const carregarMetricas = async () => {
@@ -65,7 +113,7 @@ function App() {
       }
     };
     carregarMetricas();
-  }, [selectedHost]);
+  }, [selectedHost, reloadKey]);
 
   const hostsDisponiveis = discovery.map((item) => ({
     id: String(item.host_id),
@@ -78,25 +126,13 @@ function App() {
 
   return (
     <ThemeProvider>
+      {authRequired && (
+        <LoginModal onSuccess={() => {
+          setAuthRequired(false);
+          setReloadKey((k) => k + 1);
+        }} />
+      )}
       <Layout hostType={selectedDiscovery?.is_virtualized ? 'virtual' : 'physical'}>
-        {/* Banner de autenticação inválida */}
-        {authRequired && (
-          <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm">
-            <span className="text-amber-800 dark:text-amber-300">
-              API Key inválida ou não configurada neste navegador.{' '}
-              <Link to="/settings" className="font-bold underline">
-                Ir para Configurações
-              </Link>{' '}
-              para salvar a chave.
-            </span>
-            <button
-              onClick={() => setAuthRequired(false)}
-              className="flex-shrink-0 text-amber-600 hover:text-amber-800 dark:text-amber-400 text-lg leading-none"
-            >
-              ×
-            </button>
-          </div>
-        )}
 
         {/* Seletor Global de Host no Topo das Páginas (sem o ThemeToggle) */}
         <div className="flex justify-end mb-6">
