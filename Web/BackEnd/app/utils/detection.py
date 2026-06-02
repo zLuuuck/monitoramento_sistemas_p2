@@ -1,21 +1,24 @@
 # app/utils/detection.py
-# Funções de detecção de ameaças de segurança.
-# Semana 5: check_brute_force() — detecta ataques de força bruta SSH.
-# Semana 6: check_port_scan()   — registra alerta quando o agente detecta varredura de portas.
+# Funções de detecção de ameaças de segurança e recursos.
+# check_brute_force()      — detecta ataques de força bruta SSH.
+# check_port_scan()        — registra alerta quando o agente detecta varredura de portas.
+# check_resource_alert()   — alerta quando CPU, memória ou disco ultrapassam 80%.
 
 import logging
 from datetime import datetime
 
 from .parsers import count_failed_logins
+from .teams import enviar_alerta_teams
 
-# Logger do módulo
 logger = logging.getLogger(__name__)
 
-# Limiar de tentativas falhas para disparar alerta de brute force
 LIMIAR_BRUTE_FORCE = 5
-
-# Janela de tempo monitorada em horas (1/60 = 60 segundos)
 JANELA_HORAS = 1 / 60
+
+# Limiares de recursos (%)
+LIMIAR_CPU     = 80.0
+LIMIAR_MEM     = 80.0
+LIMIAR_DISK_IO = 80.0
 
 
 def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: str) -> bool:
@@ -42,7 +45,6 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
         interromper o fluxo de recebimento de logs.
     """
     try:
-        # Passo 1: conta falhas SSH deste IP na janela de 60 segundos
         total_falhas = count_failed_logins(
             LogEntryModel,
             host_id,
@@ -50,7 +52,6 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
             janela_horas=JANELA_HORAS,
         )
 
-        # Abaixo do limiar — não é brute force (ainda)
         if total_falhas < LIMIAR_BRUTE_FORCE:
             return False
 
@@ -59,7 +60,6 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
             host_id, ip_origem, total_falhas,
         )
 
-        # Passo 2: verifica se já existe um alerta ativo para este host + IP
         alerta_existente = AlertModel.query.filter_by(
             host_id    = host_id,
             source_ip  = ip_origem,
@@ -68,14 +68,12 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
         ).first()
 
         if alerta_existente:
-            # Alerta já existe e ainda está ativo — não cria duplicata
             logger.info(
                 'Alerta de brute force já ativo (id=%s) | host_id=%s | ip=%s',
                 alerta_existente.id, host_id, ip_origem,
             )
             return False
 
-        # Passo 3: cria novo alerta de brute force
         novo_alerta = AlertModel(
             host_id     = host_id,
             alert_type  = 'brute_force',
@@ -96,10 +94,16 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
             host_id, ip_origem, total_falhas, novo_alerta.id,
         )
 
+        enviar_alerta_teams(
+            titulo    = f'Brute Force SSH detectado — Host {host_id}',
+            mensagem  = novo_alerta.message,
+            severidade= 'critical',
+            origem    = f'host-{host_id}',
+        )
+
         return True
 
     except Exception as erro:
-        # Falha silenciosa — nunca deve interromper o salvamento do log
         db.session.rollback()
         logger.error(
             'Erro em check_brute_force (host_id=%s, ip=%s): %s',
@@ -134,7 +138,6 @@ def check_port_scan(db, AlertModel, host_id: int, ip_origem: str, port_count: in
         Falha silenciosa (try/except) — nunca interrompe o salvamento das conexões.
     """
     try:
-        # Passo 1: verifica se já existe alerta ativo de port scan para este host
         alerta_existente = AlertModel.query.filter_by(
             host_id    = host_id,
             source_ip  = ip_origem,
@@ -143,14 +146,12 @@ def check_port_scan(db, AlertModel, host_id: int, ip_origem: str, port_count: in
         ).first()
 
         if alerta_existente:
-            # Alerta já ativo — não cria duplicata
             logger.info(
                 'Alerta de port scan já ativo (id=%s) | host_id=%s | ip=%s',
                 alerta_existente.id, host_id, ip_origem,
             )
             return False
 
-        # Passo 2: cria novo alerta de port scan
         msg = (
             f'Varredura de portas: {port_count} portas distintas em 60s de {ip_origem}'
             if port_count
@@ -176,13 +177,96 @@ def check_port_scan(db, AlertModel, host_id: int, ip_origem: str, port_count: in
             host_id, ip_origem, novo_alerta.id,
         )
 
+        enviar_alerta_teams(
+            titulo    = f'Port Scan detectado — Host {host_id}',
+            mensagem  = msg,
+            severidade= 'critical',
+            origem    = f'host-{host_id}',
+        )
+
         return True
 
     except Exception as erro:
-        # Falha silenciosa — nunca deve interromper o salvamento das conexões
         db.session.rollback()
         logger.error(
             'Erro em check_port_scan (host_id=%s, ip=%s): %s',
             host_id, ip_origem, erro,
+        )
+        return False
+
+
+def check_resource_alert(db, AlertModel, host_id: int, alert_type: str,
+                         valor: float, limiar: float) -> bool:
+    """
+    Cria um alerta de recurso (cpu_high / mem_high / disk_high) se valor > limiar
+    e não houver alerta ativo do mesmo tipo para o host.
+
+    Parâmetros:
+        db         — instância do SQLAlchemy
+        AlertModel — modelo de alertas (injetado para evitar import circular)
+        host_id    — ID do host monitorado
+        alert_type — 'cpu_high', 'mem_high' ou 'disk_high'
+        valor      — valor atual da métrica (%)
+        limiar     — limiar de disparo (ex: 80.0)
+
+    Retorna:
+        bool — True se um novo alerta foi criado, False caso contrário.
+        Falha silenciosa — nunca interrompe o fluxo de salvamento de métricas.
+    """
+    if valor is None or valor <= limiar:
+        return False
+
+    try:
+        alerta_existente = AlertModel.query.filter_by(
+            host_id    = host_id,
+            alert_type = alert_type,
+            resolved   = False,
+        ).first()
+
+        if alerta_existente:
+            return False
+
+        nomes = {
+            'cpu_high':  'CPU',
+            'mem_high':  'Memória',
+            'disk_high': 'Disco',
+        }
+        recurso = nomes.get(alert_type, alert_type)
+        msg = f'{recurso} em {valor:.1f}% — acima do limiar de {limiar:.0f}% no host {host_id}'
+
+        novo_alerta = AlertModel(
+            host_id     = host_id,
+            alert_type  = alert_type,
+            source_ip   = 'system',
+            timestamp   = datetime.utcnow(),
+            severity    = 'high',
+            metodos     = None,
+            message     = msg,
+            resolved    = False,
+            resolved_at = None,
+        )
+
+        db.session.add(novo_alerta)
+        db.session.commit()
+
+        logger.warning(
+            'ALERTA CRIADO | %s | host_id=%s | valor=%.1f%% | alerta_id=%s',
+            alert_type, host_id, valor, novo_alerta.id,
+        )
+
+        enviar_alerta_teams(
+            titulo    = f'{recurso} alta — Host {host_id}',
+            mensagem  = msg,
+            severidade= 'warning',
+            origem    = f'host-{host_id}',
+        )
+
+        return True
+
+    except Exception as erro:
+        db.session.rollback()
+        logger.error(
+            'Erro em check_resource_alert (%s, host_id=%s): %s',
+            alert_type, host_id, erro,
         )
         return False
