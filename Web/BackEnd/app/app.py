@@ -233,6 +233,39 @@ def health():
     return jsonify({'status': 'ok'}), 200
 
 
+@app.route('/api/heartbeat', methods=['POST'])
+@require_api_key
+def heartbeat():
+    """Atualiza last_seen do host — keep-alive enviado pelo agente."""
+    dados = request.get_json(silent=True) or {}
+    global_info = dados.get('global') or {}
+
+    host_id_raw = global_info.get('host_id')
+    hostname    = global_info.get('hostname')
+
+    host = None
+    if host_id_raw:
+        try:
+            host = HostModel.query.get(int(host_id_raw))
+        except (TypeError, ValueError):
+            pass
+    if not host and hostname:
+        host = HostModel.query.filter_by(hostname=hostname).first()
+
+    if host:
+        host.last_seen = datetime.utcnow()
+        agent = AgentModel.query.filter_by(host_id=host.id).first()
+        if agent:
+            agent.last_checkin = datetime.utcnow()
+            agent.status = 'active'
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    return jsonify({'status': 'ok'}), 200
+
+
 @app.route('/api/hosts', methods=['GET'])
 @require_api_key
 def get_hosts():
