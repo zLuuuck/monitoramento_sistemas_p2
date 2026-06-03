@@ -9,6 +9,7 @@ from datetime import datetime
 
 from .parsers import count_failed_logins
 from .teams import enviar_alerta_teams
+from .notifier import enviar_alerta_email  # Semana 7: notificação por email
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +103,14 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
             origem    = f'{hostname} ({host_ip})' if hostname else f'host-{host_id}',
         )
 
+        enviar_alerta_email(
+            alert_type = 'brute_force',
+            host_id    = host_id,
+            source_ip  = ip_origem,
+            message    = novo_alerta.message,
+            severity   = 'high',
+        )
+
         return True
 
     except Exception as erro:
@@ -193,6 +202,14 @@ def check_port_scan(db, AlertModel, host_id: int, ip_origem: str, port_count: in
             origem    = f'{hostname} ({host_ip})' if hostname else f'host-{host_id}',
         )
 
+        enviar_alerta_email(
+            alert_type = 'port_scan',
+            host_id    = host_id,
+            source_ip  = ip_origem,
+            message    = msg,
+            severity   = 'high',
+        )
+
         return True
 
     except Exception as erro:
@@ -269,6 +286,14 @@ def check_resource_alert(db, AlertModel, host_id: int, alert_type: str,
             mensagem  = msg,
             severidade= 'warning',
             origem    = f'{hostname} ({host_ip})' if hostname else f'host-{host_id}',
+        )
+
+        enviar_alerta_email(
+            alert_type = alert_type,
+            host_id    = host_id,
+            source_ip  = '',
+            message    = msg,
+            severity   = 'high',
         )
 
         return True
