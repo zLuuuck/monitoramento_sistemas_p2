@@ -31,13 +31,48 @@ def _get_email_recipients(db) -> list:
     fallback = os.getenv('ALERT_RECIPIENT', '')
     return [fallback] if fallback else []
 
+def _notificacao_habilitada(db, canal: str) -> bool:
+    """Lê o toggle notify_teams / notify_email de app_settings.
+    Fallback: teams=True, email=False (espelha os defaults de garantir_schema_notifications).
+    """
+    defaults = {'teams': True, 'email': False}
+    try:
+        row = db.session.execute(
+            db.text("SELECT value FROM app_settings WHERE key = :key"),
+            {'key': f'notify_{canal}'},
+        ).fetchone()
+        if row and row[0] is not None:
+            return row[0].lower() == 'true'
+    except Exception:
+        pass
+    return defaults.get(canal, False)
+
+
 LIMIAR_BRUTE_FORCE = 5
 JANELA_HORAS = 1 / 60
 
-# Limiares de recursos (%)
-LIMIAR_CPU     = 80.0
-LIMIAR_MEM     = 80.0
-LIMIAR_DISK_IO = 80.0
+_THRESHOLD_KEYS = {
+    'cpu_high':  'threshold_cpu',
+    'mem_high':  'threshold_mem',
+    'disk_high': 'threshold_disk',
+}
+
+
+def _get_threshold(db, alert_type: str) -> float:
+    """Lê o limiar de recurso da tabela app_settings; fallback para 80.0."""
+    key = _THRESHOLD_KEYS.get(alert_type)
+    if not key:
+        return 80.0
+    try:
+        row = db.session.execute(
+            db.text("SELECT value FROM app_settings WHERE key = :key"),
+            {'key': key},
+        ).fetchone()
+        if row and row[0] is not None:
+            return float(row[0])
+    except Exception:
+        pass
+    return 80.0
 
 
 def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: str,
@@ -114,23 +149,29 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
             host_id, ip_origem, total_falhas, novo_alerta.id,
         )
 
-        enviar_alerta_teams(
-            titulo    = f'Brute Force SSH — {hostname or f"Host {host_id}"}',
-            mensagem  = novo_alerta.message,
-            severidade= 'critical',
-            origem    = f'{hostname} ({host_ip})' if hostname else f'host-{host_id}',
-        )
+        if _notificacao_habilitada(db, 'teams'):
+            enviar_alerta_teams(
+                titulo    = f'Brute Force SSH — {hostname or f"Host {host_id}"}',
+                mensagem  = novo_alerta.message,
+                severidade= 'critical',
+                origem    = f'{hostname} ({host_ip})' if hostname else f'host-{host_id}',
+            )
+        else:
+            logger.info('brute_force host=%s: Teams skip — notify_teams=false', host_id)
 
-        enviar_alerta_email(
-            alert_type = 'brute_force',
-            host_id    = host_id,
-            source_ip  = ip_origem,
-            message    = novo_alerta.message,
-            severity   = 'high',
-            hostname   = hostname,
-            host_ip    = host_ip,
-            recipients = _get_email_recipients(db),
-        )
+        if _notificacao_habilitada(db, 'email'):
+            enviar_alerta_email(
+                alert_type = 'brute_force',
+                host_id    = host_id,
+                source_ip  = ip_origem,
+                message    = novo_alerta.message,
+                severity   = 'high',
+                hostname   = hostname,
+                host_ip    = host_ip,
+                recipients = _get_email_recipients(db),
+            )
+        else:
+            logger.info('brute_force host=%s: email skip — notify_email=false', host_id)
 
         return True
 
@@ -216,23 +257,29 @@ def check_port_scan(db, AlertModel, host_id: int, ip_origem: str, port_count: in
             host_id, ip_origem, novo_alerta.id,
         )
 
-        enviar_alerta_teams(
-            titulo    = f'Port Scan detectado — {hostname or f"Host {host_id}"}',
-            mensagem  = msg,
-            severidade= 'critical',
-            origem    = f'{hostname} ({host_ip})' if hostname else f'host-{host_id}',
-        )
+        if _notificacao_habilitada(db, 'teams'):
+            enviar_alerta_teams(
+                titulo    = f'Port Scan detectado — {hostname or f"Host {host_id}"}',
+                mensagem  = msg,
+                severidade= 'critical',
+                origem    = f'{hostname} ({host_ip})' if hostname else f'host-{host_id}',
+            )
+        else:
+            logger.info('port_scan host=%s: Teams skip — notify_teams=false', host_id)
 
-        enviar_alerta_email(
-            alert_type = 'port_scan',
-            host_id    = host_id,
-            source_ip  = ip_origem,
-            message    = msg,
-            severity   = 'high',
-            hostname   = hostname,
-            host_ip    = host_ip,
-            recipients = _get_email_recipients(db),
-        )
+        if _notificacao_habilitada(db, 'email'):
+            enviar_alerta_email(
+                alert_type = 'port_scan',
+                host_id    = host_id,
+                source_ip  = ip_origem,
+                message    = msg,
+                severity   = 'high',
+                hostname   = hostname,
+                host_ip    = host_ip,
+                recipients = _get_email_recipients(db),
+            )
+        else:
+            logger.info('port_scan host=%s: email skip — notify_email=false', host_id)
 
         return True
 
@@ -246,11 +293,14 @@ def check_port_scan(db, AlertModel, host_id: int, ip_origem: str, port_count: in
 
 
 def check_resource_alert(db, AlertModel, host_id: int, alert_type: str,
-                         valor: float, limiar: float,
+                         valor: float,
                          hostname: str = '', host_ip: str = '') -> bool:
     """
     Cria um alerta de recurso (cpu_high / mem_high / disk_high) se valor > limiar
     e não houver alerta ativo do mesmo tipo para o host.
+
+    O limiar é lido de app_settings (threshold_cpu / threshold_mem / threshold_disk);
+    fallback para 80.0 se a chave não existir.
 
     Parâmetros:
         db         — instância do SQLAlchemy
@@ -258,12 +308,12 @@ def check_resource_alert(db, AlertModel, host_id: int, alert_type: str,
         host_id    — ID do host monitorado
         alert_type — 'cpu_high', 'mem_high' ou 'disk_high'
         valor      — valor atual da métrica (%)
-        limiar     — limiar de disparo (ex: 80.0)
 
     Retorna:
         bool — True se um novo alerta foi criado, False caso contrário.
         Falha silenciosa — nunca interrompe o fluxo de salvamento de métricas.
     """
+    limiar = _get_threshold(db, alert_type)
     if valor is None or valor <= limiar:
         return False
 
@@ -305,23 +355,29 @@ def check_resource_alert(db, AlertModel, host_id: int, alert_type: str,
             alert_type, host_id, valor, novo_alerta.id,
         )
 
-        enviar_alerta_teams(
-            titulo    = f'{recurso} alta — {hostname or f"Host {host_id}"}',
-            mensagem  = msg,
-            severidade= 'warning',
-            origem    = f'{hostname} ({host_ip})' if hostname else f'host-{host_id}',
-        )
+        if _notificacao_habilitada(db, 'teams'):
+            enviar_alerta_teams(
+                titulo    = f'{recurso} alta — {hostname or f"Host {host_id}"}',
+                mensagem  = msg,
+                severidade= 'warning',
+                origem    = f'{hostname} ({host_ip})' if hostname else f'host-{host_id}',
+            )
+        else:
+            logger.info('%s host=%s: Teams skip — notify_teams=false', alert_type, host_id)
 
-        enviar_alerta_email(
-            alert_type = alert_type,
-            host_id    = host_id,
-            source_ip  = '',
-            message    = msg,
-            severity   = 'high',
-            hostname   = hostname,
-            host_ip    = host_ip,
-            recipients = _get_email_recipients(db),
-        )
+        if _notificacao_habilitada(db, 'email'):
+            enviar_alerta_email(
+                alert_type = alert_type,
+                host_id    = host_id,
+                source_ip  = '',
+                message    = msg,
+                severity   = 'high',
+                hostname   = hostname,
+                host_ip    = host_ip,
+                recipients = _get_email_recipients(db),
+            )
+        else:
+            logger.info('%s host=%s: email skip — notify_email=false', alert_type, host_id)
 
         return True
 

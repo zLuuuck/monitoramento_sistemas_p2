@@ -95,6 +95,7 @@ O backend **nunca** inicia conexão com os agentes. Toda comunicação é inicia
 | `TEAMS_WEBHOOK_URL` | Webhook do Microsoft Teams para notificações | Não |
 | `SMTP_EMAIL` | Email remetente para alertas (Gmail) | Não |
 | `SMTP_PASSWORD` | App Password do Gmail (`STARTTLS`, porta 587) | Não |
+| `RETENTION_DAYS` | Dias de retenção para cleanup automático (padrão: 7) | Não |
 | `ALERT_RECIPIENT` | Email destinatário padrão — fallback se `email_recipients` vazio no banco | Não |
 
 > **API_KEY:** gerada via `POST /api/settings/apikey/generate` e persistida na tabela `app_settings`. O valor no `.env` só é usado como fallback se o banco não tiver uma chave.  
@@ -868,6 +869,7 @@ Cria alerta se `valor > limiar` e não houver alerta ativo do mesmo tipo para o 
 | `/api/settings/email-recipients` | GET | Sim | Frontend | Lista destinatários de email para alertas |
 | `/api/settings/email-recipients` | POST | Sim | Frontend | Adiciona email à lista de destinatários |
 | `/api/settings/email-recipients/<email>` | DELETE | Sim | Frontend | Remove email da lista de destinatários |
+| `/api/maintenance/cleanup` | POST | Sim | Admin/Teste | Dispara limpeza de dados antigos imediatamente; retorna linhas removidas por tabela |
 
 ### POST /api/auth/login
 
@@ -1128,9 +1130,9 @@ sa_text("parsed_data->>'ip_origem' = :ip_origem").bindparams(ip_origem=ip_origem
 
 `init.sql` ainda declara `alerts.source_ip` como `INET NOT NULL` e `active_connections.src_ip/dst_ip` como `INET`. As funções de migração no startup corrigem isso em runtime. Para novos ambientes, o schema de estado final é diferente do que está no `init.sql`.
 
-### 14.6 Política de retenção sem automação
+### 14.6 Política de retenção — ✅ AUTOMATIZADA (Fase B)
 
-A função `cleanup_old_data(7)` existe no banco PostgreSQL mas precisa ser chamada manualmente ou via cron externo. Sem isso, as tabelas `metrics`, `logs` e `active_connections` crescem indefinidamente (~17.280 linhas/dia em `metrics` com ciclo de 5s).
+`APScheduler` (`BackgroundScheduler`) dispara `cleanup_old_data(:dias)` todos os dias às 03:00 UTC. O número de dias é configurável via `RETENTION_DAYS` (padrão 7). O endpoint `POST /api/maintenance/cleanup` permite disparar a limpeza manualmente. Em modo debug com reloader, o scheduler só sobe no processo filho (`WERKZEUG_RUN_MAIN=true`) para evitar duplicação.
 
 ### 14.7 request em função helper de metrics.py
 
@@ -1142,4 +1144,5 @@ Em `_normalize_metrics_payload()`, há uma referência a `request.args.get('host
 *Adições v5.0: autenticação (API key + PANEL_PASSWORD), Teams, alertas de recurso, migrations adicionais, check_port_scan com cooldown temporal, notificação de startup.*  
 *Adições v5.1: DNS explícito no docker-compose (8.8.8.8/8.8.4.4); teams.py com payload completo (icone, timestamp, link), lazy URL loading corrigido, log levels WARNING; hostname e host_ip nos alertas Teams.*  
 *Adições v6.0: notifier.py (email via Gmail/SMTP com HTML dark-mode); endpoints de gerenciamento de destinatários de email (`GET/POST/DELETE /api/settings/email-recipients`); `_get_email_recipients(db)` em detection.py; mudança de header de autenticação de `Authorization: Bearer` para `X-API-Key`; app_settings passa a armazenar `email_recipients`.*  
-*Adições v6.1 (Fase A — hardening): `POST /api/settings/apikey/generate` protegido com X-API-Key ou PANEL_PASSWORD; SQL injection em `count_failed_logins` corrigido (bind params); portas 5432/5000/5173 removidas do host no docker-compose (apenas Nginx 80 exposto).*
+*Adições v6.1 (Fase A — hardening): `POST /api/settings/apikey/generate` protegido com X-API-Key ou PANEL_PASSWORD; SQL injection em `count_failed_logins` corrigido (bind params); portas 5432/5000/5173 removidas do host no docker-compose (apenas Nginx 80 exposto).*  
+*Adições v6.2 (Fase B — retenção): APScheduler adicionado; `_executar_cleanup` + `_job_cleanup` + `_iniciar_scheduler` em `app.py`; cron 03:00 UTC; `RETENTION_DAYS` env; endpoint `POST /api/maintenance/cleanup`.*

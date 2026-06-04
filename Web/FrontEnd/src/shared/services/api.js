@@ -92,6 +92,16 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(password ? { password } : {}),
   }),
+  getNotifications: () => request('/api/settings/notifications'),
+  patchNotifications: (body) => request('/api/settings/notifications', {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  }),
+  getThresholds: () => request('/api/settings/thresholds'),
+  patchThresholds: (body) => request('/api/settings/thresholds', {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  }),
   getEmailRecipients: () => request('/api/settings/email-recipients'),
   addEmailRecipient: (email) => request('/api/settings/email-recipients', {
     method: 'POST',

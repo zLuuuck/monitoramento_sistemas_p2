@@ -92,14 +92,6 @@ export function Sidebar({ activeTab }) {
               >
                 <Icon name={item.icon} size="text-lg" />
                 {!isMinimized && <span className="text-sm">{item.name}</span>}
-                {item.id === 'alerts' && !isMinimized && (
-                  <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
-                    3
-                  </span>
-                )}
-                {item.id === 'alerts' && isMinimized && (
-                  <span className="ml-auto w-2 h-2 bg-red-500 rounded-full"></span>
-                )}
               </Link>
             </li>
           ))}
@@ -107,19 +99,11 @@ export function Sidebar({ activeTab }) {
       </nav>
 
       <div className="border-t" style={{ borderColor: 'var(--card-border)' }}>
-        {!isMinimized ? (
+        {!isMinimized && (
           <div className="p-4">
-            <div className="text-xs text-center mb-3" style={{ color: 'var(--text-page)', opacity: 0.7 }}>
+            <div className="text-xs text-center" style={{ color: 'var(--text-page)', opacity: 0.7 }}>
               Monitoramento P2
             </div>
-            <div className="flex items-center justify-center gap-2 text-xs">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span style={{ color: 'var(--text-page)' }}>Sistema Online</span>
-            </div>
-          </div>
-        ) : (
-          <div className="p-4 flex justify-center">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
           </div>
         )}
       </div>

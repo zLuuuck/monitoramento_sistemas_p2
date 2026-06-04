@@ -11,7 +11,7 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Carrega variáveis de ambiente do arquivo .env
 load_dotenv()
@@ -188,6 +188,53 @@ def garantir_schema_settings():
         app.logger.warning('Nao foi possivel garantir schema de settings: %s', erro)
 
 
+def garantir_schema_notifications():
+    """Insere toggles padrão de notificação em app_settings se ainda não existirem."""
+    defaults = [
+        ('notify_teams', 'true'),
+        ('notify_email', 'false'),
+    ]
+    try:
+        with app.app_context():
+            for key, value in defaults:
+                db.session.execute(
+                    db.text("""
+                        INSERT INTO app_settings (key, value, updated_at)
+                        VALUES (:key, :value, NOW())
+                        ON CONFLICT (key) DO NOTHING
+                    """),
+                    {'key': key, 'value': value},
+                )
+            db.session.commit()
+    except Exception as erro:
+        db.session.rollback()
+        app.logger.warning('Nao foi possivel garantir schema de notifications: %s', erro)
+
+
+def garantir_schema_thresholds():
+    """Insere valores padrão de threshold em app_settings se ainda não existirem."""
+    defaults = [
+        ('threshold_cpu',  '80'),
+        ('threshold_mem',  '80'),
+        ('threshold_disk', '80'),
+    ]
+    try:
+        with app.app_context():
+            for key, value in defaults:
+                db.session.execute(
+                    db.text("""
+                        INSERT INTO app_settings (key, value, updated_at)
+                        VALUES (:key, :value, NOW())
+                        ON CONFLICT (key) DO NOTHING
+                    """),
+                    {'key': key, 'value': value},
+                )
+            db.session.commit()
+    except Exception as erro:
+        db.session.rollback()
+        app.logger.warning('Nao foi possivel garantir schema de thresholds: %s', erro)
+
+
 def _load_api_key_from_db() -> str:
     """Lê a API key do banco; usa API_KEY do .env como fallback."""
     try:
@@ -210,6 +257,79 @@ garantir_schema_iops()
 garantir_schema_settings()
 garantir_schema_connections_ip()
 garantir_schema_alerts_source_ip()
+garantir_schema_notifications()
+garantir_schema_thresholds()
+
+
+# ==================== RETENÇÃO DE DADOS ====================
+
+def _executar_cleanup(dias: int) -> dict:
+    """Apaga dados com mais de `dias` dias das tabelas de série temporal.
+
+    Chama a função SQL cleanup_old_data() do banco e retorna o número de
+    linhas removidas por tabela (contagem feita antes do DELETE).
+    Deve ser chamada dentro de um app_context ativo.
+    """
+    corte = datetime.utcnow() - timedelta(days=dias)
+    contagens = {}
+    for tabela in ('metrics', 'logs', 'active_connections'):
+        n = db.session.execute(
+            db.text(f'SELECT COUNT(*) FROM {tabela} WHERE timestamp < :corte'),
+            {'corte': corte},
+        ).scalar() or 0
+        contagens[tabela] = n
+
+    db.session.execute(
+        db.text('SELECT cleanup_old_data(:dias)'),
+        {'dias': dias},
+    )
+    db.session.commit()
+    return contagens
+
+
+def _job_cleanup():
+    """Tarefa diária do APScheduler — executa dentro do contexto da aplicação."""
+    dias = int(os.environ.get('RETENTION_DAYS', 7))
+    app.logger.info('Scheduler: iniciando cleanup (retenção: %d dias)', dias)
+    try:
+        with app.app_context():
+            resultado = _executar_cleanup(dias)
+        app.logger.info(
+            'Scheduler: cleanup concluído — metrics=%d, logs=%d, active_connections=%d',
+            resultado.get('metrics', 0),
+            resultado.get('logs', 0),
+            resultado.get('active_connections', 0),
+        )
+    except Exception as e:
+        app.logger.error('Scheduler: erro no cleanup: %s', e)
+
+
+def _iniciar_scheduler():
+    """Inicia o BackgroundScheduler que dispara cleanup_old_data 1×/dia às 03:00 UTC.
+
+    Em modo debug com reloader, o Werkzeug sobe dois processos. Verificar
+    WERKZEUG_RUN_MAIN garante que o scheduler seja criado apenas no processo
+    filho (worker real), evitando dois schedulers rodando em paralelo.
+    """
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from apscheduler.triggers.cron import CronTrigger
+
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(
+        _job_cleanup,
+        trigger=CronTrigger(hour=3, minute=0, timezone='UTC'),
+        id='cleanup_old_data',
+        replace_existing=True,
+    )
+    scheduler.start()
+    app.logger.info('Scheduler iniciado — cleanup diário às 03:00 UTC')
+
+
+# Inicia o scheduler apenas uma vez:
+#   - em produção (não debug): sempre
+#   - em debug com reloader: só no processo filho (WERKZEUG_RUN_MAIN=true)
+if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+    _iniciar_scheduler()
 
 
 _STARTUP_FLAG = '/tmp/.monitor_startup_notified'
@@ -231,6 +351,7 @@ def _notificar_alertas_ativos():
     try:
         with app.app_context():
             from .utils.teams import enviar_alerta_teams
+            teams_on = _load_notify_flag('teams')
             alertas = db.session.execute(
                 db.text(
                     "SELECT id, alert_type, host_id, message "
@@ -239,7 +360,10 @@ def _notificar_alertas_ativos():
             ).fetchall()
             if not alertas:
                 return
-            app.logger.info('Startup: %d alerta(s) ativo(s) — notificando Teams', len(alertas))
+            app.logger.info('Startup: %d alerta(s) ativo(s)', len(alertas))
+            if not teams_on:
+                app.logger.info('Startup: Teams skip — notify_teams=false')
+                return
             for a in alertas:
                 enviar_alerta_teams(
                     titulo=f'[ALERTA ATIVO] {a.alert_type} — Host {a.host_id}',
@@ -449,6 +573,153 @@ def generate_apikey():
         return jsonify({'erro': f'Erro ao gerar API key: {str(erro)}'}), 500
 
 
+def _load_threshold(key: str, default: int = 80) -> int:
+    try:
+        row = db.session.execute(
+            db.text("SELECT value FROM app_settings WHERE key = :key"),
+            {'key': key},
+        ).fetchone()
+        if row and row[0] is not None:
+            return int(row[0])
+    except Exception:
+        pass
+    return default
+
+
+@app.route('/api/settings/thresholds', methods=['GET'])
+@require_api_key
+def get_thresholds():
+    """Retorna os limiares configurados para alertas de recurso."""
+    try:
+        return jsonify({
+            'cpu':  _load_threshold('threshold_cpu'),
+            'mem':  _load_threshold('threshold_mem'),
+            'disk': _load_threshold('threshold_disk'),
+        }), 200
+    except Exception as erro:
+        return jsonify({'erro': str(erro)}), 500
+
+
+@app.route('/api/settings/thresholds', methods=['PATCH'])
+@require_api_key
+def patch_thresholds():
+    """Atualiza um ou mais limiares de recurso. Aceita subset de {cpu, mem, disk}.
+    Cada valor deve ser inteiro entre 1 e 99. Retorna estado atualizado."""
+    body  = request.get_json(silent=True) or {}
+    mapa  = {'cpu': 'threshold_cpu', 'mem': 'threshold_mem', 'disk': 'threshold_disk'}
+    erros = []
+
+    for campo in mapa:
+        if campo not in body:
+            continue
+        try:
+            v = int(body[campo])
+        except (TypeError, ValueError):
+            erros.append(f'"{campo}" deve ser um número inteiro')
+            continue
+        if not 1 <= v <= 99:
+            erros.append(f'"{campo}" deve estar entre 1 e 99 (recebido: {body[campo]})')
+
+    if erros:
+        return jsonify({'erro': '; '.join(erros)}), 400
+
+    if not any(c in body for c in mapa):
+        return jsonify({'erro': 'Nenhum campo reconhecido (cpu, mem, disk)'}), 400
+
+    try:
+        for campo, chave in mapa.items():
+            if campo not in body:
+                continue
+            db.session.execute(
+                db.text("""
+                    INSERT INTO app_settings (key, value, updated_at)
+                    VALUES (:key, :value, NOW())
+                    ON CONFLICT (key) DO UPDATE SET value = :value, updated_at = NOW()
+                """),
+                {'key': chave, 'value': str(int(body[campo]))},
+            )
+        db.session.commit()
+        return jsonify({
+            'cpu':  _load_threshold('threshold_cpu'),
+            'mem':  _load_threshold('threshold_mem'),
+            'disk': _load_threshold('threshold_disk'),
+        }), 200
+    except Exception as erro:
+        db.session.rollback()
+        return jsonify({'erro': str(erro)}), 500
+
+
+def _load_notify_flag(canal: str) -> bool:
+    """Lê toggle de notificação; default teams=True, email=False."""
+    key = f'notify_{canal}'
+    defaults = {'teams': True, 'email': False}
+    try:
+        row = db.session.execute(
+            db.text("SELECT value FROM app_settings WHERE key = :key"),
+            {'key': key},
+        ).fetchone()
+        if row and row[0] is not None:
+            return row[0].lower() == 'true'
+    except Exception:
+        pass
+    return defaults.get(canal, False)
+
+
+@app.route('/api/settings/notifications', methods=['GET'])
+@require_api_key
+def get_notifications():
+    """Retorna o estado dos toggles de notificação (teams, email)."""
+    try:
+        return jsonify({
+            'teams': _load_notify_flag('teams'),
+            'email': _load_notify_flag('email'),
+        }), 200
+    except Exception as erro:
+        return jsonify({'erro': str(erro)}), 500
+
+
+@app.route('/api/settings/notifications', methods=['PATCH'])
+@require_api_key
+def patch_notifications():
+    """Atualiza um ou mais toggles de notificação. Aceita subset de {teams, email} com valores booleanos."""
+    body  = request.get_json(silent=True) or {}
+    canais = ('teams', 'email')
+    erros  = []
+
+    for canal in canais:
+        if canal not in body:
+            continue
+        if not isinstance(body[canal], bool):
+            erros.append(f'"{canal}" deve ser boolean (true/false)')
+
+    if erros:
+        return jsonify({'erro': '; '.join(erros)}), 400
+
+    if not any(c in body for c in canais):
+        return jsonify({'erro': 'Nenhum campo reconhecido (teams, email)'}), 400
+
+    try:
+        for canal in canais:
+            if canal not in body:
+                continue
+            db.session.execute(
+                db.text("""
+                    INSERT INTO app_settings (key, value, updated_at)
+                    VALUES (:key, :value, NOW())
+                    ON CONFLICT (key) DO UPDATE SET value = :value, updated_at = NOW()
+                """),
+                {'key': f'notify_{canal}', 'value': 'true' if body[canal] else 'false'},
+            )
+        db.session.commit()
+        return jsonify({
+            'teams': _load_notify_flag('teams'),
+            'email': _load_notify_flag('email'),
+        }), 200
+    except Exception as erro:
+        db.session.rollback()
+        return jsonify({'erro': str(erro)}), 500
+
+
 def _load_email_recipients() -> list:
     try:
         row = db.session.execute(
@@ -511,6 +782,31 @@ def remove_email_recipient(email):
     except Exception as erro:
         db.session.rollback()
         return jsonify({'erro': str(erro)}), 500
+
+
+# ==================== MANUTENÇÃO ====================
+
+@app.route('/api/maintenance/cleanup', methods=['POST'])
+@require_api_key
+def maintenance_cleanup():
+    """Dispara o cleanup de dados antigos imediatamente.
+
+    Útil para testes e para forçar limpeza manual sem aguardar o scheduler.
+    Retorna contagem de linhas removidas por tabela.
+    """
+    dias = int(os.environ.get('RETENTION_DAYS', 7))
+    try:
+        resultado = _executar_cleanup(dias)
+        app.logger.info(
+            'Cleanup manual via API: metrics=%d, logs=%d, active_connections=%d',
+            resultado.get('metrics', 0),
+            resultado.get('logs', 0),
+            resultado.get('active_connections', 0),
+        )
+        return jsonify({'removidos': resultado, 'dias_retencao': dias}), 200
+    except Exception as erro:
+        db.session.rollback()
+        return jsonify({'erro': f'Erro no cleanup: {str(erro)}'}), 500
 
 
 # ==================== INICIALIZAÇÃO ====================
