@@ -3,6 +3,7 @@
 # Semana 5: registro do AlertModel e das rotas de alertas.
 # Semana 6: registro do ActiveConnectionModel, rotas de conexões e check_port_scan.
 
+import json
 import secrets
 
 from flask import Flask, jsonify, request
@@ -414,6 +415,70 @@ def generate_apikey():
     except Exception as erro:
         db.session.rollback()
         return jsonify({'erro': f'Erro ao gerar API key: {str(erro)}'}), 500
+
+
+def _load_email_recipients() -> list:
+    try:
+        row = db.session.execute(
+            db.text("SELECT value FROM app_settings WHERE key = 'email_recipients'")
+        ).fetchone()
+        return json.loads(row[0]) if row and row[0] else []
+    except Exception:
+        return []
+
+
+def _save_email_recipients(recipients: list) -> None:
+    db.session.execute(
+        db.text("""
+            INSERT INTO app_settings (key, value, updated_at)
+            VALUES ('email_recipients', :value, NOW())
+            ON CONFLICT (key) DO UPDATE SET value = :value, updated_at = NOW()
+        """),
+        {'value': json.dumps(recipients)},
+    )
+    db.session.commit()
+
+
+@app.route('/api/settings/email-recipients', methods=['GET'])
+@require_api_key
+def get_email_recipients():
+    """Retorna a lista de destinatários de email para alertas."""
+    try:
+        return jsonify({'recipients': _load_email_recipients()}), 200
+    except Exception as erro:
+        return jsonify({'erro': str(erro)}), 500
+
+
+@app.route('/api/settings/email-recipients', methods=['POST'])
+@require_api_key
+def add_email_recipient():
+    """Adiciona um destinatário à lista de emails de alertas."""
+    email = (request.get_json(silent=True) or {}).get('email', '').strip().lower()
+    if not email or '@' not in email or '.' not in email.split('@')[-1]:
+        return jsonify({'erro': 'Email inválido'}), 400
+    try:
+        recipients = _load_email_recipients()
+        if email not in recipients:
+            recipients.append(email)
+            _save_email_recipients(recipients)
+        return jsonify({'recipients': recipients}), 201
+    except Exception as erro:
+        db.session.rollback()
+        return jsonify({'erro': str(erro)}), 500
+
+
+@app.route('/api/settings/email-recipients/<path:email>', methods=['DELETE'])
+@require_api_key
+def remove_email_recipient(email):
+    """Remove um destinatário da lista de emails de alertas."""
+    try:
+        recipients = _load_email_recipients()
+        recipients = [r for r in recipients if r != email]
+        _save_email_recipients(recipients)
+        return jsonify({'recipients': recipients}), 200
+    except Exception as erro:
+        db.session.rollback()
+        return jsonify({'erro': str(erro)}), 500
 
 
 # ==================== INICIALIZAÇÃO ====================

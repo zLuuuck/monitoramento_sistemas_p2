@@ -4,14 +4,32 @@
 # check_port_scan()        — registra alerta quando o agente detecta varredura de portas.
 # check_resource_alert()   — alerta quando CPU, memória ou disco ultrapassam 80%.
 
+import json
 import logging
+import os
 from datetime import datetime
 
 from .parsers import count_failed_logins
 from .teams import enviar_alerta_teams
-from .notifier import enviar_alerta_email  # Semana 7: notificação por email
+from .notifier import enviar_alerta_email
 
 logger = logging.getLogger(__name__)
+
+
+def _get_email_recipients(db) -> list:
+    """Lê destinatários de email da tabela app_settings; fallback para ALERT_RECIPIENT do .env."""
+    try:
+        row = db.session.execute(
+            db.text("SELECT value FROM app_settings WHERE key = 'email_recipients'")
+        ).fetchone()
+        if row and row[0]:
+            parsed = json.loads(row[0])
+            if parsed:
+                return parsed
+    except Exception:
+        pass
+    fallback = os.getenv('ALERT_RECIPIENT', '')
+    return [fallback] if fallback else []
 
 LIMIAR_BRUTE_FORCE = 5
 JANELA_HORAS = 1 / 60
@@ -109,6 +127,9 @@ def check_brute_force(db, LogEntryModel, AlertModel, host_id: int, ip_origem: st
             source_ip  = ip_origem,
             message    = novo_alerta.message,
             severity   = 'high',
+            hostname   = hostname,
+            host_ip    = host_ip,
+            recipients = _get_email_recipients(db),
         )
 
         return True
@@ -208,6 +229,9 @@ def check_port_scan(db, AlertModel, host_id: int, ip_origem: str, port_count: in
             source_ip  = ip_origem,
             message    = msg,
             severity   = 'high',
+            hostname   = hostname,
+            host_ip    = host_ip,
+            recipients = _get_email_recipients(db),
         )
 
         return True
@@ -294,6 +318,9 @@ def check_resource_alert(db, AlertModel, host_id: int, alert_type: str,
             source_ip  = '',
             message    = msg,
             severity   = 'high',
+            hostname   = hostname,
+            host_ip    = host_ip,
+            recipients = _get_email_recipients(db),
         )
 
         return True

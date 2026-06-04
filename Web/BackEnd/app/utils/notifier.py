@@ -1,7 +1,6 @@
 # app/utils/notifier.py
 # Módulo de notificação por email para alertas de segurança.
 # Usa smtplib (stdlib Python) com Gmail via App Password (STARTTLS, porta 587).
-# Semana 7: implementação inicial — brute force SSH e port scan.
 
 import logging
 import os
@@ -21,7 +20,6 @@ _ALERT_RECIPIENT = os.getenv('ALERT_RECIPIENT', '')
 _SMTP_HOST = 'smtp.gmail.com'
 _SMTP_PORT = 587
 
-# Mapeamento de severidade para emoji no assunto
 _SEVERITY_EMOJI = {
     'low':      '🟡',
     'medium':   '🟠',
@@ -29,10 +27,19 @@ _SEVERITY_EMOJI = {
     'critical': '🚨',
 }
 
-# Mapeamento de tipo de alerta para nome legível
 _TIPO_LEGIVEL = {
     'brute_force': 'Força Bruta SSH',
     'port_scan':   'Port Scan',
+    'cpu_high':    'CPU Alta',
+    'mem_high':    'Memória Alta',
+    'disk_high':   'Disco Alto',
+}
+
+_COR_SEVERIDADE = {
+    'low':      '#d97706',
+    'medium':   '#ea580c',
+    'high':     '#dc2626',
+    'critical': '#7f1d1d',
 }
 
 
@@ -42,127 +49,159 @@ def enviar_alerta_email(
     source_ip: str,
     message: str,
     severity: str,
+    hostname: str = '',
+    host_ip: str = '',
+    recipients: list | None = None,
 ) -> bool:
     """
-    Envia um email de alerta de segurança via smtplib (Gmail + App Password).
-
-    Parâmetros:
-        alert_type — tipo do alerta ("brute_force" ou "port_scan")
-        host_id    — ID do host afetado
-        source_ip  — IP de origem do ataque
-        message    — mensagem descritiva do alerta
-        severity   — severidade ("low", "medium", "high", "critical")
-
-    Retorna:
-        bool — True se enviado com sucesso, False em caso de falha.
-        Falha NUNCA interrompe o fluxo principal (try/except completo).
+    Envia email de alerta para todos os destinatários em `recipients`.
+    Se `recipients` for None ou vazio, usa ALERT_RECIPIENT do .env como fallback.
+    Falha NUNCA interrompe o fluxo principal (try/except completo).
     """
-    # Verifica configuração mínima
-    if not all([_SMTP_EMAIL, _SMTP_PASSWORD, _ALERT_RECIPIENT]):
-        logger.warning(
-            'notifier: variáveis SMTP não configuradas — email não enviado.'
-        )
+    destinatarios = [r for r in (recipients or []) if r]
+    if not destinatarios:
+        if _ALERT_RECIPIENT:
+            destinatarios = [_ALERT_RECIPIENT]
+
+    if not all([_SMTP_EMAIL, _SMTP_PASSWORD]) or not destinatarios:
+        logger.warning('notifier: SMTP ou destinatários não configurados — email não enviado.')
         return False
 
     try:
         emoji     = _SEVERITY_EMOJI.get(severity.lower(), '⚠️')
         tipo      = _TIPO_LEGIVEL.get(alert_type, alert_type.upper())
+        cor       = _COR_SEVERIDADE.get(severity.lower(), '#dc2626')
         timestamp = datetime.utcnow().strftime('%d/%m/%Y %H:%M:%S UTC')
 
-        assunto = f'{emoji} [ALERTA][{severity.upper()}] {tipo} detectado — Host {host_id}'
+        host_display = hostname if hostname else f'Host {host_id}'
+        assunto = f'{emoji} [ALERTA][{severity.upper()}] {tipo} — {host_display}'
 
-        # Corpo em texto simples (legível em qualquer cliente)
-        corpo_txt = f"""
-ALERTA DE SEGURANÇA — Sistema de Monitoramento PADS3
+        # Linha de IP do atacante — só aparece quando há source_ip
+        ip_atacante_txt = f'IP do Atacante: {source_ip}\n' if source_ip else ''
+        ip_atacante_html = (
+            f'<tr style="background:color-mix(in srgb,{cor} 8%,#fff);">'
+            f'<td class="lbl" style="padding:10px 8px 10px 0;color:#6b7280;width:140px;vertical-align:top;font-size:14px;">IP do Atacante</td>'
+            f'<td class="val" style="padding:10px 0;color:#111827;font-family:monospace;font-size:14px;">{source_ip}</td>'
+            f'</tr>'
+        ) if source_ip else ''
+
+        host_ip_display = host_ip if host_ip else '—'
+
+        corpo_txt = f"""ALERTA DE SEGURANÇA — Sistema de Monitoramento PADS3
 =====================================================
 
-Tipo:        {tipo}
-Severidade:  {severity.upper()}
-Host ID:     {host_id}
-IP de Origem: {source_ip}
-Data/Hora:   {timestamp}
+Tipo:         {tipo}
+Severidade:   {severity.upper()}
+Host:         {host_display}
+IP do Host:   {host_ip_display}
+{ip_atacante_txt}Data/Hora:    {timestamp}
 
 Descrição:
 {message}
 
 -----------------------------------------------------
-Este email foi gerado automaticamente pelo backend
-de monitoramento. Acesse o painel para mais detalhes.
-        """.strip()
+Acesse o painel: http://painel.monitoramento.lan
+""".strip()
 
-        # Corpo HTML (visual melhorado)
-        cor_severidade = {
-            'low': '#f0ad4e', 'medium': '#e67e22',
-            'high': '#e74c3c', 'critical': '#8e1a0e',
-        }.get(severity.lower(), '#e74c3c')
+        corpo_html = f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  body{{margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;}}
+  @media(prefers-color-scheme:dark){{
+    body{{background:#0d0d0d!important;}}
+    .wrap{{background:#1c1c1e!important;border-color:#2c2c2e!important;}}
+    .lbl{{color:#9ca3af!important;}}
+    .val{{color:#f3f4f6!important;}}
+    .row-alt{{background:#252528!important;}}
+    .desc{{background:#252528!important;color:#f3f4f6!important;}}
+    .foot{{color:#6b7280!important;border-top-color:#2c2c2e!important;}}
+  }}
+</style>
+</head>
+<body>
+<div style="padding:24px 16px;">
+<div class="wrap" style="max-width:600px;margin:auto;background:#fff;border-radius:10px;border:1px solid #e5e7eb;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.08);">
 
-        corpo_html = f"""
-<html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px;">
-  <div style="max-width:600px;margin:auto;background:#fff;border-radius:8px;
-              border-top:5px solid {cor_severidade};padding:30px;">
-    <h2 style="color:{cor_severidade};margin-top:0;">{emoji} Alerta de Segurança</h2>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-      <tr style="background:#f9f9f9;">
-        <td style="padding:8px 12px;font-weight:bold;width:140px;">Tipo</td>
-        <td style="padding:8px 12px;">{tipo}</td>
-      </tr>
+  <!-- Header -->
+  <div style="background:{cor};padding:24px 28px;">
+    <p style="margin:0 0 4px;font-size:11px;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:1.2px;">Sistema de Monitoramento PADS3</p>
+    <h1 style="margin:0 0 10px;color:#fff;font-size:20px;font-weight:700;">{emoji}&nbsp;{tipo}</h1>
+    <span style="display:inline-block;background:rgba(255,255,255,.22);color:#fff;font-size:11px;font-weight:700;padding:3px 12px;border-radius:20px;text-transform:uppercase;letter-spacing:.8px;">{severity.upper()}</span>
+  </div>
+
+  <!-- Detalhes -->
+  <div style="padding:24px 28px 8px;">
+    <table style="width:100%;border-collapse:collapse;">
       <tr>
-        <td style="padding:8px 12px;font-weight:bold;">Severidade</td>
-        <td style="padding:8px 12px;">
-          <span style="background:{cor_severidade};color:#fff;padding:2px 10px;
-                       border-radius:4px;">{severity.upper()}</span>
-        </td>
+        <td class="lbl" style="padding:10px 8px 10px 0;color:#6b7280;width:140px;vertical-align:top;font-size:14px;">Host</td>
+        <td class="val" style="padding:10px 0;color:#111827;font-size:14px;font-weight:600;">{host_display}</td>
       </tr>
-      <tr style="background:#f9f9f9;">
-        <td style="padding:8px 12px;font-weight:bold;">Host ID</td>
-        <td style="padding:8px 12px;">{host_id}</td>
+      <tr class="row-alt" style="background:#f9fafb;">
+        <td class="lbl" style="padding:10px 8px;color:#6b7280;width:140px;vertical-align:top;font-size:14px;">IP do Host</td>
+        <td class="val" style="padding:10px 8px 10px 0;color:#111827;font-family:monospace;font-size:14px;">{host_ip_display}</td>
       </tr>
+      {ip_atacante_html}
       <tr>
-        <td style="padding:8px 12px;font-weight:bold;">IP de Origem</td>
-        <td style="padding:8px 12px;font-family:monospace;">{source_ip}</td>
-      </tr>
-      <tr style="background:#f9f9f9;">
-        <td style="padding:8px 12px;font-weight:bold;">Data/Hora</td>
-        <td style="padding:8px 12px;">{timestamp}</td>
+        <td class="lbl" style="padding:10px 8px 10px 0;color:#6b7280;width:140px;vertical-align:top;font-size:14px;">Data/Hora</td>
+        <td class="val" style="padding:10px 0;color:#111827;font-size:14px;">{timestamp}</td>
       </tr>
     </table>
-    <div style="background:#f9f9f9;padding:12px;border-radius:4px;
-                border-left:4px solid {cor_severidade};">
-      <strong>Descrição:</strong><br>{message}
-    </div>
-    <p style="color:#999;font-size:12px;margin-top:24px;margin-bottom:0;">
-      Email gerado automaticamente pelo backend PADS3.
-      Acesse o painel para resolver o alerta.
-    </p>
   </div>
-</body></html>
-        """.strip()
 
-        # Monta mensagem MIME multipart (texto + HTML)
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = assunto
-        msg['From']    = _SMTP_EMAIL
-        msg['To']      = _ALERT_RECIPIENT
-        msg.attach(MIMEText(corpo_txt, 'plain', 'utf-8'))
-        msg.attach(MIMEText(corpo_html, 'html',  'utf-8'))
+  <!-- Descrição -->
+  <div style="padding:4px 28px 24px;">
+    <div class="desc" style="background:#f9fafb;border-left:4px solid {cor};padding:14px 16px;border-radius:0 6px 6px 0;">
+      <p style="margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#9ca3af;">Descrição</p>
+      <p style="margin:0;color:#111827;font-size:14px;line-height:1.6;">{message}</p>
+    </div>
+  </div>
 
-        # Envia via Gmail STARTTLS
+  <!-- Botão -->
+  <div style="padding:0 28px 28px;text-align:center;">
+    <a href="http://painel.monitoramento.lan"
+       style="display:inline-block;background:{cor};color:#fff;text-decoration:none;padding:13px 36px;border-radius:6px;font-weight:700;font-size:15px;letter-spacing:.3px;">
+      Abrir Painel
+    </a>
+  </div>
+
+  <!-- Rodapé -->
+  <div class="foot" style="padding:14px 28px;border-top:1px solid #f3f4f6;text-align:center;">
+    <p style="margin:0;font-size:11px;color:#9ca3af;">Gerado automaticamente pelo backend PADS3</p>
+  </div>
+
+</div>
+</div>
+</body>
+</html>""".strip()
+
+        # Envia para cada destinatário individualmente
         contexto = ssl.create_default_context()
+        enviados = 0
         with smtplib.SMTP(_SMTP_HOST, _SMTP_PORT) as servidor:
             servidor.ehlo()
             servidor.starttls(context=contexto)
             servidor.ehlo()
             servidor.login(_SMTP_EMAIL, _SMTP_PASSWORD)
-            servidor.sendmail(_SMTP_EMAIL, _ALERT_RECIPIENT, msg.as_string())
+            for dest in destinatarios:
+                msg = MIMEMultipart('alternative')
+                msg['Subject'] = assunto
+                msg['From']    = _SMTP_EMAIL
+                msg['To']      = dest
+                msg.attach(MIMEText(corpo_txt, 'plain', 'utf-8'))
+                msg.attach(MIMEText(corpo_html, 'html',  'utf-8'))
+                servidor.sendmail(_SMTP_EMAIL, dest, msg.as_string())
+                enviados += 1
 
         logger.info(
-            'Email de alerta enviado | tipo=%s | host_id=%s | ip=%s',
-            alert_type, host_id, source_ip,
+            'Email de alerta enviado | tipo=%s | host_id=%s | ip=%s | destinatários=%d',
+            alert_type, host_id, source_ip, enviados,
         )
         return True
 
     except Exception as erro:
-        # Falha silenciosa — nunca interrompe o fluxo principal
         logger.error(
             'Erro ao enviar email de alerta (tipo=%s, host_id=%s, ip=%s): %s',
             alert_type, host_id, source_ip, erro,

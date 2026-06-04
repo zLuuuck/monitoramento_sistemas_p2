@@ -92,4 +92,12 @@ export const api = {
     method: 'POST',
     body: JSON.stringify({}),
   }),
+  getEmailRecipients: () => request('/api/settings/email-recipients'),
+  addEmailRecipient: (email) => request('/api/settings/email-recipients', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  }),
+  removeEmailRecipient: (email) => request(`/api/settings/email-recipients/${encodeURIComponent(email)}`, {
+    method: 'DELETE',
+  }),
 };
