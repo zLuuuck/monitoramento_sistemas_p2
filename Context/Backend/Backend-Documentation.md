@@ -1,5 +1,5 @@
 # Backend Monitor — Documentação Técnica Completa
-**Versão do código:** 5.0.0 | **Última atualização:** Junho 2026  
+**Versão do código:** 6.0.0 | **Última atualização:** Junho 2026  
 **Projeto:** Monitoramento de Sistemas P2 — UTP / PADS3
 
 ---
@@ -93,6 +93,9 @@ O backend **nunca** inicia conexão com os agentes. Toda comunicação é inicia
 | `API_KEY` | Token de autenticação — **fallback** se não houver chave no banco | Não |
 | `PANEL_PASSWORD` | Senha do painel web — validada em `POST /api/auth/login` | Sim (sem ele o login retorna 503) |
 | `TEAMS_WEBHOOK_URL` | Webhook do Microsoft Teams para notificações | Não |
+| `SMTP_EMAIL` | Email remetente para alertas (Gmail) | Não |
+| `SMTP_PASSWORD` | App Password do Gmail (`STARTTLS`, porta 587) | Não |
+| `ALERT_RECIPIENT` | Email destinatário padrão — fallback se `email_recipients` vazio no banco | Não |
 
 > **API_KEY:** gerada via `POST /api/settings/apikey/generate` e persistida na tabela `app_settings`. O valor no `.env` só é usado como fallback se o banco não tiver uma chave.  
 > **PANEL_PASSWORD:** não precisa ir para o banco — é lida diretamente do ambiente via `os.environ.get('PANEL_PASSWORD')`.  
@@ -125,10 +128,11 @@ BackEnd/
 │   │   └── connections.py       # POST /api/connections
 │   └── utils/
 │       ├── __init__.py          # Exporta parse_ssh_log, count_failed_logins, check_brute_force
-│       ├── auth.py              # require_api_key — decorator de autenticação
+│       ├── auth.py              # require_api_key — decorator de autenticação (X-API-Key)
 │       ├── parsers.py           # Parsing de auth.log + count_failed_logins()
 │       ├── detection.py         # check_brute_force() + check_port_scan() + check_resource_alert()
-│       └── teams.py             # enviar_alerta_teams() — webhook Microsoft Teams
+│       ├── teams.py             # enviar_alerta_teams() — webhook Microsoft Teams
+│       └── notifier.py          # enviar_alerta_email() — notificações por email (Gmail/SMTP)
 ├── nginx/
 │   └── nginx.conf               # Proxy reverso
 ├── requirements.txt
@@ -147,12 +151,14 @@ Todos os modelos seguem o padrão **Wrapper + `get_model(db)`**: uma classe Pyth
 
 ### Containers (docker-compose.yml)
 
-| Serviço | Imagem / Build | Porta exposta |
+| Serviço | Imagem / Build | Porta no host |
 |---------|----------------|---------------|
-| `postgres` | `postgres:15` | `5432:5432` |
-| `backend` | `./BackEnd` (build) | `5000:5000` |
-| `frontend` | `./FrontEnd` (build) | `5173:5173` |
+| `postgres` | `postgres:15` | — (interna `5432`) |
+| `backend` | `./BackEnd` (build) | — (interna `5000`) |
+| `frontend` | `./FrontEnd` (build) | — (interna `5173`) |
 | `nginx` | `nginx:alpine` | `80:80` |
+
+> Apenas o Nginx expõe porta no host. Para acessar o PostgreSQL durante desenvolvimento: `docker compose exec postgres psql -U monitor -d monitor`
 
 ### Detalhes relevantes
 
@@ -228,6 +234,22 @@ ENTRYPOINT ["./entrypoint.sh"]
 8. Carrega API key do banco via `_load_api_key_from_db()`
 9. Registra os 5 blueprints de rotas
 
+### Gerenciamento de destinatários de email (app.py)
+
+Três endpoints novos gerenciam a lista de emails para notificações de alertas, persistida na tabela `app_settings` com a chave `'email_recipients'` (JSON array de strings).
+
+| Endpoint | Método | Auth | Descrição |
+|----------|--------|------|-----------|
+| `/api/settings/email-recipients` | GET | Sim | Retorna lista de destinatários atual |
+| `/api/settings/email-recipients` | POST | Sim | Adiciona email (valida formato `@domain.tld`) |
+| `/api/settings/email-recipients/<email>` | DELETE | Sim | Remove email pelo endereço |
+
+**Funções de suporte:**
+
+**`_load_email_recipients()`** — Lê e retorna a lista do banco como `list[str]`. Retorna `[]` em caso de erro.
+
+**`_save_email_recipients(recipients)`** — Persiste a lista via `INSERT ... ON CONFLICT DO UPDATE` na tabela `app_settings`.
+
 ### Migrações de schema automáticas
 
 O banco é criado pelo `init.sql` e pode ser mais antigo que o código. As funções abaixo adicionam/alteram colunas via SQL na inicialização, sem exigir recriação do container.
@@ -275,8 +297,8 @@ O blueprint de `connections` e outros recebem funções de detecção por parâm
 | `/api/hosts` | GET | Sim | Lista de hosts com status online/offline |
 | `/api/heartbeat` | POST | Sim | `{"status": "ok"}` — atualiza `last_seen` do host |
 | `/api/auth/login` | POST | Não | Autentica com PANEL_PASSWORD, retorna API key |
-| `/api/settings/apikey` | GET | Não | Status e prefixo da API key atual |
-| `/api/settings/apikey/generate` | POST | Não | Gera nova API key, retorna o valor uma vez |
+| `/api/settings/apikey` | GET | Não | Status e prefixo da API key atual (sem auth — baixo risco, necessário para tela de login) |
+| `/api/settings/apikey/generate` | POST | Parcial | Gera nova API key — requer `X-API-Key` válido **ou** `password` (PANEL_PASSWORD) no body; estado inicial aceita só senha |
 
 ---
 
@@ -584,14 +606,19 @@ def endpoint():
 ```
 
 **Lógica:**
-1. Extrai o header `Authorization: Bearer {token}`
+1. Extrai o header `X-API-Key: {token}`
 2. Compara com `app.config['API_KEY']` (carregado do banco no startup)
 3. Se inválido ou ausente: retorna 401
+
+> **Mudança de protocolo:** o header foi alterado de `Authorization: Bearer {token}` para `X-API-Key: {token}`. O agente envia os dois headers (suporte a `MONITOR_TOKEN` via `Authorization` legado + `API_KEY` via `X-API-Key`). O backend só valida `X-API-Key`.
 
 **Rotas protegidas (decoradas com `@require_api_key`):**
 - `POST /api/heartbeat`
 - `GET /api/hosts`
 - `POST /api/connections`
+- `GET /api/settings/email-recipients`
+- `POST /api/settings/email-recipients`
+- `DELETE /api/settings/email-recipients/<email>`
 - Demais rotas de ingestão e consulta (discovery, metrics, logs, alerts)
 
 ---
@@ -641,7 +668,57 @@ enviar_alerta_teams(titulo, mensagem, severidade='info', origem='backend', link=
 
 ---
 
-### 8.3 parsers.py
+### 8.3 notifier.py
+
+**Arquivo:** `app/utils/notifier.py`
+
+Módulo de notificação por email para alertas de segurança. Usa `smtplib` (stdlib Python) com Gmail via **App Password** (`STARTTLS`, porta 587). Não requer bibliotecas externas.
+
+**Função pública:**
+
+```python
+enviar_alerta_email(
+    alert_type, host_id, source_ip, message, severity,
+    hostname='', host_ip='',
+    recipients=None,   # lista de emails; None → fallback para ALERT_RECIPIENT
+) -> bool
+```
+
+**Credenciais lidas do `.env`:**
+
+| Variável | Uso |
+|----------|-----|
+| `SMTP_EMAIL` | Remetente (conta Gmail autenticada) |
+| `SMTP_PASSWORD` | App Password do Gmail (não a senha normal da conta) |
+| `ALERT_RECIPIENT` | Destinatário padrão quando `recipients` está vazio/None |
+
+**Destinatários em runtime:** lidos do banco via `_get_email_recipients(db)` em `detection.py`. O campo `app_settings.email_recipients` armazena um JSON array de strings. Se o banco retornar lista vazia, cai no `ALERT_RECIPIENT` do `.env`.
+
+**Corpo do email:** enviado em dois formatos simultâneos (MIME multipart):
+- **Texto plano** — fallback para clientes sem HTML
+- **HTML** — card dark-mode com badge de severidade colorido, tabela de detalhes (host, IP do host, IP atacante quando aplicável, data/hora), barra de progresso de criticidade e botão CTA para o painel
+
+**Mapeamento severidade → aparência:**
+
+| Severidade | Cor | Emoji | Barra % |
+|------------|-----|-------|---------|
+| `low` | `#d97706` | 🟡 | 30% |
+| `medium` | `#ea580c` | 🟠 | 55% |
+| `high` | `#dc2626` | 🔴 | 80% |
+| `critical` | `#7f1d1d` | 🚨 | 100% |
+
+**Assunto gerado:** `{emoji} [ALERTA][{SEVERITY}] {tipo_legivel} — {hostname}`
+
+**Comportamento de falha:** `try/except` completo — qualquer erro de SMTP/rede é logado em `ERROR` e `False` é retornado silenciosamente. Nunca interrompe o fluxo de detecção.
+
+**Exemplo de log de sucesso:**
+```
+INFO  Email de alerta enviado | tipo=brute_force | host_id=2 | ip=10.10.10.26 | destinatários=2
+```
+
+---
+
+### 8.4 parsers.py
 
 Parsers de `/var/log/auth.log` e função de contagem de falhas.
 
@@ -692,7 +769,15 @@ WHERE host_id       = :host_id
 
 ---
 
-### 8.4 detection.py
+### 8.5 detection.py
+
+#### Função auxiliar: `_get_email_recipients(db)` → list
+
+Lê a lista de destinatários de email da tabela `app_settings` (chave `'email_recipients'`). Se não encontrar ou der erro, usa `ALERT_RECIPIENT` do `.env` como fallback. Retorna `[]` se nenhum destinatário configurado.
+
+Chamada internamente pelas três funções de detecção antes de invocar `enviar_alerta_email()`.
+
+---
 
 #### check_brute_force(db, LogEntryModel, AlertModel, host_id, ip_origem, hostname='', host_ip='') → bool
 
@@ -712,7 +797,8 @@ WHERE host_id       = :host_id
 4. Se já existe: retorna `False`
 5. Cria `AlertModel` com `severity="high"`, `metodos="password"`
 6. Chama `enviar_alerta_teams()` com título `"Brute Force SSH — {hostname}"` (ou `"Host {id}"` se sem hostname)
-7. Retorna `True`
+7. Chama `enviar_alerta_email()` com os destinatários de `_get_email_recipients(db)`
+8. Retorna `True`
 
 ---
 
@@ -766,8 +852,8 @@ Cria alerta se `valor > limiar` e não houver alerta ativo do mesmo tipo para o 
 | `/api/status` | GET | Não | Monitoramento | Versão e timestamp da API |
 | `/api/hello` | GET | Não | Teste | Endpoint de verificação básica |
 | `/api/auth/login` | POST | Não | Frontend | Valida PANEL_PASSWORD, retorna API key ao navegador |
-| `/api/settings/apikey` | GET | Não | Frontend | Status e prefixo da API key atual |
-| `/api/settings/apikey/generate` | POST | Não | Frontend (admin) | Gera nova API key, retorna valor uma vez |
+| `/api/settings/apikey` | GET | Não | Frontend | Status e prefixo da API key atual (sem auth intencional) |
+| `/api/settings/apikey/generate` | POST | Parcial | Frontend (admin) | Gera nova API key — requer `X-API-Key` válido ou `{"password":"..."}` no body |
 | `/api/hosts` | GET | Sim | Frontend | Lista hosts com status online/offline |
 | `/api/heartbeat` | POST | Sim | Agente | Atualiza `last_seen` do host |
 | `/api/discovery` | POST | Sim | Agente | Recebe inventário de hardware |
@@ -779,6 +865,9 @@ Cria alerta se `valor > limiar` e não houver alerta ativo do mesmo tipo para o 
 | `/api/alerts` | GET | Sim | Frontend | Lista alertas de segurança |
 | `/api/alerts/<id>/resolve` | PATCH | Sim | Frontend | Marca alerta como resolvido |
 | `/api/connections` | POST | Sim | Agente | Recebe conexões TCP + detecta port scan |
+| `/api/settings/email-recipients` | GET | Sim | Frontend | Lista destinatários de email para alertas |
+| `/api/settings/email-recipients` | POST | Sim | Frontend | Adiciona email à lista de destinatários |
+| `/api/settings/email-recipients/<email>` | DELETE | Sim | Frontend | Remove email da lista de destinatários |
 
 ### POST /api/auth/login
 
@@ -844,7 +933,8 @@ Agente → POST /api/metrics { Authorization: Bearer }
                     ├─ [valor <= limiar] → False
                     ├─ [alerta ativo existente] → False
                     └─ INSERT AlertModel { cpu_high/mem_high/disk_high, source_ip=None }
-                       + Teams: "CPU alta — servidor-web" → True
+                       + Teams: "CPU alta — servidor-web"
+                       + Email: destinatários de app_settings → True
 ```
 
 ### 10.4 Logs + Detecção de Brute Force
@@ -864,7 +954,8 @@ Agente → POST /api/logs { Authorization: Bearer }
                         ├─ [N < 5] → False
                         ├─ [alerta resolved=False existente] → False
                         └─ INSERT AlertModel { brute_force, high }
-                           + Teams: "Brute Force SSH — servidor-web" → True
+                           + Teams: "Brute Force SSH — servidor-web"
+                           + Email: destinatários de app_settings → True
 ```
 
 ### 10.5 Conexões TCP + Detecção de Port Scan
@@ -881,7 +972,8 @@ Agente → POST /api/connections { Authorization: Bearer }
                         └─ check_port_scan(host_id, ip_atacante, port_count, host.hostname, host.ip_address)
                             ├─ [alerta resolved=False criado há < 2min] → False
                             └─ INSERT AlertModel { port_scan, high }
-                               + Teams: "Port Scan detectado — servidor-web" → True
+                               + Teams: "Port Scan detectado — servidor-web"
+                               + Email: destinatários de app_settings → True
 ```
 
 ---
@@ -918,9 +1010,11 @@ Agente → POST /api/connections { Authorization: Bearer }
 - `PATCH /api/alerts/<id>/resolve` — define `resolved=True`, `resolved_at=datetime.utcnow()`
 - Após resolução, nova detecção do mesmo IP/tipo **pode** gerar novo alerta
 
-### 11.6 Notificações Teams
+### 11.6 Notificações (Teams + Email)
 
-**Título e origem dos alertas:** todos os alertas Teams exibem o hostname real e IP do host monitorado no lugar do ID numérico:
+Cada alerta criado dispara **duas** notificações independentes e paralelas: Teams (webhook Power Automate) e Email (Gmail/SMTP). Ambas falham silenciosamente — nunca interrompem o fluxo de detecção.
+
+**Título e origem dos alertas:** o hostname real e IP do host monitorado são exibidos no lugar do ID numérico:
 - Título: `"Port Scan detectado — servidor-web"` (ou `"Port Scan detectado — Host 24233"` se hostname indisponível)
 - Origem: `"servidor-web (10.10.10.5)"` (ou `"host-24233"` se sem hostname)
 
@@ -931,6 +1025,10 @@ Agente → POST /api/connections { Authorization: Bearer }
 | `check_brute_force` | `host` já consultado em `logs.py` para validação do host_id |
 | `check_resource_alert` | `host` retornado por `_resolve_host()` em `metrics.py` |
 | `check_port_scan` | `HostModel.query.get(host_id)` consultado em `connections.py` quando `port_scan_flag=True` |
+
+**Destinatários de email:** lidos de `app_settings.email_recipients` (JSON array) via `_get_email_recipients(db)`. Fallback para `ALERT_RECIPIENT` do `.env` se a lista no banco estiver vazia.
+
+**Gerenciar destinatários pelo painel:**  `GET/POST/DELETE /api/settings/email-recipients` → aba Configurações do frontend.
 
 ### 11.7 Notificações Teams no Startup
 
@@ -987,6 +1085,8 @@ Agente → POST /api/connections { Authorization: Bearer }
 | Autenticação por token (API_KEY) | ✅ Implementado — Bearer token em todos os endpoints protegidos |
 | Senha do painel web (PANEL_PASSWORD) | ✅ Implementado — login modal no frontend |
 | Notificações Teams | ✅ Implementado — brute force, port scan, recursos e startup |
+| Notificações por email | ✅ Implementado — Gmail/SMTP para brute force, port scan e alertas de recurso |
+| Gerenciamento de destinatários de email | ✅ Implementado — `GET/POST/DELETE /api/settings/email-recipients` + UI na aba Configurações |
 | Política de retenção de dados de 7 dias | ⚠️ Função SQL `cleanup_old_data()` existe no banco, mas sem cron automático |
 
 ---
@@ -1012,16 +1112,16 @@ disk_read_iops = db.Column('read_iops', db.Float, ...)      # Python: .disk_read
 
 O `to_dict()` usa os nomes Python, não os nomes das colunas. O frontend precisa conhecer esses nomes.
 
-### 14.4 SQL Injection em count_failed_logins
+### 14.4 SQL Injection em count_failed_logins — ✅ CORRIGIDO (Fase A)
 
-Em `parsers.py`, `ip_origem` é interpolado diretamente na string SQL. Risco baixo na prática (valor extraído por regex IPv4), mas a forma correta é usar parâmetros vinculados:
+Em `parsers.py`, `ip_origem` era interpolado diretamente na string SQL. Corrigido para usar parâmetros vinculados:
 
 ```python
-# Atual (vulnerável):
+# Antes (vulnerável):
 sa_text(f"parsed_data->>'ip_origem' = '{ip_origem}'")
 
-# Correto:
-sa_text("parsed_data->>'ip_origem' = :ip").bindparams(ip=ip_origem)
+# Após correção:
+sa_text("parsed_data->>'ip_origem' = :ip_origem").bindparams(ip_origem=ip_origem)
 ```
 
 ### 14.5 init.sql defasado
@@ -1038,6 +1138,8 @@ Em `_normalize_metrics_payload()`, há uma referência a `request.args.get('host
 
 ---
 
-*Documentação atualizada em 02/06/2026 — v5.1.0*  
+*Documentação atualizada em 03/06/2026 — v6.1.0*  
 *Adições v5.0: autenticação (API key + PANEL_PASSWORD), Teams, alertas de recurso, migrations adicionais, check_port_scan com cooldown temporal, notificação de startup.*  
-*Adições v5.1: DNS explícito no docker-compose (8.8.8.8/8.8.4.4); teams.py com payload completo (icone, timestamp, link), lazy URL loading corrigido, log levels WARNING; check_brute_force/check_port_scan/check_resource_alert agora recebem hostname e host_ip e exibem nome real do host nos alertas Teams.*
+*Adições v5.1: DNS explícito no docker-compose (8.8.8.8/8.8.4.4); teams.py com payload completo (icone, timestamp, link), lazy URL loading corrigido, log levels WARNING; hostname e host_ip nos alertas Teams.*  
+*Adições v6.0: notifier.py (email via Gmail/SMTP com HTML dark-mode); endpoints de gerenciamento de destinatários de email (`GET/POST/DELETE /api/settings/email-recipients`); `_get_email_recipients(db)` em detection.py; mudança de header de autenticação de `Authorization: Bearer` para `X-API-Key`; app_settings passa a armazenar `email_recipients`.*  
+*Adições v6.1 (Fase A — hardening): `POST /api/settings/apikey/generate` protegido com X-API-Key ou PANEL_PASSWORD; SQL injection em `count_failed_logins` corrigido (bind params); portas 5432/5000/5173 removidas do host no docker-compose (apenas Nginx 80 exposto).*

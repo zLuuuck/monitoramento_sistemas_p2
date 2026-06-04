@@ -566,15 +566,17 @@ METRICS_URL     = os.getenv("MONITOR_METRICS_URL")     or f"{API_BASE_URL}/api/m
 LOGS_URL        = os.getenv("MONITOR_LOGS_URL")        or f"{API_BASE_URL}/api/logs"
 CONNECTIONS_URL = os.getenv("MONITOR_CONNECTIONS_URL") or f"{API_BASE_URL}/api/connections"
 HEARTBEAT_URL   = os.getenv("MONITOR_HEARTBEAT_URL")   or f"{API_BASE_URL}/api/heartbeat"
-TOKEN           = os.getenv("MONITOR_TOKEN", "")
+API_KEY = os.getenv("API_KEY", "")
 ```
 
 ### Cabeçalhos enviados
 
-| Cabeçalho | Valor |
-|-----------|-------|
-| `Content-Type` | `application/json` |
-| `Authorization` | `Bearer {TOKEN}` (somente se `MONITOR_TOKEN` não for vazio) |
+| Cabeçalho | Valor | Condição |
+|-----------|-------|----------|
+| `Content-Type` | `application/json` | Sempre |
+| `X-API-Key` | `{API_KEY}` | Somente se `API_KEY` não for vazio |
+
+> `MONITOR_TOKEN` / `Authorization: Bearer` foram removidos na Fase A (hardening). Apenas `X-API-Key` é enviado.
 
 ### Tratamento de erros
 
@@ -661,7 +663,7 @@ sudo ./install.sh
 | `MONITOR_LOGS_URL` | `{BASE}/api/logs` | Override do endpoint de logs |
 | `MONITOR_CONNECTIONS_URL` | `{BASE}/api/connections` | Override do endpoint de conexões |
 | `MONITOR_HEARTBEAT_URL` | `{BASE}/api/heartbeat` | Override do endpoint de heartbeat |
-| `MONITOR_TOKEN` | `""` | Bearer token — sem header Auth se vazio |
+| `API_KEY` | `""` | API key para o header `X-API-Key` — obrigatório para autenticar no backend |
 | `MONITOR_LOG_LEVEL` | `INFO` | Nível de log: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
 | `MONITOR_RETRY_FILE` | `/var/cache/monitor-agent/retry_queue.json` | Caminho da fila de retry |
 | `MONITOR_RETRY_MAX` | `50` | Máximo de itens na fila de retry |
@@ -672,9 +674,11 @@ sudo ./install.sh
 
 ```ini
 MONITOR_API_BASE_URL=http://api.monitoramento.lan
-MONITOR_TOKEN=sua_api_key_aqui
+API_KEY=sua_api_key_aqui
 MONITOR_LOG_LEVEL=INFO
 ```
+
+> Configurar `API_KEY` no arquivo de env do agente (`/etc/monitor-agent/env` ou `.env` local). É a única forma de autenticação aceita pelo backend.
 
 ---
 
@@ -787,5 +791,7 @@ sudo systemctl daemon-reload
 
 ---
 
-*Documentação atualizada em 02/06/2026 — v5.1*  
-*Adições: fix LD_LIBRARY_PATH para PyInstaller, resolução explícita do binário tcpdump, logging de diagnóstico do tcpdump, nota sobre binutils para compilação, validação completa de brute force e port scan.*
+*Documentação atualizada em 03/06/2026 — v5.3*  
+*Adições v5.1: fix LD_LIBRARY_PATH para PyInstaller, resolução explícita do binário tcpdump, logging de diagnóstico do tcpdump, nota sobre binutils para compilação, validação completa de brute force e port scan.*  
+*Adições v5.2: sender.py — variável `API_KEY` e header `X-API-Key` adicionados (alinhamento com backend); `MONITOR_TOKEN`/`Authorization: Bearer` mantidos como legado; exemplo de env atualizado.*  
+*Adições v5.3 (Fase A — hardening): `MONITOR_TOKEN` e `Authorization: Bearer` removidos de `sender.py`; agente envia exclusivamente `X-API-Key`.*

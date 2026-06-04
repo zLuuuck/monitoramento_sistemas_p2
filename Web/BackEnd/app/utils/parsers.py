@@ -442,7 +442,7 @@ def count_failed_logins(LogEntryModel, host_id: int, ip_origem: str, janela_hora
             LogEntryModel.log_type  == 'auth',
             LogEntryModel.timestamp >= inicio_janela,
             sa_text("parsed_data->>'status' = 'failed'"),
-            sa_text(f"parsed_data->>'ip_origem' = '{ip_origem}'"),
+            sa_text("parsed_data->>'ip_origem' = :ip_origem").bindparams(ip_origem=ip_origem),
         ).count()
 
         return contagem

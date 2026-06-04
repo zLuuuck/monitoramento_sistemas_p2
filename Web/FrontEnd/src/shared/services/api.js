@@ -88,9 +88,9 @@ export const api = {
     });
   },
   getApiKey: () => request('/api/settings/apikey'),
-  generateApiKey: () => request('/api/settings/apikey/generate', {
+  generateApiKey: (password) => request('/api/settings/apikey/generate', {
     method: 'POST',
-    body: JSON.stringify({}),
+    body: JSON.stringify(password ? { password } : {}),
   }),
   getEmailRecipients: () => request('/api/settings/email-recipients'),
   addEmailRecipient: (email) => request('/api/settings/email-recipients', {

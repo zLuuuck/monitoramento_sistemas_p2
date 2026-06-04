@@ -12,10 +12,14 @@ export default defineConfig({
     watch: {
       usePolling: true      // Hot Reload no Windows
     },
-    // 🔥 Proxy para o BackEnd (Evita erro de CORS durante desenvolvimento)
+    // HMR via Nginx (porta 80) — necessário quando a 5173 não está exposta no host
+    hmr: {
+      clientPort: 80,
+    },
+    // Proxy para o BackEnd — acesso via nome de serviço interno do Docker
     proxy: {
       '/api': {
-        target: 'http://backend:5000', // Nome do serviço no docker-compose
+        target: 'http://backend:5000',
         changeOrigin: true,
         secure: false,
       }

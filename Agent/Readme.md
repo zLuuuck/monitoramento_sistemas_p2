@@ -39,8 +39,8 @@ sudo nano /etc/monitor-agent/env
 
 ```ini
 MONITOR_API_BASE_URL=http://192.168.1.50:5000
-MONITOR_TOKEN=                # deixe vazio se o backend não exige autenticação
-MONITOR_LOG_LEVEL=INFO        # DEBUG para logar os JSONs completos de cada payload
+API_KEY=<chave-gerada-no-painel>   # obrigatório — gerado em Configurações > API Key
+MONITOR_LOG_LEVEL=INFO             # DEBUG para logar os JSONs completos de cada payload
 ```
 
 ```bash

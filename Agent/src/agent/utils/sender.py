@@ -20,14 +20,11 @@ METRICS_URL     = os.getenv("MONITOR_METRICS_URL")     or urljoin(API_BASE_URL.r
 LOGS_URL        = os.getenv("MONITOR_LOGS_URL")        or urljoin(API_BASE_URL.rstrip("/") + "/", "api/logs")
 CONNECTIONS_URL = os.getenv("MONITOR_CONNECTIONS_URL") or urljoin(API_BASE_URL.rstrip("/") + "/", "api/connections")
 HEARTBEAT_URL   = os.getenv("MONITOR_HEARTBEAT_URL")   or urljoin(API_BASE_URL.rstrip("/") + "/", "api/heartbeat")
-TOKEN           = os.getenv("MONITOR_TOKEN", "")
-API_KEY         = os.getenv("API_KEY", "")
+API_KEY = os.getenv("API_KEY", "")
 
 
 def _make_headers() -> dict:
     headers = {"Content-Type": "application/json"}
-    if TOKEN:
-        headers["Authorization"] = f"Bearer {TOKEN}"
     if API_KEY:
         headers["X-API-Key"] = API_KEY
     return headers

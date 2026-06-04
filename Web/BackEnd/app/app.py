@@ -383,7 +383,9 @@ def panel_login():
 
 @app.route('/api/settings/apikey', methods=['GET'])
 def get_apikey_settings():
-    """Retorna status e prefixo da API key atual (nunca o valor completo)."""
+    """Retorna status e prefixo da API key (nunca o valor completo). Sem autenticação
+    intencional: expõe apenas os primeiros/últimos caracteres — baixo risco, necessário
+    para a tela de login verificar se uma chave já existe antes de redirecionar."""
     key = app.config.get('API_KEY', '')
     if key:
         return jsonify({
@@ -395,7 +397,37 @@ def get_apikey_settings():
 
 @app.route('/api/settings/apikey/generate', methods=['POST'])
 def generate_apikey():
-    """Gera uma nova API key, persiste no banco e retorna o valor uma única vez."""
+    """Gera uma nova API key, persiste no banco e retorna o valor uma única vez.
+
+    Autenticação por um de dois mecanismos:
+      1. Header X-API-Key com a chave atual válida.
+      2. Body JSON { "password": "<PANEL_PASSWORD>" }.
+
+    Estado inicial (nenhuma chave gerada ainda): aceita APENAS senha, porque não
+    há chave existente para validar via header. Neste caso o header é ignorado.
+    """
+    current_key    = app.config.get('API_KEY', '')
+    panel_password = os.environ.get('PANEL_PASSWORD', '')
+    body           = request.get_json(silent=True) or {}
+
+    provided_key      = request.headers.get('X-API-Key', '')
+    provided_password = body.get('password', '')
+
+    if not current_key:
+        # Estado inicial — nenhuma chave configurada: só aceita senha
+        if not panel_password or provided_password != panel_password:
+            return jsonify({
+                'erro': 'Nenhuma chave configurada ainda. Forneça a senha do painel para gerar a primeira chave.'
+            }), 401
+    else:
+        # Chave existente: aceita header válido OU senha correta
+        key_ok      = bool(provided_key and provided_key == current_key)
+        password_ok = bool(panel_password and provided_password == panel_password)
+        if not key_ok and not password_ok:
+            return jsonify({
+                'erro': 'Credencial inválida — forneça o header X-API-Key com a chave atual ou a senha do painel no body.'
+            }), 401
+
     new_key = secrets.token_hex(32)
     try:
         db.session.execute(

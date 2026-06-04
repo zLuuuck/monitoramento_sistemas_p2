@@ -298,8 +298,13 @@ CREATE TABLE IF NOT EXISTS app_settings (
 | Chave (`key`) | Valor (`value`) | Descrição |
 |---------------|-----------------|-----------|
 | `api_key` | Token hexadecimal de 64 chars | API key usada para autenticar agentes e o painel web |
+| `email_recipients` | JSON array de strings — ex: `["a@b.com","c@d.com"]` | Lista de destinatários para notificações de alerta por email |
 
-**Uso:** a API key é gerada via `POST /api/settings/apikey/generate`, persistida aqui, e carregada para `app.config['API_KEY']` no startup do backend. Sobrevive a restarts do container enquanto o volume PostgreSQL existir.
+**Uso:**
+- `api_key` é gerada via `POST /api/settings/apikey/generate` e carregada para `app.config['API_KEY']` no startup.
+- `email_recipients` é gerenciada via `GET/POST/DELETE /api/settings/email-recipients` e lida por `_get_email_recipients(db)` em `detection.py` antes de cada envio de alerta por email. Se vazia, o backend usa `ALERT_RECIPIENT` do `.env` como fallback.
+
+Ambas sobrevivem a restarts do container enquanto o volume PostgreSQL existir.
 
 ---
 
@@ -471,6 +476,12 @@ LIMIT 20;
 SELECT value FROM app_settings WHERE key = 'api_key';
 ```
 
+### Ler destinatários de email
+```sql
+SELECT value FROM app_settings WHERE key = 'email_recipients';
+-- Retorna JSON array: ["user@exemplo.com", "admin@empresa.com"]
+```
+
 ---
 
 ## 8. Inicialização
@@ -506,5 +517,6 @@ Campos adicionados após a criação inicial do banco são aplicados pelo backen
 
 ---
 
-*Documentação atualizada em 02/06/2026 — v1.1*  
-*Adições: app_settings, migrações de tipo IP (INET → VARCHAR(45)), nullable source_ip, documentação da deduplicação por cooldown de port scan, alertas de recurso (cpu_high/mem_high/disk_high).*
+*Documentação atualizada em 03/06/2026 — v1.2*  
+*Adições v1.1: app_settings, migrações de tipo IP (INET → VARCHAR(45)), nullable source_ip, deduplicação por cooldown de port scan, alertas de recurso (cpu_high/mem_high/disk_high).*  
+*Adições v1.2: app_settings agora armazena `email_recipients` (JSON array de destinatários para notificações por email); query de exemplo adicionada.*

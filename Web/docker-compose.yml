@@ -10,8 +10,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5432:5432"  # Opcional, para acessar com ferramentas externas (ex: pgAdmin)
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U monitor -d monitor"]
       interval: 5s
@@ -35,10 +33,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    # A porta 5000 não precisa ser exposta no host, pois o Nginx acessa internamente.
-    # Mas manter exposta permite testar diretamente via localhost:5000
-    ports:
-      - "5000:5000"
 
   frontend:
     build: ./FrontEnd
@@ -48,10 +42,6 @@ services:
       - WATCHPACK_POLLING=true
     stdin_open: true
     tty: true
-    # Não precisa de depends_on backend, mas pode manter
-    # A porta 5173 exposta para debug opcional
-    ports:
-      - "5173:5173"
 
   nginx:
     image: nginx:alpine  # Versão leve

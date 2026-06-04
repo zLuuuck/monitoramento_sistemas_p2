@@ -1,6 +1,6 @@
 # Frontend — Documentação Técnica
 
-**Versão 1.1 | Junho 2026**
+**Versão 1.2 | Junho 2026**
 
 | Campo          | Valor                                                       |
 |----------------|-------------------------------------------------------------|
@@ -71,7 +71,9 @@ Web/FrontEnd/
     │   └── services/
     │       └── api.js                      ← cliente HTTP centralizado + auth helpers
     ├── pages/
-    │   └── AppPages.jsx                    ← DashboardPage, MetricsPage, LogsPage, AlertsPage
+    │   └── AppPages.jsx                    ← DashboardPage, MetricsPage, LogsPage, AlertsPage,
+    │                                           EndpointsPage, SettingsPage
+    │                                           (internos: EmailRecipientsCard, ApiKeyCard)
     ├── components/
     │   ├── DiscoveryDashboard.jsx          ← painel de hardware
     │   ├── HostSelector.jsx                ← dropdown de seleção de host
@@ -101,10 +103,12 @@ Definido em `routes.jsx` usando `react-router-dom` v6 com `createBrowserRouter`.
 ├── /dashboard      → DashboardPage
 ├── /metrics        → MetricsPage
 ├── /logs           → LogsPage
-└── /alerts         → AlertsPage
+├── /alerts         → AlertsPage
+├── /endpoints      → EndpointsPage  ← adicionado
+└── /settings       → SettingsPage   ← adicionado
 ```
 
-> **Rotas na sidebar sem correspondência no router:** `/endpoints` e `/settings` aparecem no menu mas não têm rotas definidas.
+Todas as 6 rotas de conteúdo estão funcionais. Não há mais links mortos na sidebar.
 
 ---
 
@@ -262,7 +266,51 @@ Auto-refresh: **15 segundos**.
 
 ---
 
-### 5.9 Componentes Compartilhados
+### 5.9 EndpointsPage
+
+**Arquivo:** `src/pages/AppPages.jsx` — exportado como `EndpointsPage`
+
+Tabela com todos os hosts registrados no sistema. Dados consumidos de `selectedDiscovery` / `discovery` via `useOutletContext`. Exibe colunas: ID, Hostname, Status (badge verde/vermelho), Tipo (Virtual/Físico), IP e Sistema Operacional.
+
+---
+
+### 5.10 SettingsPage
+
+**Arquivo:** `src/pages/AppPages.jsx` — exportado como `SettingsPage`
+
+Página de configurações com 5 cards organizados em grid 2 colunas:
+
+| Card | Componente interno | Descrição |
+|------|--------------------|-----------|
+| Aparência | inline | Toggle de tema claro/escuro via `ThemeContext` |
+| Monitoramento | inline | Preferências de intervalo e limiar (UI visual — selects sem efeito real) |
+| Destinatários de Email | `EmailRecipientsCard` | Gerencia lista de emails para alertas |
+| API Key | `ApiKeyCard` | Gerencia a API key do servidor e do navegador |
+| Sobre o Sistema | inline | Informações da versão |
+
+#### EmailRecipientsCard
+
+Componente interno de `SettingsPage` que permite gerenciar a lista de destinatários de email para alertas.
+
+- **Carrega:** `GET /api/settings/email-recipients` no mount
+- **Adicionar:** input de email com validação + `POST /api/settings/email-recipients`
+- **Remover:** botão por item → `DELETE /api/settings/email-recipients/<email>`
+- Suporte a Enter/Escape no input
+- Estados: `recipients`, `loading`, `adding`, `saving`, `removing`, `error`
+
+#### ApiKeyCard
+
+Componente interno de `SettingsPage` para gerenciar a API key.
+
+- **Status do servidor:** `GET /api/settings/apikey` — exibe se há chave configurada e prefixo
+- **Status do navegador:** verifica `hasBrowserApiKey()` (localStorage)
+- **Gerar nova chave:** `POST /api/settings/apikey/generate` — exibe a chave uma única vez com botão de copiar
+- **Salvar no navegador:** botão salva chave gerada no localStorage automaticamente; também há campo de input manual para colar uma chave existente
+- Estados: `keyInfo`, `generatedKey`, `copied`, `generating`, `error`, `browserKeyStored`, `inputKey`, `browserKeySaved`
+
+---
+
+### 5.11 Componentes Compartilhados
 
 **Card** (`src/shared/components/Card.jsx`) — wrapper visual reutilizável com título, ícone opcional e slot de conteúdo.
 
@@ -278,14 +326,16 @@ Cliente HTTP centralizado. Todas as chamadas de API passam por aqui.
 
 **Base URL:** `${import.meta.env.VITE_API_BASE_URL}` — se não definida, usa string vazia (requisições relativas via Nginx).
 
-**Cabeçalho de autenticação:** incluído automaticamente em todas as requisições se `getApiKey()` retornar um valor:
+**Cabeçalho de autenticação:** incluído automaticamente em todas as requisições se a chave estiver no `localStorage`:
 
 ```js
 headers: {
   'Content-Type': 'application/json',
-  ...(key ? { Authorization: `Bearer ${key}` } : {}),
+  ...(apiKey ? { 'X-API-Key': apiKey } : {}),
 }
 ```
+
+> **Mudança de protocolo:** o header foi alterado de `Authorization: Bearer {key}` para `X-API-Key: {key}`, alinhado com o backend (`auth.py`). A chave é lida do `localStorage` (não mais do `sessionStorage`).
 
 ### Funções de dados
 
@@ -296,15 +346,19 @@ headers: {
 | `getLogs(hostId, options)`   | GET    | `/api/logs?host_id=N&limit=50&offset=0&log_type=auth` | Logs paginados do host                        |
 | `getAlerts(status)`          | GET    | `/api/alerts?status=active`                           | Alertas por status                            |
 | `resolveAlert(alertId)`      | PATCH  | `/api/alerts/{id}/resolve`                            | Resolve um alerta                             |
+| `getApiKey()`                | GET    | `/api/settings/apikey`                                | Status e prefixo da API key no servidor       |
+| `generateApiKey()`           | POST   | `/api/settings/apikey/generate`                       | Gera nova API key no servidor                 |
+| `getEmailRecipients()`       | GET    | `/api/settings/email-recipients`                      | Lista destinatários de email para alertas     |
+| `addEmailRecipient(email)`   | POST   | `/api/settings/email-recipients`                      | Adiciona email à lista                        |
+| `removeEmailRecipient(email)`| DELETE | `/api/settings/email-recipients/{email}`              | Remove email da lista                         |
 
 ### Funções de autenticação
 
 | Função                     | Descrição |
 |----------------------------|-----------|
 | `loginWithPassword(password)` | `POST /api/auth/login { password }` — retorna `{ api_key }` ou lança erro |
-| `saveApiKey(apiKey)` | Salva a API key no `sessionStorage` (persiste durante a sessão do navegador) |
-| `getApiKey()` | Lê a API key do `sessionStorage` — usada internamente pelo cliente HTTP |
-| `hasBrowserApiKey()` | Retorna `true` se houver uma API key salva |
+| `saveApiKey(apiKey)` | Salva a API key no `localStorage` (persiste além da sessão do navegador) |
+| `hasBrowserApiKey()` | Retorna `true` se houver uma API key salva no `localStorage` |
 
 ### Tratamento de erros
 
@@ -354,7 +408,7 @@ Toda requisição feita através de `api.js` inclui automaticamente `Authorizati
 
 ### Comportamento quando a sessão expira
 
-Se a API key for revogada ou o `sessionStorage` limpo (aba fechada), a próxima requisição retornará 401 e o `LoginModal` aparecerá novamente.
+Se a API key for revogada ou o `localStorage` limpo, a próxima requisição retornará 401 e o `LoginModal` aparecerá novamente. Diferente do `sessionStorage`, a chave no `localStorage` **persiste entre abas e após fechar o navegador**.
 
 ---
 
@@ -365,9 +419,11 @@ Definidas em `src/pages/AppPages.jsx`.
 | Página         | Rota        | Componente principal     | Dados consumidos                         |
 |----------------|-------------|--------------------------|------------------------------------------|
 | DashboardPage  | /dashboard  | DiscoveryDashboard       | `selectedDiscovery` (do context)         |
-| MetricsPage    | /metrics    | MetricsChart + MetricGrid| `metrics`, `selectedHostInfo` (context)  |
+| MetricsPage    | /metrics    | MetricsChart + MetricCards | `metrics`, `selectedHostInfo` (context)  |
 | LogsPage       | /logs       | LogsPanel                | `selectedHost` — estado próprio          |
 | AlertsPage     | /alerts     | AlertsPanel              | — estado próprio                         |
+| EndpointsPage  | /endpoints  | tabela inline            | `discovery`, `discoveryLoading` (context)|
+| SettingsPage   | /settings   | EmailRecipientsCard + ApiKeyCard | API endpoints + ThemeContext     |
 
 ---
 
@@ -400,10 +456,13 @@ Issues identificados no código que ainda não foram corrigidos:
 |-----|---------------|--------------------------------------------------------------------------------------------------------|--------------------|
 | F-1 | Layout.jsx    | Não passa `activeSubTab` / `onSubTabChange` para `TopTabs.jsx` — qualquer clique em sub-tab causa `TypeError: onSubTabChange is not a function` | Crash de runtime ao clicar em sub-tab |
 | F-2 | Sidebar.jsx   | Badge de alertas hardcoded como `"3"` — não consome `GET /api/alerts?status=active` | Dado incorreto no badge |
-| F-3 | routes.jsx    | Rotas `/endpoints` e `/settings` não existem — links na sidebar não navegam | Links mortos no menu |
+| ~~F-3~~ | ~~routes.jsx~~ | ~~Rotas `/endpoints` e `/settings` não existem — links na sidebar não navegam~~ | ✅ **Corrigido** — ambas as rotas implementadas com `EndpointsPage` e `SettingsPage` |
 | F-4 | App.jsx       | Métricas não atualizam automaticamente — só atualizam ao trocar de host ou após login | Dashboard não reflete dados em tempo real sem interação |
+| ~~F-5~~ | ~~SettingsPage~~ | ~~Cards "Intervalo de Atualização" e "Limite de Alertas" têm selects sem efeito real~~ | Tratado na Fase C (thresholds) e Fase D (toggles) |
 
 ---
 
-*Documentação atualizada em 02/06/2026 — v1.1*  
-*Adições: sistema de autenticação (LoginModal, authRequired, reloadKey, saveApiKey, loginWithPassword, getApiKey, hasBrowserApiKey), ThemeContext, fluxo completo de auth documentado.*
+*Documentação atualizada em 03/06/2026 — v1.3*  
+*Adições v1.1: sistema de autenticação (LoginModal, authRequired, reloadKey, saveApiKey, loginWithPassword, getApiKey, hasBrowserApiKey), ThemeContext, fluxo completo de auth documentado.*  
+*Adições v1.2: EndpointsPage e SettingsPage (Gap F-3 corrigido); EmailRecipientsCard e ApiKeyCard; rotas /endpoints e /settings funcionais; api.js — header mudou de `Authorization: Bearer` para `X-API-Key`, storage migrou de sessionStorage para localStorage; novos métodos de email recipients na API; Gap F-5 identificado (selects de preferências sem efeito).*  
+*Adições v1.3 (Fase A — hardening): `api.generateApiKey(password?)` aceita senha opcional; `handleGenerate` pede PANEL_PASSWORD via prompt quando não há chave no localStorage; `vite.config.js` — `server.hmr.clientPort: 80` para HMR via Nginx (porta 5173 não exposta no host).*

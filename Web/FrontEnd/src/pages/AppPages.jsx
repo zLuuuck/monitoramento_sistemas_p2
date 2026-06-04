@@ -33,12 +33,20 @@ function ApiKeyCard() {
 
   const handleGenerate = async () => {
     if (!window.confirm('Gerar uma nova chave vai invalidar a chave atual. Continuar?')) return;
+
+    // Sem chave no navegador não temos X-API-Key para enviar → autenticar por senha
+    let password;
+    if (!browserKeyStored) {
+      password = window.prompt('Nenhuma chave armazenada neste navegador.\nDigite a senha do painel (PANEL_PASSWORD) para continuar:');
+      if (password === null) return; // usuário cancelou o prompt
+    }
+
     setGenerating(true);
     setError('');
     setGeneratedKey('');
     setCopied(false);
     try {
-      const data = await api.generateApiKey();
+      const data = await api.generateApiKey(password);
       setGeneratedKey(data.api_key);
       saveApiKey(data.api_key);
       setBrowserKeyStored(true);
