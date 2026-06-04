@@ -16,6 +16,6 @@ ENV FLASK_APP=app/app.py
 ENV FLASK_ENV=development
 ENV FLASK_DEBUG=1
 
-EXPOSE 5000
+#EXPOSE 5000
 
 ENTRYPOINT ["./entrypoint.sh"]
