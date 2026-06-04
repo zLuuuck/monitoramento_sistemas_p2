@@ -1,12 +1,12 @@
 # =============================================================================
 # coleta/connections_coleta/connections.py
 #
-# Coleta conexões TCP ativas e detecta port scans ENTRANTES via tcpdump.
+# Detecta port scans ENTRANTES via tcpdump.
 #
 # Comportamento:
 #   - Thread tcpdump: captura pacotes TCP SYN de origem externa em tempo real.
 #   - Thread eval (2s): mantém janela deslizante de 60s e atualiza _active_scans.
-#   - get_active_connections(): retorna conexões ativas + estado atual de detecção.
+#   - get_scan_status(): retorna o estado atual de detecção sem coleta psutil.
 #   - Detecção: >= _PORTSCAN_THRESHOLD portas distintas do mesmo IP em 60s → scan.
 #   - Graceful degradation: se tcpdump não estiver instalado ou sem permissão,
 #     a detecção é desabilitada silenciosamente (port_scan_detected sempre False).
@@ -149,59 +149,20 @@ def _thread_eval() -> None:
 threading.Thread(target=_thread_tcpdump, daemon=True, name="tcpdump-capture").start()
 threading.Thread(target=_thread_eval,    daemon=True, name="portscan-eval").start()
 
-_TRACKED_STATES = {"ESTABLISHED", "SYN_SENT", "TIME_WAIT", "CLOSE_WAIT"}
 
-
-def get_active_connections() -> dict:
+def get_scan_status() -> dict:
     """
-    Retorna conexões TCP ativas e o estado atual de detecção de port scan.
+    Retorna o estado atual de detecção de port scan (sem coleta psutil).
 
     Retorno:
         {
-            "connections": [
-                {
-                    "local_port":  int | None,
-                    "remote_ip":   str | None,
-                    "remote_port": int | None,
-                    "state":       str
-                },
-                ...
-            ],
-            "total":              int,
             "port_scan_detected": bool,
             "scan_sources":       {src_ip: distinct_port_count, ...}
         }
     """
-    try:
-        raw = psutil.net_connections(kind="tcp")
-    except Exception as e:
-        with _lock:
-            scans = dict(_active_scans)
-        return {
-            "connections":        [],
-            "total":              0,
-            "port_scan_detected": bool(scans),
-            "scan_sources":       scans,
-            "error":              str(e),
-        }
-
-    connections = []
-    for conn in raw:
-        if conn.status not in _TRACKED_STATES:
-            continue
-        connections.append({
-            "local_port":  conn.laddr.port if conn.laddr else None,
-            "remote_ip":   conn.raddr.ip   if conn.raddr else None,
-            "remote_port": conn.raddr.port if conn.raddr else None,
-            "state":       conn.status,
-        })
-
     with _lock:
         scans = dict(_active_scans)
-
     return {
-        "connections":        connections,
-        "total":              len(connections),
         "port_scan_detected": bool(scans),
-        "scan_sources":       scans,   # {ip_atacante: qtd_portas_distintas}
+        "scan_sources":       scans,
     }

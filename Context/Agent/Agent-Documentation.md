@@ -118,7 +118,7 @@ Agent/
         │   ├── disk_coleta/disk.py                 ← inclui IOPS
         │   ├── network_coleta/network.py            ← inclui bytes/sec
         │   ├── logs_coleta/logs.py
-        │   ├── connections_coleta/connections.py   ← tcpdump + port scan
+        │   ├── connections_coleta/connections.py   ← detecção de port scan via tcpdump (sem psutil)
         │   └── process_coleta/processes.py         ← top processos
         └── utils/
             ├── parsers.py
@@ -156,7 +156,7 @@ Agent/
 | 2 | `get_tools_info()` — verifica e instala dependências se necessário |
 | 3 | `run_discovery()` — executa todos os módulos de discovery via `_safe_collect()` |
 | 4 | `send_discovery(discovery)` — envia payload ao backend (`POST /api/discovery`) |
-| 5 | Loop infinito (~5s): **flush retry → heartbeat → métricas → logs → conexões** |
+| 5 | Loop infinito (~5s): **flush retry → heartbeat → métricas → logs → port scan (só envia quando detectado)** |
 
 **Detalhe do loop contínuo:**
 
@@ -168,8 +168,8 @@ Agent/
 │     send_metrics()                                         │
 │  4. collect_auth_logs()  — novas linhas de auth.log        │
 │     send_log() (uma chamada por linha)                     │
-│  5. collect_connections() — TCP ativas + port scan         │
-│     send_connections()                                     │
+│  5. collect_scan_status() — port scan (só envia se True)   │
+│     send_portscan()  → POST /api/security/portscan         │
 │  time.sleep(5)                                             │
 └───────────────────────────────────────────────────────────┘
 ```
@@ -293,7 +293,7 @@ Lê `/var/log/auth.log` incrementalmente, rastreando byte offset e inode em `~/.
 
 **Arquivo:** `coleta/connections_coleta/connections.py`
 
-Combina `psutil.net_connections(kind="tcp")` para conexões ativas com **detecção de port scan via tcpdump**.
+Realiza **detecção de port scan via tcpdump**. A coleta de conexões TCP via `psutil` foi removida — não havia tela consumidora no frontend e causava erro 500 no backend por FK violada. As threads de tcpdump e toda a lógica de detecção foram preservadas.
 
 #### Detecção de port scan (tcpdump)
 
@@ -381,17 +381,12 @@ journalctl -u linux-agent -f | grep -E "tcpdump|SYN|port_scan|IPs locais"
 
 #### Graceful degradation
 
-Se `tcpdump` não estiver instalado ou o processo não tiver `cap_net_raw`, a thread encerra silenciosamente. `port_scan_detected` permanece sempre `false`. O restante da coleta (conexões TCP via psutil) não é afetado.
+Se `tcpdump` não estiver instalado ou o processo não tiver `cap_net_raw`, a thread encerra silenciosamente. `port_scan_detected` permanece sempre `false` e nenhum request é enviado ao backend.
 
-#### Campos retornados por `get_active_connections()`
+#### Campos retornados por `get_scan_status()`
 
 | Campo | Descrição |
 |-------|-----------|
-| `connections[].local_port` | Porta local |
-| `connections[].remote_ip` | IP remoto |
-| `connections[].remote_port` | Porta remota |
-| `connections[].state` | Estado da conexão (`ESTABLISHED`, `SYN_SENT`, etc.) |
-| `total` | Total de conexões rastreadas |
 | `port_scan_detected` | `true` se algum IP atingiu o limiar de portas distintas |
 | `scan_sources` | `{ip_atacante: qtd_portas_distintas, ...}` — IPs ativos no scan |
 
@@ -473,16 +468,14 @@ return {
 }
 ```
 
-### 8.4 Payload de Conexões
+### 8.4 Payload de Port Scan
+
+Enviado apenas quando `port_scan_detected=True` → `POST /api/security/portscan`.
 
 ```json
 {
-  "global":    { "collection_type": "connections", "host_id": "71203", "primary_ip": "10.10.10.1" },
-  "timestamp": "2026-06-02T19:24:58.000000+00:00",
-  "connections": [
-    { "local_port": 22, "remote_ip": "10.10.10.26", "remote_port": 54321, "state": "ESTABLISHED" }
-  ],
-  "total": 1,
+  "global":             { "collection_type": "metrics", "host_id": "71203", "primary_ip": "10.10.10.1" },
+  "timestamp":          "2026-06-02T19:24:58.000000+00:00",
   "port_scan_detected": true,
   "scan_sources": {
     "10.10.10.26": 1000
@@ -490,7 +483,7 @@ return {
 }
 ```
 
-`scan_sources` é `{}` e `port_scan_detected` é `false` quando não há scan ativo.
+Quando não há scan ativo, nenhum request é enviado ao backend (sem polling).
 
 ### 8.5 Payload de Heartbeat
 
@@ -564,7 +557,7 @@ API_BASE_URL    = os.getenv("MONITOR_API_BASE_URL", "http://api.monitoramento.la
 DISCOVERY_URL   = os.getenv("MONITOR_DISCOVERY_URL")   or f"{API_BASE_URL}/api/discovery"
 METRICS_URL     = os.getenv("MONITOR_METRICS_URL")     or f"{API_BASE_URL}/api/metrics"
 LOGS_URL        = os.getenv("MONITOR_LOGS_URL")        or f"{API_BASE_URL}/api/logs"
-CONNECTIONS_URL = os.getenv("MONITOR_CONNECTIONS_URL") or f"{API_BASE_URL}/api/connections"
+PORTSCAN_URL    = os.getenv("MONITOR_PORTSCAN_URL")    or f"{API_BASE_URL}/api/security/portscan"
 HEARTBEAT_URL   = os.getenv("MONITOR_HEARTBEAT_URL")   or f"{API_BASE_URL}/api/heartbeat"
 API_KEY = os.getenv("API_KEY", "")
 ```
@@ -661,7 +654,7 @@ sudo ./install.sh
 | `MONITOR_DISCOVERY_URL` | `{BASE}/api/discovery` | Override do endpoint de discovery |
 | `MONITOR_METRICS_URL` | `{BASE}/api/metrics` | Override do endpoint de métricas |
 | `MONITOR_LOGS_URL` | `{BASE}/api/logs` | Override do endpoint de logs |
-| `MONITOR_CONNECTIONS_URL` | `{BASE}/api/connections` | Override do endpoint de conexões |
+| `MONITOR_PORTSCAN_URL` | `{BASE}/api/security/portscan` | Override do endpoint de sinalização de port scan |
 | `MONITOR_HEARTBEAT_URL` | `{BASE}/api/heartbeat` | Override do endpoint de heartbeat |
 | `API_KEY` | `""` | API key para o header `X-API-Key` — obrigatório para autenticar no backend |
 | `MONITOR_LOG_LEVEL` | `INFO` | Nível de log: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
@@ -688,7 +681,7 @@ MONITOR_LOG_LEVEL=INFO
 
 | Pacote | Uso |
 |--------|-----|
-| `psutil` | CPU, memória, disco, rede I/O, conexões TCP, processos |
+| `psutil` | CPU, memória, disco, rede I/O, processos, IPs locais (net_if_addrs para filtro tcpdump) |
 | `requests` | HTTP POST para o backend |
 
 ### Ferramentas do sistema (Linux)
@@ -717,7 +710,7 @@ MONITOR_LOG_LEVEL=INFO
 | `global_information` | `global_information/global_information.py` | Bloco de identidade dos payloads |
 | `discovery.*` | `discovery/*/` | Inventário de hardware/SO (executado uma vez) |
 | `coleta.collector` | `coleta/collector.py` | Orquestrador da coleta contínua |
-| `coleta.connections_coleta` | `coleta/connections_coleta/connections.py` | Conexões TCP + detecção de port scan via tcpdump |
+| `coleta.connections_coleta` | `coleta/connections_coleta/connections.py` | Detecção de port scan via tcpdump (sem coleta TCP psutil) |
 | `coleta.logs_coleta` | `coleta/logs_coleta/logs.py` | Leitura incremental de auth.log |
 | `coleta.process_coleta` | `coleta/process_coleta/processes.py` | Top 15 processos por CPU, RAM, disco e conexões |
 | `utils.sender` | `utils/sender.py` | HTTP POST + retry + heartbeat |
@@ -774,7 +767,7 @@ journalctl -u linux-agent -f
 | `/var/log/auth.log` | Grupo `adm` ou root | Leitura de logs de autenticação |
 | `dmidecode` | root | Detalhes de RAM e placa-mãe |
 | `smartctl` | root | Saúde do disco (S.M.A.R.T.) |
-| `psutil.net_connections()` | root | Conexões TCP de todos os processos |
+| `psutil.net_if_addrs()` | — | Listar IPs do host para filtrar pacotes de saída no tcpdump |
 | `tcpdump` | root ou `cap_net_raw` | Captura de pacotes SYN |
 
 O `install.sh` garante que o serviço rode como root, atendendo todas as permissões acima automaticamente.
@@ -791,7 +784,8 @@ sudo systemctl daemon-reload
 
 ---
 
-*Documentação atualizada em 03/06/2026 — v5.3*  
+*Documentação atualizada em 04/06/2026 — v6.0*  
+*Adições v6.0: remoção da coleta TCP via psutil (`net_connections`) — sem tela consumidora no frontend e causava erro 500. Threads tcpdump preservadas. Função renomeada de `get_active_connections()` para `get_scan_status()`. Agente passa a enviar `POST /api/security/portscan` somente quando `port_scan_detected=True` (sem polling a cada 5s). Variável de ambiente renomeada de `MONITOR_CONNECTIONS_URL` para `MONITOR_PORTSCAN_URL`.*  
 *Adições v5.1: fix LD_LIBRARY_PATH para PyInstaller, resolução explícita do binário tcpdump, logging de diagnóstico do tcpdump, nota sobre binutils para compilação, validação completa de brute force e port scan.*  
 *Adições v5.2: sender.py — variável `API_KEY` e header `X-API-Key` adicionados (alinhamento com backend); `MONITOR_TOKEN`/`Authorization: Bearer` mantidos como legado; exemplo de env atualizado.*  
 *Adições v5.3 (Fase A — hardening): `MONITOR_TOKEN` e `Authorization: Bearer` removidos de `sender.py`; agente envia exclusivamente `X-API-Key`.*

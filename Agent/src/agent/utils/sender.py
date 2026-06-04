@@ -18,7 +18,7 @@ API_BASE_URL    = os.getenv("MONITOR_API_BASE_URL", "http://api.monitoramento.la
 DISCOVERY_URL   = os.getenv("MONITOR_DISCOVERY_URL")   or urljoin(API_BASE_URL.rstrip("/") + "/", "api/discovery")
 METRICS_URL     = os.getenv("MONITOR_METRICS_URL")     or urljoin(API_BASE_URL.rstrip("/") + "/", "api/metrics")
 LOGS_URL        = os.getenv("MONITOR_LOGS_URL")        or urljoin(API_BASE_URL.rstrip("/") + "/", "api/logs")
-CONNECTIONS_URL = os.getenv("MONITOR_CONNECTIONS_URL") or urljoin(API_BASE_URL.rstrip("/") + "/", "api/connections")
+PORTSCAN_URL    = os.getenv("MONITOR_PORTSCAN_URL")    or urljoin(API_BASE_URL.rstrip("/") + "/", "api/security/portscan")
 HEARTBEAT_URL   = os.getenv("MONITOR_HEARTBEAT_URL")   or urljoin(API_BASE_URL.rstrip("/") + "/", "api/heartbeat")
 API_KEY = os.getenv("API_KEY", "")
 
@@ -113,8 +113,8 @@ def send_log(data: dict) -> dict | None:
     return send_data(data, LOGS_URL)
 
 
-def send_connections(data: dict) -> dict | None:
-    return send_data(data, CONNECTIONS_URL)
+def send_portscan(data: dict) -> dict | None:
+    return send_data(data, PORTSCAN_URL)
 
 
 def send_heartbeat(data: dict) -> dict | None:

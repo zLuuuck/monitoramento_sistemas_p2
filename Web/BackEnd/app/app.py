@@ -1,7 +1,5 @@
 # app/app.py
 # Aplicação principal Flask para o sistema de monitoramento.
-# Semana 5: registro do AlertModel e das rotas de alertas.
-# Semana 6: registro do ActiveConnectionModel, rotas de conexões e check_port_scan.
 
 import json
 import secrets
@@ -29,8 +27,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Inicialização do SQLAlchemy
 db = SQLAlchemy(app)
 
-# Registra todos os modelos
-# Semana 6: registrar_modelos agora retorna ActiveConnectionModel também
 from .models import registrar_modelos
 (
     HostModel,
@@ -38,8 +34,7 @@ from .models import registrar_modelos
     HostDiscoveryModel,
     MetricModel,
     LogEntryModel,
-    AlertModel,               # Semana 5
-    ActiveConnectionModel,    # Semana 6
+    AlertModel,
 ) = registrar_modelos(db)
 
 
@@ -138,20 +133,6 @@ def garantir_schema_iops():
         db.session.rollback()
         app.logger.warning('Nao foi possivel garantir schema de IOPS: %s', erro)
 
-
-def garantir_schema_connections_ip():
-    """Converte src_ip/dst_ip de inet para varchar(45) se o banco foi criado com o tipo errado."""
-    try:
-        with app.app_context():
-            db.session.execute(db.text(
-                "ALTER TABLE active_connections "
-                "ALTER COLUMN src_ip TYPE VARCHAR(45) USING src_ip::text, "
-                "ALTER COLUMN dst_ip TYPE VARCHAR(45) USING dst_ip::text"
-            ))
-            db.session.commit()
-    except Exception as erro:
-        db.session.rollback()
-        app.logger.warning('garantir_schema_connections_ip: %s', erro)
 
 
 def garantir_schema_alerts_source_ip():
@@ -255,7 +236,6 @@ garantir_schema_alerts()
 garantir_schema_alerts_message()
 garantir_schema_iops()
 garantir_schema_settings()
-garantir_schema_connections_ip()
 garantir_schema_alerts_source_ip()
 garantir_schema_notifications()
 garantir_schema_thresholds()
@@ -272,7 +252,7 @@ def _executar_cleanup(dias: int) -> dict:
     """
     corte = datetime.utcnow() - timedelta(days=dias)
     contagens = {}
-    for tabela in ('metrics', 'logs', 'active_connections'):
+    for tabela in ('metrics', 'logs'):
         n = db.session.execute(
             db.text(f'SELECT COUNT(*) FROM {tabela} WHERE timestamp < :corte'),
             {'corte': corte},
@@ -295,10 +275,9 @@ def _job_cleanup():
         with app.app_context():
             resultado = _executar_cleanup(dias)
         app.logger.info(
-            'Scheduler: cleanup concluído — metrics=%d, logs=%d, active_connections=%d',
+            'Scheduler: cleanup concluído — metrics=%d, logs=%d',
             resultado.get('metrics', 0),
             resultado.get('logs', 0),
-            resultado.get('active_connections', 0),
         )
     except Exception as e:
         app.logger.error('Scheduler: erro no cleanup: %s', e)
@@ -388,8 +367,7 @@ from .routes import (
     register_alerts_routes,
 )
 
-# Semana 6: importação do blueprint de conexões e da função de detecção
-from .routes.connections import register_connections_routes
+from .routes.connections import register_portscan_routes
 from .utils.detection import check_port_scan, check_resource_alert
 from .utils.auth import require_api_key
 
@@ -397,16 +375,7 @@ register_discovery_routes(app, db, HostModel, AgentModel, HostDiscoveryModel, Me
 register_metric_routes(app, db, HostModel, AgentModel, MetricModel, AlertModel, check_resource_alert)
 register_log_routes(app, db, HostModel, LogEntryModel, AlertModel)
 register_alerts_routes(app, db, HostModel, AlertModel)
-
-# Semana 6: rotas de conexões TCP com injeção de check_port_scan
-register_connections_routes(
-    app,
-    db,
-    HostModel,
-    ActiveConnectionModel,
-    AlertModel,
-    check_port_scan,          # função injetada — sem import direto no blueprint
-)
+register_portscan_routes(app, db, HostModel, AlertModel, check_port_scan)
 
 
 # ==================== ENDPOINTS GERAIS ====================
@@ -798,10 +767,9 @@ def maintenance_cleanup():
     try:
         resultado = _executar_cleanup(dias)
         app.logger.info(
-            'Cleanup manual via API: metrics=%d, logs=%d, active_connections=%d',
+            'Cleanup manual via API: metrics=%d, logs=%d',
             resultado.get('metrics', 0),
             resultado.get('logs', 0),
-            resultado.get('active_connections', 0),
         )
         return jsonify({'removidos': resultado, 'dias_retencao': dias}), 200
     except Exception as erro:

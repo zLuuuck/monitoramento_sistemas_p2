@@ -3,14 +3,14 @@ from agent.coleta.mem_coleta.mem import get_memory_usage
 from agent.coleta.disk_coleta.disk import get_disk_usage
 from agent.coleta.network_coleta.network import get_network_usage
 from agent.coleta.logs_coleta.logs import get_new_auth_log_lines
-from agent.coleta.connections_coleta.connections import get_active_connections
+from agent.coleta.connections_coleta.connections import get_scan_status
 from agent.coleta.process_coleta.processes import get_top_processes
 
 
 def collect_all():
     """
     Agrega métricas de CPU, memória, disco, rede e top processos.
-    Logs e conexões são coletados separadamente.
+    Logs e detecção de port scan são coletados separadamente.
     """
     return {
         "cpu":       get_cpu_usage(),
@@ -25,5 +25,5 @@ def collect_auth_logs() -> list[dict]:
     return get_new_auth_log_lines()
 
 
-def collect_connections() -> dict:
-    return get_active_connections()
+def collect_scan_status() -> dict:
+    return get_scan_status()

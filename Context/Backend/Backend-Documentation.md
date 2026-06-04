@@ -118,15 +118,14 @@ BackEnd/
 │   │   ├── discovery.py         # HostDiscoveryModel → tabela host_discovery
 │   │   ├── metric.py            # MetricModel → tabela metrics
 │   │   ├── log.py               # LogEntryModel → tabela logs
-│   │   ├── alert.py             # AlertModel → tabela alerts
-│   │   └── connection.py        # ActiveConnectionModel → tabela active_connections
+│   │   └── alert.py             # AlertModel → tabela alerts
 │   ├── routes/
 │   │   ├── __init__.py          # Exporta register_*_routes()
 │   │   ├── discovery.py         # POST/GET /api/discovery
 │   │   ├── metrics.py           # POST/GET /api/metrics
 │   │   ├── logs.py              # POST/GET /api/logs
 │   │   ├── alerts.py            # GET /api/alerts + PATCH /api/alerts/<id>/resolve
-│   │   └── connections.py       # POST /api/connections
+│   │   └── connections.py       # POST /api/security/portscan (sinalização de port scan)
 │   └── utils/
 │       ├── __init__.py          # Exporta parse_ssh_log, count_failed_logins, check_brute_force
 │       ├── auth.py              # require_api_key — decorator de autenticação (X-API-Key)
@@ -263,10 +262,9 @@ O banco é criado pelo `init.sql` e pode ser mais antigo que o código. As funç
 | `garantir_schema_alerts_message()` | ADD COLUMN IF NOT EXISTS `message` (TEXT) | `alerts` |
 | `garantir_schema_iops()` | ADD COLUMN IF NOT EXISTS `read_iops`, `write_iops`, `read_bytes_per_sec`, `write_bytes_per_sec`, `net_sent_bytes_per_sec`, `net_recv_bytes_per_sec` | `metrics` |
 | `garantir_schema_settings()` | CREATE TABLE IF NOT EXISTS `app_settings` | — |
-| `garantir_schema_connections_ip()` | ALTER COLUMN `src_ip`, `dst_ip` TYPE VARCHAR(45) | `active_connections` |
 | `garantir_schema_alerts_source_ip()` | ALTER COLUMN `source_ip` TYPE VARCHAR(45) + DROP NOT NULL | `alerts` |
 
-> **Nota:** `init.sql` ainda declara `source_ip` como `INET NOT NULL` e `src_ip`/`dst_ip` como `INET`. As funções de migração convertem essas colunas para VARCHAR(45) em todo banco existente ao subir o container.
+> **Nota:** `init.sql` declara `alerts.source_ip` como `INET NOT NULL`. A migração `garantir_schema_alerts_source_ip()` converte a coluna para `VARCHAR(45) nullable` em bancos existentes.
 
 ### Funções de suporte ao startup
 
@@ -283,10 +281,10 @@ register_discovery_routes(app, db, HostModel, AgentModel, HostDiscoveryModel, Me
 register_metric_routes(app, db, HostModel, AgentModel, MetricModel, AlertModel, check_resource_alert)
 register_log_routes(app, db, HostModel, LogEntryModel, AlertModel)
 register_alerts_routes(app, db, HostModel, AlertModel)
-register_connections_routes(app, db, HostModel, ActiveConnectionModel, AlertModel, check_port_scan)
+register_portscan_routes(app, db, HostModel, AlertModel, check_port_scan)
 ```
 
-O blueprint de `connections` e outros recebem funções de detecção por parâmetro para evitar import circular com `detection.py`.
+Os blueprints recebem funções de detecção por parâmetro para evitar import circular com `detection.py`.
 
 ### Endpoints gerais (definidos diretamente em app.py)
 
@@ -422,23 +420,6 @@ Um novo registro é inserido a cada envio do agente (~5 segundos). O histórico 
 
 > `source_ip` foi convertido de `INET NOT NULL` para `VARCHAR(45) nullable` pela migração `garantir_schema_alerts_source_ip()`. Alertas de recurso (cpu_high, mem_high, disk_high) não têm IP de origem — o campo fica NULL.
 
-### 6.7 ActiveConnection — tabela `active_connections`
-
-| Coluna no banco | Atributo Python | Tipo | Origem no payload do agente |
-|-----------------|-----------------|------|------------------------------|
-| `id` | `id` | `BigInteger` PK | — |
-| `host_id` | `host_id` | `Integer` FK | `global.host_id` |
-| `timestamp` | `timestamp` | `DateTime(timezone=True)` | `timestamp` do payload |
-| `src_ip` | `src_ip` | `String(45)` | `connections[].remote_ip` |
-| `src_port` | `src_port` | `Integer` | `connections[].remote_port` |
-| `dst_ip` | `dst_ip` | `String(45)` | `global.primary_ip` |
-| `dst_port` | `dst_port` | `Integer` | `connections[].local_port` |
-| `protocol` | `protocol` | `String(10)` | Fixo: `"tcp"` |
-| `status` | `status` | `String(20)` | `connections[].state` |
-| `duration_sec` | `duration_sec` | `Integer` | `connections[].duration_sec` (opcional) |
-
-> `src_ip` e `dst_ip` foram convertidos de `INET` para `VARCHAR(45)` pela migração `garantir_schema_connections_ip()`.
-
 ---
 
 ## 7. Rotas (Routes)
@@ -561,36 +542,24 @@ Marca um alerta como resolvido.
 
 ### 7.5 connections.py
 
-#### POST /api/connections
+#### POST /api/security/portscan
 
-Recebe conexões TCP ativas coletadas pelo agente.
+Recebe sinal de port scan detectado pelo agente via tcpdump. **Não persiste dados** — apenas aciona `check_port_scan()`.
 
 **Campos obrigatórios:** `global.host_id`
 
-**Campos opcionais:** `global.primary_ip`, `timestamp`, `connections[]`, `scan_sources`, `port_scan_detected`
-
-**Mapeamento connections[] → active_connections:**
-
-| Campo no payload | Campo no banco | Observação |
-|-----------------|----------------|------------|
-| `remote_ip` | `src_ip` | IP remoto que iniciou a conexão |
-| `remote_port` | `src_port` | Porta efêmera do lado remoto |
-| `local_port` | `dst_port` | Porta do serviço no host (ex: 22 = SSH) |
-| `state` | `status` | Estado TCP |
-| `duration_sec` | `duration_sec` | Opcional |
-| `global.primary_ip` | `dst_ip` | IP do próprio host monitorado |
+**Campos opcionais:** `global.primary_ip`, `timestamp`, `scan_sources`
 
 **Fluxo:**
 
-1. Valida e extrai campos globais
-2. Persiste cada conexão em `active_connections` em lote (commit único)
-3. Se `port_scan_detected == True`:
-   - Consulta `HostModel.query.get(host_id)` para obter `hostname` e `ip_address`
-   - **Com `scan_sources`:** itera sobre IPs atacantes → `check_port_scan()` por IP (com hostname/IP)
-   - **Sem `scan_sources` (fallback):** IP mais frequente em `connections[].remote_ip`
-4. Retorna 201 com `total_salvo`, `port_scan_flag`, `scan_sources`, `alertas_criados`
+1. Valida e extrai `global.host_id`
+2. Se `scan_sources` vier vazio: loga `WARNING` e retorna 200 sem criar alerta (evita atribuir scan ao IP da própria vítima)
+3. Itera `scan_sources` → `check_port_scan()` por IP atacante
+4. Retorna 201 com `scan_sources` e `alertas_criados`
 
-> **Exceção:** `connections.py` cria o Blueprint como variável de módulo (`connections_bp = Blueprint(...)`) em vez de dentro da função factory, diferente dos demais blueprints.
+> O agente só envia este endpoint quando `port_scan_detected=True`, ou seja, em eventos reais de detecção — sem polling a cada 5s.
+
+> **Motivo da remoção da persistência em `active_connections`:** a tabela não tinha tela consumidora no frontend e gerava erro 500 por FK violada (`host_id` inexistente em certas janelas de inicialização). A detecção de port scan não dependia da lista de conexões TCP — dependia apenas de `scan_sources` produzido pelas threads de tcpdump. A funcionalidade de alerta foi preservada integralmente; apenas o peso morto foi removido.
 
 ---
 
@@ -865,7 +834,7 @@ Cria alerta se `valor > limiar` e não houver alerta ativo do mesmo tipo para o 
 | `/api/logs` | GET | Sim | Frontend | Consulta logs com filtro e paginação |
 | `/api/alerts` | GET | Sim | Frontend | Lista alertas de segurança |
 | `/api/alerts/<id>/resolve` | PATCH | Sim | Frontend | Marca alerta como resolvido |
-| `/api/connections` | POST | Sim | Agente | Recebe conexões TCP + detecta port scan |
+| `/api/security/portscan` | POST | Sim | Agente | Recebe sinal de port scan (tcpdump) → cria alerta |
 | `/api/settings/email-recipients` | GET | Sim | Frontend | Lista destinatários de email para alertas |
 | `/api/settings/email-recipients` | POST | Sim | Frontend | Adiciona email à lista de destinatários |
 | `/api/settings/email-recipients/<email>` | DELETE | Sim | Frontend | Remove email da lista de destinatários |
@@ -960,22 +929,21 @@ Agente → POST /api/logs { Authorization: Bearer }
                            + Email: destinatários de app_settings → True
 ```
 
-### 10.5 Conexões TCP + Detecção de Port Scan
+### 10.5 Detecção de Port Scan
 
 ```
-Agente → POST /api/connections { Authorization: Bearer }
+Agente (threads tcpdump) → detecta ≥10 portas distintas de um IP em 60s
                 │
-                ├─ INSERT ActiveConnectionModel (em lote)
-                ├─ db.session.commit()
-                │
-                └─ [port_scan_detected == true]
-                    ├─ HostModel.query.get(host_id) → objeto host
-                    └─ [com scan_sources] → itera IPs atacantes
-                        └─ check_port_scan(host_id, ip_atacante, port_count, host.hostname, host.ip_address)
-                            ├─ [alerta resolved=False criado há < 2min] → False
-                            └─ INSERT AlertModel { port_scan, high }
-                               + Teams: "Port Scan detectado — servidor-web"
-                               + Email: destinatários de app_settings → True
+                └─ [port_scan_detected=True] → POST /api/security/portscan
+                        │
+                        ├─ [scan_sources vazio] → loga WARNING, retorna 200 sem alerta
+                        │
+                        └─ [com scan_sources] → itera IPs atacantes
+                            └─ check_port_scan(host_id, ip_atacante, port_count, host.hostname, host.ip_address)
+                                ├─ [alerta resolved=False criado há < 2min] → False
+                                └─ INSERT AlertModel { port_scan, high }
+                                   + Teams: "Port Scan detectado — servidor-web" (se notify_teams=true)
+                                   + Email: destinatários de app_settings (se notify_email=true) → True
 ```
 
 ---
@@ -1026,7 +994,7 @@ Cada alerta criado dispara **duas** notificações independentes e paralelas: Te
 |--------|---------------------|
 | `check_brute_force` | `host` já consultado em `logs.py` para validação do host_id |
 | `check_resource_alert` | `host` retornado por `_resolve_host()` em `metrics.py` |
-| `check_port_scan` | `HostModel.query.get(host_id)` consultado em `connections.py` quando `port_scan_flag=True` |
+| `check_port_scan` | `HostModel.query.get(host_id)` consultado em `connections.py` (rota `/api/security/portscan`) |
 
 **Destinatários de email:** lidos de `app_settings.email_recipients` (JSON array) via `_get_email_recipients(db)`. Fallback para `ALERT_RECIPIENT` do `.env` se a lista no banco estiver vazia.
 
@@ -1063,7 +1031,7 @@ Cada alerta criado dispara **duas** notificações independentes e paralelas: Te
 | `POST /api/logs` | `raw_line` | Obrigatório, não pode ser vazio ou whitespace |
 | `GET /api/metrics` | `host_id` | Obrigatório, deve ser numérico, host deve existir |
 | `GET /api/alerts` | `status` | Deve ser `"active"`, `"resolved"` ou `"all"` |
-| `POST /api/connections` | `global.host_id` | Obrigatório, deve ser numérico |
+| `POST /api/security/portscan` | `global.host_id` | Obrigatório, deve ser numérico |
 | `PATCH /api/alerts/<id>/resolve` | alerta | Deve existir (404); se já resolvido retorna 400 |
 | Todas (exceto auth/login, settings, health) | `Authorization` | `Bearer {api_key}` obrigatório → 401 se ausente/inválido |
 
@@ -1099,11 +1067,7 @@ Cada alerta criado dispara **duas** notificações independentes e paralelas: Te
 
 O PDF de capa (v4.0) menciona Python 3.13. O `Dockerfile` real usa `python:3.12-alpine`.
 
-### 14.2 Blueprint connections vs demais
-
-`connections.py` cria o Blueprint como variável de módulo (`connections_bp = Blueprint(...)`) no topo do arquivo, diferente dos outros blueprints que criam dentro da função factory. Funciona corretamente mas destoa do padrão.
-
-### 14.3 Atributos Python vs colunas do banco (Metric)
+### 14.2 Atributos Python vs colunas do banco (Metric)
 
 O `MetricModel` usa aliases para vários campos. Exemplo:
 
@@ -1128,7 +1092,7 @@ sa_text("parsed_data->>'ip_origem' = :ip_origem").bindparams(ip_origem=ip_origem
 
 ### 14.5 init.sql defasado
 
-`init.sql` ainda declara `alerts.source_ip` como `INET NOT NULL` e `active_connections.src_ip/dst_ip` como `INET`. As funções de migração no startup corrigem isso em runtime. Para novos ambientes, o schema de estado final é diferente do que está no `init.sql`.
+`init.sql` ainda declara `alerts.source_ip` como `INET NOT NULL`. A migração `garantir_schema_alerts_source_ip()` converte a coluna em runtime. Para novos ambientes o schema de estado final é diferente do que está no arquivo.
 
 ### 14.6 Política de retenção — ✅ AUTOMATIZADA (Fase B)
 
@@ -1140,9 +1104,11 @@ Em `_normalize_metrics_payload()`, há uma referência a `request.args.get('host
 
 ---
 
-*Documentação atualizada em 03/06/2026 — v6.1.0*  
+*Documentação atualizada em 04/06/2026 — v7.0.0*  
 *Adições v5.0: autenticação (API key + PANEL_PASSWORD), Teams, alertas de recurso, migrations adicionais, check_port_scan com cooldown temporal, notificação de startup.*  
 *Adições v5.1: DNS explícito no docker-compose (8.8.8.8/8.8.4.4); teams.py com payload completo (icone, timestamp, link), lazy URL loading corrigido, log levels WARNING; hostname e host_ip nos alertas Teams.*  
 *Adições v6.0: notifier.py (email via Gmail/SMTP com HTML dark-mode); endpoints de gerenciamento de destinatários de email (`GET/POST/DELETE /api/settings/email-recipients`); `_get_email_recipients(db)` em detection.py; mudança de header de autenticação de `Authorization: Bearer` para `X-API-Key`; app_settings passa a armazenar `email_recipients`.*  
 *Adições v6.1 (Fase A — hardening): `POST /api/settings/apikey/generate` protegido com X-API-Key ou PANEL_PASSWORD; SQL injection em `count_failed_logins` corrigido (bind params); portas 5432/5000/5173 removidas do host no docker-compose (apenas Nginx 80 exposto).*  
-*Adições v6.2 (Fase B — retenção): APScheduler adicionado; `_executar_cleanup` + `_job_cleanup` + `_iniciar_scheduler` em `app.py`; cron 03:00 UTC; `RETENTION_DAYS` env; endpoint `POST /api/maintenance/cleanup`.*
+*Adições v6.2 (Fase B — retenção): APScheduler adicionado; `_executar_cleanup` + `_job_cleanup` + `_iniciar_scheduler` em `app.py`; cron 03:00 UTC; `RETENTION_DAYS` env; endpoint `POST /api/maintenance/cleanup`.*  
+*Adições v6.3 (Fases C/D): thresholds configuráveis (CPU/RAM/disco) via `app_settings`; toggles `notify_teams`/`notify_email`; `NotificationsCard` e `ThresholdsCard` no frontend; Sidebar limpa (badge e dot fixos removidos).*  
+*Adições v7.0 (remoção active_connections): tabela `active_connections` e model `connection.py` removidos — sem tela consumidora no frontend e causava erro 500 por FK. Rota renomeada de `POST /api/connections` para `POST /api/security/portscan`; endpoint não persiste dados, apenas aciona `check_port_scan()`. Agente passa a enviar o sinal somente quando `port_scan_detected=True`, eliminando polling a cada 5s. Fallback legado (IP mais frequente em connections[]) removido; `scan_sources` vazio com flag `True` suprime o alerta (em vez de poluir com o IP da vítima).*

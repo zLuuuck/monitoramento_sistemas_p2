@@ -12,12 +12,12 @@ from agent.discovery.network_discovery.network import get_network_info
 from agent.discovery.motherboard_discovery.motherboard import get_motherboard_info
 from agent.discovery.tools_discovery.tools import get_tools_info
 from agent.global_information.global_information import build_global_information
-from agent.coleta.collector import collect_all, collect_auth_logs, collect_connections
+from agent.coleta.collector import collect_all, collect_auth_logs, collect_scan_status
 from agent.utils.sender import (
     send_discovery,
     send_metrics,
     send_log,
-    send_connections,
+    send_portscan,
     send_heartbeat,
     flush_retry_queue,
 )
@@ -114,9 +114,6 @@ def main():
     logs_global                 = build_global_information("logs")
     logs_global["host_id"]      = db_host_id
 
-    connections_global              = build_global_information("connections")
-    connections_global["host_id"]   = db_host_id
-
     logger.info("Coleta contínua iniciada...")
 
     while True:
@@ -189,32 +186,29 @@ def main():
             logger.exception("Erro na coleta de logs")
 
         # -----------------------------------------------------------------
-        # CONEXÕES TCP (detecção de port scan entrante via tcpdump)
+        # PORT SCAN (sinalização via tcpdump — só envia ao backend quando detectado)
         # -----------------------------------------------------------------
         try:
-            conn_data    = collect_connections()
-            timestamp    = datetime.now(timezone.utc).isoformat()
-            scan_sources = conn_data.get("scan_sources", {})
-            conn_payload = {
-                "global":             connections_global,
-                "timestamp":          timestamp,
-                "connections":        conn_data.get("connections", []),
-                "total":              conn_data.get("total", 0),
-                "port_scan_detected": conn_data.get("port_scan_detected", False),
-                "scan_sources":       scan_sources,
-            }
-            if conn_data.get("port_scan_detected"):
+            scan = collect_scan_status()
+            if scan.get("port_scan_detected"):
+                scan_sources = scan.get("scan_sources", {})
                 for ip, port_count in scan_sources.items():
                     logger.warning(
                         "ALERTA: port scan ENTRANTE de %s — %d portas distintas em 60s",
                         ip, port_count,
                     )
-            if debug_exec:
-                print(json.dumps(conn_payload, indent=2, default=str))
-            else:
-                send_connections(conn_payload)
+                scan_payload = {
+                    "global":             metrics_global,
+                    "timestamp":          datetime.now(timezone.utc).isoformat(),
+                    "port_scan_detected": True,
+                    "scan_sources":       scan_sources,
+                }
+                if debug_exec:
+                    print(json.dumps(scan_payload, indent=2, default=str))
+                else:
+                    send_portscan(scan_payload)
         except Exception:
-            logger.exception("Erro na coleta de conexoes")
+            logger.exception("Erro na detecção de port scan")
 
         time.sleep(5)
 
