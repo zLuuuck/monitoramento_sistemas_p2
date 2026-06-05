@@ -9,6 +9,9 @@ import ssl
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from zoneinfo import ZoneInfo
+
+_TZ_BRT = ZoneInfo('America/Sao_Paulo')
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +24,8 @@ _SMTP_HOST = 'smtp.gmail.com'
 _SMTP_PORT = 587
 
 _SEVERITY_EMOJI = {
-    'low':      '🟡',
-    'medium':   '🟠',
+    'low':      '🔵',
+    'medium':   '🟡',
     'high':     '🔴',
     'critical': '🚨',
 }
@@ -35,11 +38,19 @@ _TIPO_LEGIVEL = {
     'disk_high':   'Disco Alto',
 }
 
+# Cores de severidade (dark mode — paleta Tailwind)
 _COR_SEVERIDADE = {
-    'low':      '#d97706',
-    'medium':   '#ea580c',
-    'high':     '#dc2626',
-    'critical': '#7f1d1d',
+    'low':      '#60a5fa',   # blue-400
+    'medium':   '#fbbf24',   # amber-400
+    'high':     '#f87171',   # red-400
+    'critical': '#fca5a5',   # red-300
+}
+
+_COR_BADGE_BG = {
+    'low':      'rgba(96,165,250,0.15)',
+    'medium':   'rgba(251,191,36,0.15)',
+    'high':     'rgba(248,113,113,0.15)',
+    'critical': 'rgba(252,165,165,0.20)',
 }
 
 
@@ -68,25 +79,19 @@ def enviar_alerta_email(
         return False
 
     try:
-        emoji     = _SEVERITY_EMOJI.get(severity.lower(), '⚠️')
-        tipo      = _TIPO_LEGIVEL.get(alert_type, alert_type.upper())
-        cor       = _COR_SEVERIDADE.get(severity.lower(), '#dc2626')
-        timestamp = datetime.utcnow().strftime('%d/%m/%Y %H:%M:%S UTC')
+        sev_key      = severity.lower()
+        emoji        = _SEVERITY_EMOJI.get(sev_key, '⚠️')
+        tipo         = _TIPO_LEGIVEL.get(alert_type, alert_type.upper())
+        cor          = _COR_SEVERIDADE.get(sev_key, '#f87171')
+        cor_badge_bg = _COR_BADGE_BG.get(sev_key, 'rgba(248,113,113,0.15)')
+        timestamp    = datetime.now(_TZ_BRT).strftime('%d/%m/%Y %H:%M:%S (BRT)')
 
-        host_display = hostname if hostname else f'Host {host_id}'
+        host_display    = hostname if hostname else f'Host {host_id}'
+        host_ip_display = host_ip if host_ip else '—'
         assunto = f'{emoji} [ALERTA][{severity.upper()}] {tipo} — {host_display}'
 
-        # Linha de IP do atacante — só aparece quando há source_ip
+        # Plain-text (fallback)
         ip_atacante_txt = f'IP do Atacante: {source_ip}\n' if source_ip else ''
-        ip_atacante_html = (
-            f'<tr>'
-            f'<td style="padding:10px 16px 10px 0;color:#52525b;font-size:12px;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;width:1%;vertical-align:top;">IP Atacante</td>'
-            f'<td style="padding:10px 0;color:#f87171;font-size:13px;font-family:\'Courier New\',monospace;font-weight:600;">{source_ip}</td>'
-            f'</tr>'
-        ) if source_ip else ''
-
-        host_ip_display = host_ip if host_ip else '—'
-
         corpo_txt = f"""ALERTA DE SEGURANÇA — Sistema de Monitoramento PADS3
 =====================================================
 
@@ -103,16 +108,16 @@ Descrição:
 Acesse o painel: http://painel.monitoramento.lan
 """.strip()
 
-        # Cores do badge de severidade (fundo levemente colorido sobre dark)
-        cor_badge_bg  = {
-            'low':      'rgba(251,191,36,.15)',
-            'medium':   'rgba(251,146,60,.15)',
-            'high':     'rgba(239,68,68,.15)',
-            'critical': 'rgba(220,38,38,.20)',
-        }.get(severity.lower(), 'rgba(239,68,68,.15)')
-
-        # Barra de progresso / indicador visual de severidade (largura %)
-        sev_pct = {'low': '30', 'medium': '55', 'high': '80', 'critical': '100'}.get(severity.lower(), '80')
+        # Linha de IP do atacante (tabela HTML) — só quando presente
+        ip_atacante_html = (
+            f'<tr style="border-top:1px solid #374151;">'
+            f'<td style="padding:9px 20px 9px 0;color:#6b7280;font-size:11px;'
+            f'text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;'
+            f'width:1%;vertical-align:middle;font-weight:600;">&#x26A0; IP Atacante</td>'
+            f'<td style="padding:9px 0;color:#f87171;font-size:13px;'
+            f'font-family:\'Courier New\',Courier,monospace;font-weight:700;">{source_ip}</td>'
+            f'</tr>'
+        ) if source_ip else ''
 
         corpo_html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -120,85 +125,87 @@ Acesse o painel: http://painel.monitoramento.lan
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 </head>
-<body style="margin:0;padding:0;background:#09090b;font-family:'Segoe UI',Arial,Helvetica,sans-serif;">
+<body style="margin:0;padding:0;background:#111827;font-family:'Segoe UI',Arial,Helvetica,sans-serif;">
 <div style="padding:32px 16px;">
-<div style="max-width:580px;margin:auto;">
+<div style="max-width:600px;margin:auto;">
 
-  <!-- Topo: logo + sistema -->
-  <div style="text-align:center;margin-bottom:20px;">
-    <span style="display:inline-block;background:#18181b;border:1px solid #27272a;border-radius:8px;padding:6px 16px;font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:1.4px;">
-      PADS3 &middot; Sistema de Monitoramento
-    </span>
+  <!-- Header: logo + brand (espelha a sidebar do frontend) -->
+  <div style="margin-bottom:24px;">
+    <table style="border-collapse:collapse;">
+      <tr>
+        <td style="padding:0 12px 0 0;vertical-align:middle;">
+          <div style="width:38px;height:38px;background:#2563eb;border-radius:8px;text-align:center;line-height:38px;font-size:20px;">&#x1F6E1;&#xFE0F;</div>
+        </td>
+        <td style="vertical-align:middle;">
+          <div style="font-size:17px;font-weight:700;color:#f3f4f6;line-height:1.2;">Monitor</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px;">Sistema de Monitoramento &middot; PADS3</div>
+        </td>
+      </tr>
+    </table>
   </div>
 
-  <!-- Card principal -->
-  <div style="background:#18181b;border-radius:16px;border:1px solid #27272a;overflow:hidden;">
+  <!-- Card principal (espelha --card-bg dark: #1f2937, --card-border: #374151) -->
+  <div style="background:#1f2937;border-radius:12px;border:1px solid #374151;overflow:hidden;">
 
-    <!-- Linha de acento superior (cor da severidade) -->
-    <div style="height:3px;background:linear-gradient(90deg,{cor} 0%,{cor}99 60%,transparent 100%);"></div>
+    <!-- Barra de acento superior (cor de severidade) -->
+    <div style="height:3px;background:{cor};"></div>
 
-    <!-- Header do alerta -->
+    <!-- Cabeçalho do alerta -->
     <div style="padding:28px 32px 24px;">
-      <!-- Badge de severidade -->
-      <div style="display:inline-flex;align-items:center;gap:7px;background:{cor_badge_bg};border:1px solid {cor}55;border-radius:20px;padding:4px 14px;margin-bottom:16px;">
-        <span style="font-size:14px;line-height:1;">{emoji}</span>
-        <span style="font-size:11px;font-weight:700;color:{cor};text-transform:uppercase;letter-spacing:1px;">{severity.upper()}</span>
+      <!-- Badge de severidade (estilo AlertsPanel do frontend) -->
+      <div style="margin-bottom:14px;">
+        <span style="display:inline-block;background:{cor_badge_bg};color:{cor};
+          font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;
+          padding:4px 14px;border-radius:6px;">{emoji}&nbsp;{severity.upper()}</span>
       </div>
-
-      <!-- Título -->
-      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#fafafa;line-height:1.3;">{tipo}</h1>
-      <p style="margin:0;font-size:14px;color:#71717a;">{host_display}</p>
+      <!-- Tipo do alerta -->
+      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#f3f4f6;line-height:1.3;">{tipo}</h1>
+      <!-- Host -->
+      <p style="margin:0;font-size:13px;color:#9ca3af;">{host_display}</p>
     </div>
 
     <!-- Divisor -->
-    <div style="height:1px;background:#27272a;margin:0 32px;"></div>
+    <div style="height:1px;background:#374151;margin:0 32px;"></div>
 
     <!-- Tabela de detalhes -->
     <div style="padding:20px 32px;">
       <table style="width:100%;border-collapse:collapse;">
         <tr>
-          <td style="padding:10px 16px 10px 0;color:#52525b;font-size:12px;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;width:1%;vertical-align:top;">Host</td>
-          <td style="padding:10px 0;color:#e4e4e7;font-size:14px;font-weight:600;">{host_display}</td>
+          <td style="padding:9px 18px 9px 0;color:#6b7280;font-size:11px;text-transform:uppercase;
+            letter-spacing:.8px;white-space:nowrap;width:1%;vertical-align:middle;font-weight:600;">&#x1F4BB; Host</td>
+          <td style="padding:9px 0;color:#f3f4f6;font-size:14px;font-weight:600;">{host_display}</td>
         </tr>
-        <tr>
-          <td style="padding:10px 16px 10px 0;color:#52525b;font-size:12px;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;width:1%;vertical-align:top;">IP do Host</td>
-          <td style="padding:10px 0;color:#a1a1aa;font-size:13px;font-family:'Courier New',monospace;">{host_ip_display}</td>
+        <tr style="border-top:1px solid #374151;">
+          <td style="padding:9px 18px 9px 0;color:#6b7280;font-size:11px;text-transform:uppercase;
+            letter-spacing:.8px;white-space:nowrap;width:1%;vertical-align:middle;font-weight:600;">&#x1F310; IP do Host</td>
+          <td style="padding:9px 0;color:#9ca3af;font-size:13px;font-family:'Courier New',Courier,monospace;">{host_ip_display}</td>
         </tr>
         {ip_atacante_html}
-        <tr>
-          <td style="padding:10px 16px 10px 0;color:#52525b;font-size:12px;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;width:1%;vertical-align:top;">Data / Hora</td>
-          <td style="padding:10px 0;color:#a1a1aa;font-size:13px;">{timestamp}</td>
+        <tr style="border-top:1px solid #374151;">
+          <td style="padding:9px 18px 9px 0;color:#6b7280;font-size:11px;text-transform:uppercase;
+            letter-spacing:.8px;white-space:nowrap;width:1%;vertical-align:middle;font-weight:600;">&#x1F552; Hor&aacute;rio</td>
+          <td style="padding:9px 0;color:#9ca3af;font-size:13px;">{timestamp}</td>
         </tr>
       </table>
     </div>
 
     <!-- Divisor -->
-    <div style="height:1px;background:#27272a;margin:0 32px;"></div>
+    <div style="height:1px;background:#374151;margin:0 32px;"></div>
 
-    <!-- Descrição -->
-    <div style="padding:20px 32px;">
-      <p style="margin:0 0 10px;font-size:11px;color:#52525b;text-transform:uppercase;letter-spacing:.8px;">Descrição</p>
-      <div style="background:#09090b;border:1px solid #27272a;border-left:3px solid {cor};border-radius:0 8px 8px 0;padding:14px 18px;">
-        <p style="margin:0;color:#d4d4d8;font-size:14px;line-height:1.65;">{message}</p>
+    <!-- Descrição do evento -->
+    <div style="padding:20px 32px 28px;">
+      <p style="margin:0 0 10px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.9px;font-weight:600;">Descri&ccedil;&atilde;o do Evento</p>
+      <div style="background:#111827;border:1px solid #374151;border-left:3px solid {cor};border-radius:0 8px 8px 0;padding:14px 18px;">
+        <p style="margin:0;color:#d1d5db;font-size:14px;line-height:1.7;">{message}</p>
       </div>
     </div>
 
-    <!-- Indicador de severidade -->
-    <div style="padding:0 32px 20px;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span style="font-size:11px;color:#52525b;white-space:nowrap;">Criticidade</span>
-        <div style="flex:1;height:4px;background:#27272a;border-radius:4px;overflow:hidden;">
-          <div style="width:{sev_pct}%;height:100%;background:linear-gradient(90deg,{cor}99,{cor});border-radius:4px;"></div>
-        </div>
-        <span style="font-size:11px;color:{cor};font-weight:700;white-space:nowrap;">{sev_pct}%</span>
-      </div>
-    </div>
-
-    <!-- Botão CTA -->
-    <div style="padding:4px 32px 32px;text-align:center;">
+    <!-- Footer do card: botão CTA (azul fixo — cor da marca, igual à sidebar) -->
+    <div style="background:#111827;border-top:1px solid #374151;padding:20px 32px;text-align:center;border-radius:0 0 12px 12px;">
       <a href="http://painel.monitoramento.lan"
-         style="display:inline-block;background:{cor};color:#fff;text-decoration:none;padding:13px 40px;border-radius:10px;font-weight:700;font-size:14px;letter-spacing:.4px;">
-        Abrir Painel &rarr;
+         style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;
+           padding:11px 36px;border-radius:8px;font-weight:600;font-size:14px;letter-spacing:.3px;">
+        Abrir Painel de Alertas &rarr;
       </a>
     </div>
 
@@ -206,8 +213,8 @@ Acesse o painel: http://painel.monitoramento.lan
 
   <!-- Rodapé -->
   <div style="text-align:center;margin-top:20px;">
-    <p style="margin:0;font-size:11px;color:#3f3f46;">
-      Gerado automaticamente &middot; Não responda este email &middot; PADS3
+    <p style="margin:0;font-size:11px;color:#4b5563;line-height:1.8;">
+      Gerado automaticamente &middot; PADS3 &middot; N&atilde;o responda este email
     </p>
   </div>
 

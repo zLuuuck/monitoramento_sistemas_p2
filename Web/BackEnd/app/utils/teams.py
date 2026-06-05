@@ -5,8 +5,11 @@
 import logging
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import requests
+
+_TZ_BRT = ZoneInfo('America/Sao_Paulo')
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +26,27 @@ def enviar_alerta_teams(titulo: str, mensagem: str, severidade: str = 'info',
         logger.warning('TEAMS_WEBHOOK_URL não configurado — alerta não enviado')
         return False
 
-    # Mapeia severidade → emoji para facilitar leitura no card
+    sev_lower = severidade.lower()
+
+    # Emojis idênticos ao notifier.py
     icone = {
-        'critical': '🔴',
-        'high':     '🟠',
+        'critical': '🚨',
+        'high':     '🔴',
         'warning':  '🟡',
+        'medium':   '🟡',
         'info':     '🔵',
-    }.get(severidade.lower(), '⚪')
+        'low':      '🔵',
+    }.get(sev_lower, '⚪')
+
+    # cor_card é o "style" do container do Adaptive Card no Power Automate
+    cor_card = {
+        'critical': 'attention',
+        'high':     'attention',
+        'warning':  'warning',
+        'medium':   'warning',
+        'info':     'accent',
+        'low':      'accent',
+    }.get(sev_lower, 'attention')
 
     payload = {
         'titulo':     titulo,
@@ -37,8 +54,9 @@ def enviar_alerta_teams(titulo: str, mensagem: str, severidade: str = 'info',
         'severidade': severidade.upper(),
         'icone':      icone,
         'origem':     origem,
-        'timestamp':  datetime.now().astimezone().strftime('%d/%m/%Y %H:%M:%S'),
+        'timestamp':  datetime.now(_TZ_BRT).strftime('%d/%m/%Y %H:%M:%S (BRT)'),
         'link':       link,
+        'cor_card':   cor_card,
     }
 
     try:

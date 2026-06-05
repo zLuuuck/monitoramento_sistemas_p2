@@ -5,11 +5,12 @@
   "body": [
     {
       "type": "Container",
-      "style": "attention",
+      "style": "@{triggerBody()?['cor_card']}",
       "bleed": true,
       "items": [
         {
           "type": "ColumnSet",
+          "spacing": "None",
           "columns": [
             {
               "type": "Column",
@@ -31,7 +32,7 @@
               "items": [
                 {
                   "type": "TextBlock",
-                  "text": "MONITOR DE SEGURANÇA",
+                  "text": "PADS3 · MONITOR DE SEGURANÇA",
                   "weight": "Bolder",
                   "color": "Light",
                   "size": "Small",
@@ -48,21 +49,24 @@
                   "spacing": "None"
                 }
               ]
+            },
+            {
+              "type": "Column",
+              "width": "auto",
+              "verticalContentAlignment": "Center",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "@{triggerBody()?['severidade']}",
+                  "weight": "Bolder",
+                  "color": "Light",
+                  "size": "Small",
+                  "spacing": "None",
+                  "horizontalAlignment": "Right"
+                }
+              ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "Container",
-      "spacing": "Medium",
-      "items": [
-        {
-          "type": "TextBlock",
-          "text": "@{triggerBody()?['mensagem']}",
-          "wrap": true,
-          "size": "Medium",
-          "spacing": "Small"
         }
       ]
     },
@@ -72,19 +76,68 @@
       "spacing": "Medium",
       "items": [
         {
-          "type": "FactSet",
-          "facts": [
+          "type": "TextBlock",
+          "text": "DESCRIÇÃO",
+          "weight": "Bolder",
+          "size": "Small",
+          "isSubtle": true,
+          "spacing": "None"
+        },
+        {
+          "type": "TextBlock",
+          "text": "@{triggerBody()?['mensagem']}",
+          "wrap": true,
+          "size": "Default",
+          "spacing": "Small"
+        }
+      ]
+    },
+    {
+      "type": "ColumnSet",
+      "spacing": "Medium",
+      "separator": true,
+      "columns": [
+        {
+          "type": "Column",
+          "width": "stretch",
+          "items": [
             {
-              "title": "🖥️ Host",
-              "value": "@{triggerBody()?['origem']}"
+              "type": "TextBlock",
+              "text": "🖥️ HOST",
+              "weight": "Bolder",
+              "size": "Small",
+              "isSubtle": true,
+              "spacing": "None"
             },
             {
-              "title": "🚨 Severidade",
-              "value": "@{triggerBody()?['severidade']}"
+              "type": "TextBlock",
+              "text": "@{triggerBody()?['origem']}",
+              "size": "Default",
+              "wrap": true,
+              "spacing": "None"
+            }
+          ]
+        },
+        {
+          "type": "Column",
+          "width": "auto",
+          "separator": true,
+          "items": [
+            {
+              "type": "TextBlock",
+              "text": "🕐 HORÁRIO (BRT)",
+              "weight": "Bolder",
+              "size": "Small",
+              "isSubtle": true,
+              "spacing": "None",
+              "horizontalAlignment": "Right"
             },
             {
-              "title": "🕐 Horário",
-              "value": "@{triggerBody()?['timestamp']}"
+              "type": "TextBlock",
+              "text": "@{triggerBody()?['timestamp']}",
+              "size": "Default",
+              "spacing": "None",
+              "horizontalAlignment": "Right"
             }
           ]
         }
@@ -94,8 +147,8 @@
   "actions": [
     {
       "type": "Action.OpenUrl",
-      "title": "🔗 Abrir Dashboard",
-      "url": "@{triggerBody()?['link']}"
+      "title": "Abrir Dashboard →",
+      "url": "@{if(empty(triggerBody()?['link']), 'http://painel.monitoramento.lan', triggerBody()?['link'])}"
     }
   ]
 }
