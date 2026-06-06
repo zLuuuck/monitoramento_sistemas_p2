@@ -79,3 +79,28 @@ Agente (endpoint) → DNS (10.10.10.1) → resolve monitoramento.lan
 ```
 
 As principais fragilidades foram tratadas: domínio válido, confiança TLS explícita nos agentes, serviços de rede executados fora de contêineres para evitar dependências circulares, e exposição mínima da superfície de ataque.
+
+---
+
+# Arquitetura Implementada vs. Arquitetura Planejada
+
+> **Atenção:** a arquitetura acima descreve o **planejamento inicial**. O que foi efetivamente implementado difere em pontos importantes:
+
+| Componente | Planejado | Implementado | Motivo da mudança |
+|-----------|-----------|--------------|-------------------|
+| **Proxy reverso** | Caddy (terminação TLS automática, HTTP/2) | **Nginx** (HTTP simples, sem TLS) | Caddy introduzia complexidade desnecessária para o laboratório; Nginx já era familiar e suficiente |
+| **Step-CA** | Autoridade certificadora interna para agentes e Caddy | **Não implementado** | Escopo simplificado; comunicação HTTP entre agentes e backend foi aceita para o ambiente de lab |
+| **TLS / HTTPS** | Obrigatório — agentes com `verify="/etc/agente/root_ca.crt"` | **HTTP simples** — sem TLS, sem verificação de certificado | Consequência da não implementação do Step-CA |
+| **Serviço de frontend** | Node.js 24 Alpine (só build Vite) — estático servido pelo Caddy | Node.js + Vite **dev server** — servido pelo Nginx como proxy | Dev server facilita hot reload durante o desenvolvimento |
+| **Endpoints da API** | Somente `/api/discovery` e `/api/metrics` | `/api/discovery`, `/api/metrics`, `/api/logs`, `/api/alerts`, `/api/heartbeat`, `/api/security/portscan` e endpoints de configuração | Escopo expandiu ao longo das semanas |
+| **Firewall (ufw)** | Planejado — permitir DHCP, DNS, HTTPS | Implementado apenas para uso básico | Ambiente de laboratório controlado |
+| **Healthchecks Docker** | Planejados para backend e Caddy | Implementado apenas no `postgres` (pg_isready); backend usa `depends_on: service_healthy` | Suficiente para evitar race condition no startup |
+
+### O que ficou como planejado
+
+- Sub-rede `10.10.10.0/26` com DHCP (`isc-dhcp-server`) no host Ubuntu Server
+- DNS com `dnsmasq` resolvendo `*.monitoramento.lan` → `10.10.10.1`
+- PostgreSQL sem porta exposta no host (acesso apenas pela rede interna Docker)
+- 4 containers Docker Compose (postgres, backend, frontend, nginx)
+- Agentes Python distribuídos como binários PyInstaller
+- Comunicação push — agentes iniciam, backend nunca conecta nos agentes

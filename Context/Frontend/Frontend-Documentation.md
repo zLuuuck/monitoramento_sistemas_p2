@@ -85,8 +85,11 @@ Web/FrontEnd/
     │   ├── logs_feat/components/
     │   │   ├── LogsPanel.jsx               ← painel de logs com filtros
     │   │   └── LogsPlaceholder.jsx
-    │   └── alerts/components/
-    │       └── AlertsPanel.jsx             ← painel de alertas com resolução
+    │   └── alerts/
+    │       ├── components/
+    │       │   └── AlertsPanel.jsx         ← painel de alertas com resolução
+    │       └── services/
+    │           └── alertsApi.js            ← cliente Axios para endpoints de alertas
     └── modals/
         └── EndpointModal.jsx               ← modal (não conectado a nenhuma rota)
 ```
@@ -283,10 +286,29 @@ Página de configurações com 5 cards organizados em grid 2 colunas:
 | Card | Componente interno | Descrição |
 |------|--------------------|-----------|
 | Aparência | inline | Toggle de tema claro/escuro via `ThemeContext` |
-| Monitoramento | inline | Preferências de intervalo e limiar (UI visual — selects sem efeito real) |
+| Notificações | `NotificationsCard` | Toggles para habilitar/desabilitar Teams e Email |
+| Limiares de Alerta | `ThresholdsCard` | Configura % de CPU, memória e disco para disparo de alerta |
 | Destinatários de Email | `EmailRecipientsCard` | Gerencia lista de emails para alertas |
 | API Key | `ApiKeyCard` | Gerencia a API key do servidor e do navegador |
 | Sobre o Sistema | inline | Informações da versão |
+
+#### NotificationsCard
+
+Componente interno de `SettingsPage` para controlar os toggles de notificação.
+
+- **Carrega:** `GET /api/settings/notifications` no mount
+- **Toggle Teams:** `PATCH /api/settings/notifications { "teams": bool }`
+- **Toggle Email:** `PATCH /api/settings/notifications { "email": bool }`
+- Estados: `notifications`, `loading`, `saving`, `error`
+
+#### ThresholdsCard
+
+Componente interno de `SettingsPage` para configurar os limiares de alerta de recurso.
+
+- **Carrega:** `GET /api/settings/thresholds` no mount
+- **Salvar:** `PATCH /api/settings/thresholds { cpu: N, mem: N, disk: N }` — aceita subset
+- Valores válidos: inteiro entre 1 e 99
+- Estados: `thresholds`, `loading`, `saving`, `error`
 
 #### EmailRecipientsCard
 
@@ -339,18 +361,22 @@ headers: {
 
 ### Funções de dados
 
-| Função                       | Método | Endpoint                                              | Descrição                                     |
-|------------------------------|--------|-------------------------------------------------------|-----------------------------------------------|
-| `getDiscovery()`             | GET    | `/api/discovery`                                      | Lista todos os hosts com dados de hardware    |
-| `getMetrics(hostId, limit)`  | GET    | `/api/metrics?host_id=N&limit=30`                     | Últimas N métricas do host                    |
-| `getLogs(hostId, options)`   | GET    | `/api/logs?host_id=N&limit=50&offset=0&log_type=auth` | Logs paginados do host                        |
-| `getAlerts(status)`          | GET    | `/api/alerts?status=active`                           | Alertas por status                            |
-| `resolveAlert(alertId)`      | PATCH  | `/api/alerts/{id}/resolve`                            | Resolve um alerta                             |
-| `getApiKey()`                | GET    | `/api/settings/apikey`                                | Status e prefixo da API key no servidor       |
-| `generateApiKey()`           | POST   | `/api/settings/apikey/generate`                       | Gera nova API key no servidor                 |
-| `getEmailRecipients()`       | GET    | `/api/settings/email-recipients`                      | Lista destinatários de email para alertas     |
-| `addEmailRecipient(email)`   | POST   | `/api/settings/email-recipients`                      | Adiciona email à lista                        |
-| `removeEmailRecipient(email)`| DELETE | `/api/settings/email-recipients/{email}`              | Remove email da lista                         |
+| Função                         | Método | Endpoint                                              | Descrição                                     |
+|--------------------------------|--------|-------------------------------------------------------|-----------------------------------------------|
+| `getDiscovery()`               | GET    | `/api/discovery`                                      | Lista todos os hosts com dados de hardware    |
+| `getMetrics(hostId, limit)`    | GET    | `/api/metrics?host_id=N&limit=30`                     | Últimas N métricas do host                    |
+| `getLogs(hostId, options)`     | GET    | `/api/logs?host_id=N&limit=50&offset=0&log_type=auth` | Logs paginados do host                        |
+| `getAlerts(status)`            | GET    | `/api/alerts?status=active`                           | Alertas por status                            |
+| `resolveAlert(alertId)`        | PATCH  | `/api/alerts/{id}/resolve`                            | Resolve um alerta                             |
+| `getApiKey()`                  | GET    | `/api/settings/apikey`                                | Status e prefixo da API key no servidor       |
+| `generateApiKey(password?)`    | POST   | `/api/settings/apikey/generate`                       | Gera nova API key (aceita senha opcional)     |
+| `getNotifications()`           | GET    | `/api/settings/notifications`                         | Retorna toggles `teams` e `email`             |
+| `patchNotifications(body)`     | PATCH  | `/api/settings/notifications`                         | Atualiza toggles de notificação               |
+| `getThresholds()`              | GET    | `/api/settings/thresholds`                            | Retorna limiares de CPU, memória e disco      |
+| `patchThresholds(body)`        | PATCH  | `/api/settings/thresholds`                            | Atualiza limiares de recurso                  |
+| `getEmailRecipients()`         | GET    | `/api/settings/email-recipients`                      | Lista destinatários de email para alertas     |
+| `addEmailRecipient(email)`     | POST   | `/api/settings/email-recipients`                      | Adiciona email à lista                        |
+| `removeEmailRecipient(email)`  | DELETE | `/api/settings/email-recipients/{email}`              | Remove email da lista                         |
 
 ### Funções de autenticação
 
@@ -359,6 +385,17 @@ headers: {
 | `loginWithPassword(password)` | `POST /api/auth/login { password }` — retorna `{ api_key }` ou lança erro |
 | `saveApiKey(apiKey)` | Salva a API key no `localStorage` (persiste além da sessão do navegador) |
 | `hasBrowserApiKey()` | Retorna `true` se houver uma API key salva no `localStorage` |
+
+### alertsApi.js
+
+**Arquivo:** `src/features/alerts/services/alertsApi.js`
+
+Cliente Axios dedicado para os endpoints de alertas. Importado pelo `AlertsPanel` como alternativa às funções de `api.js`.
+
+| Função | Descrição |
+|--------|-----------|
+| `fetchAlerts(status?)` | `GET /api/alerts` com parâmetro `status` opcional |
+| `resolveAlert(alertId)` | `PATCH /api/alerts/{id}/resolve` |
 
 ### Tratamento de erros
 
@@ -458,11 +495,28 @@ Issues identificados no código que ainda não foram corrigidos:
 | F-2 | Sidebar.jsx   | Badge de alertas hardcoded como `"3"` — não consome `GET /api/alerts?status=active` | Dado incorreto no badge |
 | ~~F-3~~ | ~~routes.jsx~~ | ~~Rotas `/endpoints` e `/settings` não existem — links na sidebar não navegam~~ | ✅ **Corrigido** — ambas as rotas implementadas com `EndpointsPage` e `SettingsPage` |
 | F-4 | App.jsx       | Métricas não atualizam automaticamente — só atualizam ao trocar de host ou após login | Dashboard não reflete dados em tempo real sem interação |
-| ~~F-5~~ | ~~SettingsPage~~ | ~~Cards "Intervalo de Atualização" e "Limite de Alertas" têm selects sem efeito real~~ | Tratado na Fase C (thresholds) e Fase D (toggles) |
+| ~~F-5~~ | ~~SettingsPage~~ | ~~Cards "Intervalo de Atualização" e "Limite de Alertas" têm selects sem efeito real~~ | ✅ **Corrigido** — substituídos por `NotificationsCard` e `ThresholdsCard` com efeito real via API |
 
 ---
 
-*Documentação atualizada em 03/06/2026 — v1.3*  
+## 12. Evolução do Projeto — Decisões Iniciais vs. Decisões Finais
+
+| Decisão | Inicial | Final/Atual | Motivo |
+|---------|---------|-------------|--------|
+| **Header de autenticação** | `Authorization: Bearer {api_key}` | `X-API-Key: {api_key}` | Alinhamento com o backend; padrão mais comum para APIs |
+| **Storage da API key** | `sessionStorage` (perdia ao fechar aba) | `localStorage` (persiste entre sessões) | Evita re-login toda vez que o usuário fecha e reabre o painel |
+| **Rotas `/endpoints` e `/settings`** | Links na sidebar sem rota implementada (404 silencioso) | ✅ Rotas implementadas com `EndpointsPage` e `SettingsPage` | F-3 corrigido |
+| **Card de preferências de monitoramento** | Selects de intervalo/limiar sem efeito real | ✅ Substituído por `NotificationsCard` e `ThresholdsCard` com chamadas reais à API | F-5 corrigido |
+| **Notificações (Teams/Email)** | Sem controle no frontend | `NotificationsCard` — toggles `notify_teams`/`notify_email` via `PATCH /api/settings/notifications` | Operador controla canais sem editar variáveis de ambiente |
+| **Limiares de alerta** | Sem controle no frontend (fixo no backend) | `ThresholdsCard` — sliders de CPU/memória/disco via `PATCH /api/settings/thresholds` | Operador ajusta sensibilidade dos alertas pela interface |
+| **Destino do alerta de port scan** | Verificado periodicamente junto com métricas | Backend recebe `POST /api/security/portscan` separado; frontend exibe em `AlertsPanel` | Redução de carga; separação de preocupações |
+| **Badge de alertas na Sidebar** | Hardcoded como `"3"` | ⚠️ Ainda hardcoded (F-2 aberto) | Aguarda integração com `GET /api/alerts?status=active` |
+| **Auto-refresh de métricas** | Não existia | ⚠️ Ainda sem timer (F-4 aberto) — só atualiza ao trocar de host | Aguarda implementação de `setInterval` no `useEffect` de métricas |
+
+---
+
+*Documentação atualizada em 05/06/2026 — v1.4*  
 *Adições v1.1: sistema de autenticação (LoginModal, authRequired, reloadKey, saveApiKey, loginWithPassword, getApiKey, hasBrowserApiKey), ThemeContext, fluxo completo de auth documentado.*  
 *Adições v1.2: EndpointsPage e SettingsPage (Gap F-3 corrigido); EmailRecipientsCard e ApiKeyCard; rotas /endpoints e /settings funcionais; api.js — header mudou de `Authorization: Bearer` para `X-API-Key`, storage migrou de sessionStorage para localStorage; novos métodos de email recipients na API; Gap F-5 identificado (selects de preferências sem efeito).*  
-*Adições v1.3 (Fase A — hardening): `api.generateApiKey(password?)` aceita senha opcional; `handleGenerate` pede PANEL_PASSWORD via prompt quando não há chave no localStorage; `vite.config.js` — `server.hmr.clientPort: 80` para HMR via Nginx (porta 5173 não exposta no host).*
+*Adições v1.3 (Fase A — hardening): `api.generateApiKey(password?)` aceita senha opcional; `handleGenerate` pede PANEL_PASSWORD via prompt quando não há chave no localStorage; `vite.config.js` — `server.hmr.clientPort: 80` para HMR via Nginx (porta 5173 não exposta no host).*  
+*Adições v1.4 (05/06/2026): `alertsApi.js` documentado (seção 6); `NotificationsCard` e `ThresholdsCard` adicionados à seção 5.10 (Gap F-5 corrigido); `getNotifications`, `patchNotifications`, `getThresholds`, `patchThresholds` adicionados à referência da api.js; seção 12 (Evolução do Projeto) adicionada.*

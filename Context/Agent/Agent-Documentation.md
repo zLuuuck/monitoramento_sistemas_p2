@@ -784,8 +784,29 @@ sudo systemctl daemon-reload
 
 ---
 
-*Documentação atualizada em 04/06/2026 — v6.0*  
+---
+
+## 17. Evolução do Projeto — Decisões Iniciais vs. Decisões Finais
+
+| Decisão | Inicial | Final/Atual | Motivo |
+|---------|---------|-------------|--------|
+| **Envio de métricas** | Apenas CPU, memória, disco, rede | + Top 15 processos (CPU, RAM, disco, conexões), IOPS de disco, taxas de rede em bytes/sec | Dashboard precisava de informações mais ricas para diagnóstico |
+| **Coleta de conexões TCP** | Via `psutil.net_connections()` — lista de conexões ativas | Removida da coleta contínua | Sem tela consumidora no frontend; causava erro 500 por FK no backend |
+| **Detecção de port scan** | Via análise das conexões TCP (`psutil`) — verificava estado `SYN_SENT` | Via `tcpdump` — captura SYN sem ACK com janela deslizante de 60s | `psutil` não diferenciava escaneamento de tráfego legítimo; `tcpdump` captura tráfego externo entrante diretamente |
+| **Envio do sinal de port scan** | Polling a cada ~5s (mesmo sem scan detectado) | Somente quando `port_scan_detected=True` — `POST /api/security/portscan` | Elimina carga desnecessária; endpoint renomeado de `/api/connections` para `/api/security/portscan` |
+| **Header de autenticação** | `Authorization: Bearer {MONITOR_TOKEN}` + `X-API-Key` (dual) | Apenas `X-API-Key: {API_KEY}` | Fase A de hardening — `Authorization: Bearer` removido; `MONITOR_TOKEN` descontinuado |
+| **Heartbeat** | Sem heartbeat dedicado — sinal de vida vinha com as métricas | `POST /api/heartbeat` separado, enviado a cada ciclo | Permite declarar host como offline independente do estado das métricas |
+| **Fila de retry** | Sem persistência — falhas de rede perdiam o payload | Fila JSON em disco (`/var/cache/monitor-agent/retry_queue.json`) com limite de 50 itens | Garantia de entrega em casos de instabilidade de rede |
+| **Logging** | `print()` / sem estrutura | `RotatingFileHandler` em `/var/log/monitor-agent/agent.log` + `StreamHandler` para journald | Diagnóstico em produção exige logs rotativos e rastreáveis |
+| **Distribuição** | Script Python executado com interpreter | Binário único gerado com PyInstaller (`--onefile`) instalado como serviço systemd | Agentes em máquinas sem Python instalado; distribuição simplificada via `install.sh` |
+| **Fix LD_LIBRARY_PATH** | Não havia — tcpdump capturava 0 pacotes no binário PyInstaller | `clean_env.pop('LD_LIBRARY_PATH')` antes de spawnar tcpdump | PyInstaller injeta `LD_LIBRARY_PATH` que fazia tcpdump usar `libpcap` incompatível |
+| **Primeira execução de logs** | Enviava todo o auth.log a cada inicialização | Envia últimas 100 linhas no primeiro ciclo; depois somente linhas novas via byte offset + inode | Evita flood de logs antigos ao reiniciar o agente |
+
+---
+
+*Documentação atualizada em 05/06/2026 — v6.0*  
 *Adições v6.0: remoção da coleta TCP via psutil (`net_connections`) — sem tela consumidora no frontend e causava erro 500. Threads tcpdump preservadas. Função renomeada de `get_active_connections()` para `get_scan_status()`. Agente passa a enviar `POST /api/security/portscan` somente quando `port_scan_detected=True` (sem polling a cada 5s). Variável de ambiente renomeada de `MONITOR_CONNECTIONS_URL` para `MONITOR_PORTSCAN_URL`.*  
 *Adições v5.1: fix LD_LIBRARY_PATH para PyInstaller, resolução explícita do binário tcpdump, logging de diagnóstico do tcpdump, nota sobre binutils para compilação, validação completa de brute force e port scan.*  
 *Adições v5.2: sender.py — variável `API_KEY` e header `X-API-Key` adicionados (alinhamento com backend); `MONITOR_TOKEN`/`Authorization: Bearer` mantidos como legado; exemplo de env atualizado.*  
-*Adições v5.3 (Fase A — hardening): `MONITOR_TOKEN` e `Authorization: Bearer` removidos de `sender.py`; agente envia exclusivamente `X-API-Key`.*
+*Adições v5.3 (Fase A — hardening): `MONITOR_TOKEN` e `Authorization: Bearer` removidos de `sender.py`; agente envia exclusivamente `X-API-Key`.*  
+*Adições v6.0 (05/06/2026): seção 17 (Evolução do Projeto) adicionada com histórico completo de decisões técnicas.*

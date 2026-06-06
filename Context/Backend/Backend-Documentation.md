@@ -263,6 +263,8 @@ O banco é criado pelo `init.sql` e pode ser mais antigo que o código. As funç
 | `garantir_schema_iops()` | ADD COLUMN IF NOT EXISTS `read_iops`, `write_iops`, `read_bytes_per_sec`, `write_bytes_per_sec`, `net_sent_bytes_per_sec`, `net_recv_bytes_per_sec` | `metrics` |
 | `garantir_schema_settings()` | CREATE TABLE IF NOT EXISTS `app_settings` | — |
 | `garantir_schema_alerts_source_ip()` | ALTER COLUMN `source_ip` TYPE VARCHAR(45) + DROP NOT NULL | `alerts` |
+| `garantir_schema_notifications()` | INSERT ON CONFLICT DO NOTHING: `notify_teams=true`, `notify_email=false` | `app_settings` |
+| `garantir_schema_thresholds()` | INSERT ON CONFLICT DO NOTHING: `threshold_cpu=80`, `threshold_mem=80`, `threshold_disk=80` | `app_settings` |
 
 > **Nota:** `init.sql` declara `alerts.source_ip` como `INET NOT NULL`. A migração `garantir_schema_alerts_source_ip()` converte a coluna para `VARCHAR(45) nullable` em bancos existentes.
 
@@ -270,6 +272,12 @@ O banco é criado pelo `init.sql` e pode ser mais antigo que o código. As funç
 
 **`_load_api_key_from_db()`**  
 Lê a API key da tabela `app_settings` (chave `'api_key'`). Se não encontrar, usa a variável de ambiente `API_KEY` como fallback. O valor carregado fica em `app.config['API_KEY']` e é consultado pelo `require_api_key` em toda requisição autenticada.
+
+**`_load_threshold(key, default=80)`**  
+Lê um limiar numérico de `app_settings` pela chave informada (ex: `'threshold_cpu'`). Retorna o inteiro lido ou `default=80` em caso de ausência/erro.
+
+**`_load_notify_flag(canal)`**  
+Lê o toggle `notify_teams` ou `notify_email` de `app_settings`. Defaults: `teams=True`, `email=False`.
 
 **`_notificar_alertas_ativos()`**  
 Na inicialização do container, consulta todos os alertas com `resolved=False` e envia uma notificação Teams para cada um, para que a equipe saiba que há ameaças ativas após um restart. Usa o arquivo `/tmp/.monitor_startup_notified` como flag para não reenviar durante hot-reloads do Flask (o arquivo some apenas quando o container é reiniciado de verdade).
@@ -747,6 +755,14 @@ Lê a lista de destinatários de email da tabela `app_settings` (chave `'email_r
 
 Chamada internamente pelas três funções de detecção antes de invocar `enviar_alerta_email()`.
 
+#### Função auxiliar: `_notificacao_habilitada(db, canal)` → bool
+
+Lê o toggle `notify_teams` / `notify_email` de `app_settings`. Defaults: `teams=True`, `email=False`. Chamada antes de cada envio de notificação nas três funções de detecção — se desabilitado, o log é emitido em INFO e o envio é ignorado silenciosamente.
+
+#### Função auxiliar: `_get_threshold(db, alert_type)` → float
+
+Lê o limiar de recurso (`threshold_cpu`, `threshold_mem`, `threshold_disk`) de `app_settings`. Fallback para `80.0`. Chamada por `check_resource_alert()` para comparar com o valor atual da métrica.
+
 ---
 
 #### check_brute_force(db, LogEntryModel, AlertModel, host_id, ip_origem, hostname='', host_ip='') → bool
@@ -838,6 +854,10 @@ Cria alerta se `valor > limiar` e não houver alerta ativo do mesmo tipo para o 
 | `/api/settings/email-recipients` | GET | Sim | Frontend | Lista destinatários de email para alertas |
 | `/api/settings/email-recipients` | POST | Sim | Frontend | Adiciona email à lista de destinatários |
 | `/api/settings/email-recipients/<email>` | DELETE | Sim | Frontend | Remove email da lista de destinatários |
+| `/api/settings/thresholds` | GET | Sim | Frontend | Retorna limiares configurados de CPU, memória e disco (%) |
+| `/api/settings/thresholds` | PATCH | Sim | Frontend | Atualiza um ou mais limiares (cpu, mem, disk) — valor inteiro 1–99 |
+| `/api/settings/notifications` | GET | Sim | Frontend | Retorna toggles de notificação (`teams`, `email`) |
+| `/api/settings/notifications` | PATCH | Sim | Frontend | Atualiza toggles de notificação — aceita subset `{"teams": bool, "email": bool}` |
 | `/api/maintenance/cleanup` | POST | Sim | Admin/Teste | Dispara limpeza de dados antigos imediatamente; retorna linhas removidas por tabela |
 
 ### POST /api/auth/login
@@ -970,7 +990,7 @@ Agente (threads tcpdump) → detecta ≥10 portas distintas de um IP em 60s
 
 ### 11.4 Alertas de Recurso (CPU / Memória / Disco)
 
-- **Limiar:** > 80% para CPU, memória e disco
+- **Limiar:** configurável via `PATCH /api/settings/thresholds`. Default: 80% para CPU, memória e disco. Lido dinamicamente de `app_settings` por `_get_threshold()` a cada verificação.
 - **Deduplicação:** um alerta ativo por `host_id + alert_type` (resolved=False)
 - **`source_ip`:** `None` — alertas de recurso não têm origem de rede
 - **Severidade:** `"high"`
@@ -982,7 +1002,7 @@ Agente (threads tcpdump) → detecta ≥10 portas distintas de um IP em 60s
 
 ### 11.6 Notificações (Teams + Email)
 
-Cada alerta criado dispara **duas** notificações independentes e paralelas: Teams (webhook Power Automate) e Email (Gmail/SMTP). Ambas falham silenciosamente — nunca interrompem o fluxo de detecção.
+Cada alerta criado **verifica os toggles** antes de disparar notificações. `_notificacao_habilitada(db, 'teams')` e `_notificacao_habilitada(db, 'email')` são consultados a cada evento. Se habilitados, dispara Teams e Email independentemente. Ambos falham silenciosamente — nunca interrompem o fluxo de detecção.
 
 **Título e origem dos alertas:** o hostname real e IP do host monitorado são exibidos no lugar do ID numérico:
 - Título: `"Port Scan detectado — servidor-web"` (ou `"Port Scan detectado — Host 24233"` se hostname indisponível)
@@ -1037,7 +1057,25 @@ Cada alerta criado dispara **duas** notificações independentes e paralelas: Te
 
 ---
 
-## 13. Coerência com o Trabalho Acadêmico
+## 13. Chaves de app_settings
+
+Todas as configurações do sistema que precisam sobreviver a restarts são persistidas na tabela `app_settings`. Abaixo a lista completa de chaves usadas em produção:
+
+| Chave | Valor padrão | Gerenciada por | Descrição |
+|-------|-------------|----------------|-----------|
+| `api_key` | — | `POST /api/settings/apikey/generate` | Token de autenticação dos agentes e do painel web |
+| `email_recipients` | `[]` (JSON array) | `POST/DELETE /api/settings/email-recipients` | Lista de emails para alertas |
+| `notify_teams` | `true` | `PATCH /api/settings/notifications` | Habilita/desabilita alertas via Teams |
+| `notify_email` | `false` | `PATCH /api/settings/notifications` | Habilita/desabilita alertas via Email |
+| `threshold_cpu` | `80` | `PATCH /api/settings/thresholds` | Limiar de CPU (%) para gerar alerta `cpu_high` |
+| `threshold_mem` | `80` | `PATCH /api/settings/thresholds` | Limiar de memória (%) para gerar alerta `mem_high` |
+| `threshold_disk` | `80` | `PATCH /api/settings/thresholds` | Limiar de disco (%) para gerar alerta `disk_high` |
+
+Os valores de `notify_*` e `threshold_*` são inseridos com `ON CONFLICT DO NOTHING` no startup (via `garantir_schema_notifications()` e `garantir_schema_thresholds()`), portanto não sobrescrevem configurações já existentes.
+
+---
+
+## 15. Coerência com o Trabalho Acadêmico
 
 | Funcionalidade proposta | Status no código |
 |------------------------|------------------|
@@ -1047,27 +1085,27 @@ Cada alerta criado dispara **duas** notificações independentes e paralelas: Te
 | Análise de logs (auth.log) | ✅ Implementado |
 | Detecção de brute force SSH (≥5 falhas/60s) | ✅ Implementado e validado |
 | Detecção de port scan | ✅ Implementado e validado (via tcpdump no agente) |
-| Alertas de recurso (CPU/RAM/disco > 80%) | ✅ Implementado |
+| Alertas de recurso (CPU/RAM/disco configurável) | ✅ Implementado — limiar configurável via painel |
 | PostgreSQL com JSONB | ✅ Implementado |
 | Docker Compose com 4 serviços | ✅ Implementado |
 | Nginx como proxy reverso | ✅ Implementado |
 | Dashboard web para visualização | ✅ Implementado no frontend |
-| Autenticação por token (API_KEY) | ✅ Implementado — Bearer token em todos os endpoints protegidos |
+| Autenticação por token (API_KEY + X-API-Key) | ✅ Implementado — header `X-API-Key` em todos os endpoints protegidos |
 | Senha do painel web (PANEL_PASSWORD) | ✅ Implementado — login modal no frontend |
-| Notificações Teams | ✅ Implementado — brute force, port scan, recursos e startup |
-| Notificações por email | ✅ Implementado — Gmail/SMTP para brute force, port scan e alertas de recurso |
-| Gerenciamento de destinatários de email | ✅ Implementado — `GET/POST/DELETE /api/settings/email-recipients` + UI na aba Configurações |
-| Política de retenção de dados de 7 dias | ⚠️ Função SQL `cleanup_old_data()` existe no banco, mas sem cron automático |
+| Notificações Teams | ✅ Implementado — brute force, port scan, recursos e startup (toggle configurável) |
+| Notificações por email | ✅ Implementado — Gmail/SMTP (toggle configurável) |
+| Gerenciamento de destinatários de email | ✅ Implementado — `GET/POST/DELETE /api/settings/email-recipients` + UI |
+| Política de retenção de dados de 7 dias | ✅ Automatizada via APScheduler (03:00 UTC) + `POST /api/maintenance/cleanup` manual |
 
 ---
 
-## 14. Divergências e Observações Técnicas
+## 16. Divergências e Observações Técnicas
 
-### 14.1 Versão Python
+### 16.1 Versão Python
 
 O PDF de capa (v4.0) menciona Python 3.13. O `Dockerfile` real usa `python:3.12-alpine`.
 
-### 14.2 Atributos Python vs colunas do banco (Metric)
+### 16.2 Atributos Python vs colunas do banco (Metric)
 
 O `MetricModel` usa aliases para vários campos. Exemplo:
 
@@ -1078,7 +1116,7 @@ disk_read_iops = db.Column('read_iops', db.Float, ...)      # Python: .disk_read
 
 O `to_dict()` usa os nomes Python, não os nomes das colunas. O frontend precisa conhecer esses nomes.
 
-### 14.4 SQL Injection em count_failed_logins — ✅ CORRIGIDO (Fase A)
+### 16.4 SQL Injection em count_failed_logins — ✅ CORRIGIDO (Fase A)
 
 Em `parsers.py`, `ip_origem` era interpolado diretamente na string SQL. Corrigido para usar parâmetros vinculados:
 
@@ -1090,25 +1128,47 @@ sa_text(f"parsed_data->>'ip_origem' = '{ip_origem}'")
 sa_text("parsed_data->>'ip_origem' = :ip_origem").bindparams(ip_origem=ip_origem)
 ```
 
-### 14.5 init.sql defasado
+### 16.5 init.sql — schema consolidado
 
-`init.sql` ainda declara `alerts.source_ip` como `INET NOT NULL`. A migração `garantir_schema_alerts_source_ip()` converte a coluna em runtime. Para novos ambientes o schema de estado final é diferente do que está no arquivo.
+O `init.sql` foi atualizado (commit `3b7189a`) para refletir o schema atual — inclui todas as colunas adicionadas pelas migrações e exclui a tabela `active_connections` que foi removida. Novos ambientes criados com o `init.sql` atual já partem do schema correto; as funções `garantir_schema_*` são idempotentes e não causam erro em bancos atualizados.
 
-### 14.6 Política de retenção — ✅ AUTOMATIZADA (Fase B)
+### 16.6 Política de retenção — ✅ AUTOMATIZADA (Fase B)
 
 `APScheduler` (`BackgroundScheduler`) dispara `cleanup_old_data(:dias)` todos os dias às 03:00 UTC. O número de dias é configurável via `RETENTION_DAYS` (padrão 7). O endpoint `POST /api/maintenance/cleanup` permite disparar a limpeza manualmente. Em modo debug com reloader, o scheduler só sobe no processo filho (`WERKZEUG_RUN_MAIN=true`) para evitar duplicação.
 
-### 14.7 request em função helper de metrics.py
+### 16.7 request em função helper de metrics.py
 
 Em `_normalize_metrics_payload()`, há uma referência a `request.args.get('host_id')` sem que `request` seja passado como parâmetro explícito. Funciona corretamente dentro do contexto Flask, mas dificulta testes unitários.
 
 ---
 
-*Documentação atualizada em 04/06/2026 — v7.0.0*  
+## 17. Evolução do Projeto — Decisões Iniciais vs. Decisões Finais
+
+Esta seção documenta as principais mudanças de decisão técnica ao longo do desenvolvimento, com a motivação de cada alteração.
+
+| Decisão | Inicial | Final/Atual | Motivo |
+|---------|---------|-------------|--------|
+| **Proxy reverso** | Caddy (TLS automático + Step-CA) | Nginx (HTTP simples) | Caddy introduzia complexidade de TLS e Step-CA desnecessária para o laboratório; Nginx suficiente |
+| **TLS / HTTPS** | Obrigatório — agentes usariam `verify="/etc/agente/root_ca.crt"` | HTTP sem TLS | Step-CA não foi implementado; escopo simplificado para o ambiente de lab |
+| **Tabela de conexões TCP** | `active_connections` — snapshot de todas as conexões psutil | Removida | Sem tela consumidora no frontend; causava erro 500 por FK violada na janela de startup |
+| **Detecção de port scan** | Via `psutil.net_connections()` no agente | Via `tcpdump` (captura SYN) no agente | `psutil` listava conexões estabelecidas, não diferenciava escaneamento de tráfego legítimo |
+| **Header de autenticação** | `Authorization: Bearer {token}` | `X-API-Key: {token}` | Padrão mais comum para APIs machine-to-machine; menos conflito com proxies e frameworks |
+| **Envio de port scan** | Polling a cada ~5s (sempre que agente coletava conexões) | Somente quando `port_scan_detected=True` | Elimina requisições desnecessárias e alertas falsos de "nenhum scan ativo" |
+| **Notificações** | Apenas Teams (webhook Power Automate) | Teams + Email (Gmail/SMTP) configuráveis por toggle | Necessidade de notificação sem dependência do canal Teams; toggles para evitar spam em testes |
+| **Thresholds de alerta** | Fixos em 80% no código-fonte | Configuráveis via `app_settings` + UI | Operadores precisam ajustar conforme o hardware e a carga esperada de cada host |
+| **Retenção de dados** | Manual — operador chama `cleanup_old_data()` no banco | Automática — APScheduler dispara às 03:00 UTC diariamente | Evita crescimento indefinido das tabelas sem intervenção manual |
+| **Startup do container** | `entrypoint.sh` aguardava PostgreSQL com loop `nc -z` | `postgres` healthcheck + `depends_on: service_healthy` | Elimina race condition: backend só sobe após o banco estar de fato pronto |
+| **Armazenamento da API key** | Variável de ambiente `API_KEY` no `.env` | Banco de dados (`app_settings`) com fallback para env | Permite rotação de chave sem redeployar o container |
+| **Modelo de notificação no startup** | Não havia | `_notificar_alertas_ativos()` envia Teams ao inicializar | Garante visibilidade de ameaças ativas após restart inesperado do container |
+
+---
+
+*Documentação atualizada em 05/06/2026 — v8.0.0*  
 *Adições v5.0: autenticação (API key + PANEL_PASSWORD), Teams, alertas de recurso, migrations adicionais, check_port_scan com cooldown temporal, notificação de startup.*  
 *Adições v5.1: DNS explícito no docker-compose (8.8.8.8/8.8.4.4); teams.py com payload completo (icone, timestamp, link), lazy URL loading corrigido, log levels WARNING; hostname e host_ip nos alertas Teams.*  
 *Adições v6.0: notifier.py (email via Gmail/SMTP com HTML dark-mode); endpoints de gerenciamento de destinatários de email (`GET/POST/DELETE /api/settings/email-recipients`); `_get_email_recipients(db)` em detection.py; mudança de header de autenticação de `Authorization: Bearer` para `X-API-Key`; app_settings passa a armazenar `email_recipients`.*  
 *Adições v6.1 (Fase A — hardening): `POST /api/settings/apikey/generate` protegido com X-API-Key ou PANEL_PASSWORD; SQL injection em `count_failed_logins` corrigido (bind params); portas 5432/5000/5173 removidas do host no docker-compose (apenas Nginx 80 exposto).*  
 *Adições v6.2 (Fase B — retenção): APScheduler adicionado; `_executar_cleanup` + `_job_cleanup` + `_iniciar_scheduler` em `app.py`; cron 03:00 UTC; `RETENTION_DAYS` env; endpoint `POST /api/maintenance/cleanup`.*  
 *Adições v6.3 (Fases C/D): thresholds configuráveis (CPU/RAM/disco) via `app_settings`; toggles `notify_teams`/`notify_email`; `NotificationsCard` e `ThresholdsCard` no frontend; Sidebar limpa (badge e dot fixos removidos).*  
-*Adições v7.0 (remoção active_connections): tabela `active_connections` e model `connection.py` removidos — sem tela consumidora no frontend e causava erro 500 por FK. Rota renomeada de `POST /api/connections` para `POST /api/security/portscan`; endpoint não persiste dados, apenas aciona `check_port_scan()`. Agente passa a enviar o sinal somente quando `port_scan_detected=True`, eliminando polling a cada 5s. Fallback legado (IP mais frequente em connections[]) removido; `scan_sources` vazio com flag `True` suprime o alerta (em vez de poluir com o IP da vítima).*
+*Adições v7.0 (remoção active_connections): tabela `active_connections` e model `connection.py` removidos — sem tela consumidora no frontend e causava erro 500 por FK. Rota renomeada de `POST /api/connections` para `POST /api/security/portscan`; endpoint não persiste dados, apenas aciona `check_port_scan()`. Agente passa a enviar o sinal somente quando `port_scan_detected=True`, eliminando polling a cada 5s. Fallback legado (IP mais frequente em connections[]) removido; `scan_sources` vazio com flag `True` suprime o alerta (em vez de poluir com o IP da vítima).*  
+*Adições v8.0 (05/06/2026 — esta revisão): seção 13 (Chaves de app_settings) adicionada com lista completa de chaves; migrações `garantir_schema_notifications()` e `garantir_schema_thresholds()` documentadas; endpoints `GET/PATCH /api/settings/thresholds` e `GET/PATCH /api/settings/notifications` adicionados à referência; funções `_load_threshold`, `_load_notify_flag`, `_notificacao_habilitada`, `_get_threshold` documentadas; seção 17 (Evolução do Projeto) adicionada; init.sql corrigido para refletir schema consolidado; política de retenção atualizada como automatizada.*

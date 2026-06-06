@@ -39,7 +39,7 @@ O banco de dados é o repositório central de todos os dados coletados pelos age
 
 O schema base está em `Web/database/init.sql`. O backend aplica migrações incrementais via `ALTER TABLE` no startup — ver seção 9.
 
-> **Nota importante:** o `init.sql` está defasado em relação ao schema de runtime. As funções de migração do backend corrigem tipos e adicionam colunas ao inicializar. O schema **efetivo em produção** é o descrito nesta documentação, não o `init.sql` literal.
+> **Nota:** o `init.sql` foi consolidado (commit `3b7189a`) e reflete o schema atual de produção — inclui todas as colunas e exclui `active_connections`. Novos ambientes criados com o `init.sql` atual partem do schema correto; as funções `garantir_schema_*` são idempotentes e não causam erro em bancos já atualizados.
 
 ---
 
@@ -51,13 +51,14 @@ host (1)
 ├─── host_discovery (1:1)      — um inventário de hardware por host
 ├─── metrics (1:N)             — N snapshots de métricas por host
 ├─── logs (1:N)                — N linhas de log por host
-├─── alerts (1:N)              — N alertas de segurança por host
-└─── active_connections (1:N)  — N snapshots de conexões TCP por host
+└─── alerts (1:N)              — N alertas de segurança por host
 
-app_settings (independente)    — configurações do sistema (API key)
+app_settings (independente)    — configurações do sistema (API key, email, thresholds, toggles)
 ```
 
 Todas as tabelas filhas têm `ON DELETE CASCADE` — deletar um host propaga para todas as tabelas relacionadas. `app_settings` não tem FK com `host`.
+
+> **Nota:** a tabela `active_connections` existiu durante o desenvolvimento (Semanas 6–7) e foi removida. Ver seção 10 — Evolução do Projeto.
 
 ---
 
@@ -254,31 +255,13 @@ CREATE TABLE alerts (
 
 ---
 
-### 3.7 active_connections
+### ~~3.7 active_connections~~ — REMOVIDA
 
-Snapshot das conexões TCP ativas no momento da coleta.
-
-```sql
--- Estado efetivo em runtime (após migrações):
-CREATE TABLE active_connections (
-    id           BIGSERIAL PRIMARY KEY,
-    host_id      INT NOT NULL REFERENCES host(id) ON DELETE CASCADE,
-    timestamp    TIMESTAMPTZ NOT NULL,
-    src_ip       VARCHAR(45) NOT NULL,     -- migrado de INET
-    src_port     INTEGER NOT NULL,
-    dst_ip       VARCHAR(45) NOT NULL,     -- migrado de INET
-    dst_port     INTEGER NOT NULL,
-    protocol     VARCHAR(10) NOT NULL,
-    status       VARCHAR(20),
-    duration_sec INTEGER
-);
-```
-
-> O `init.sql` declara `src_ip` e `dst_ip` como `INET`. A migração `garantir_schema_connections_ip()` converte ambas para `VARCHAR(45)` no startup do backend.
-
-**Convenção:** `src_ip/src_port` é sempre o lado remoto (quem iniciou), `dst_ip/dst_port` é o host monitorado.
-
-**Valores típicos de status:** `ESTABLISHED`, `TIME_WAIT`, `CLOSE_WAIT`, `SYN_SENT`
+> **Esta tabela foi removida** (commit `3b7189a`, Semana 7). Havia sido criada para registrar snapshots de conexões TCP via `psutil.net_connections()`, mas nunca teve tela consumidora no frontend e causava erro 500 por FK violada quando o `host_id` chegava antes do host existir no banco.
+>
+> A detecção de port scan migrou para threads de `tcpdump` no agente (captura de pacotes SYN), que não depende dessa tabela. O alerta de port scan é gerado diretamente na tabela `alerts`. O `init.sql` atual não cria `active_connections`.
+>
+> Ver seção 10 — Evolução do Projeto para contexto completo.
 
 ---
 
@@ -295,16 +278,23 @@ CREATE TABLE IF NOT EXISTS app_settings (
 );
 ```
 
-| Chave (`key`) | Valor (`value`) | Descrição |
-|---------------|-----------------|-----------|
-| `api_key` | Token hexadecimal de 64 chars | API key usada para autenticar agentes e o painel web |
-| `email_recipients` | JSON array de strings — ex: `["a@b.com","c@d.com"]` | Lista de destinatários para notificações de alerta por email |
+| Chave (`key`) | Valor padrão | Gerenciada por | Descrição |
+|---------------|-------------|----------------|-----------|
+| `api_key` | — | `POST /api/settings/apikey/generate` | Token de autenticação de agentes e painel web |
+| `email_recipients` | `[]` (JSON array) | `GET/POST/DELETE /api/settings/email-recipients` | Lista de emails para alertas |
+| `notify_teams` | `true` | `PATCH /api/settings/notifications` | Toggle de notificação via Teams |
+| `notify_email` | `false` | `PATCH /api/settings/notifications` | Toggle de notificação via Email |
+| `threshold_cpu` | `80` | `PATCH /api/settings/thresholds` | Limiar de CPU (%) para alerta `cpu_high` |
+| `threshold_mem` | `80` | `PATCH /api/settings/thresholds` | Limiar de memória (%) para alerta `mem_high` |
+| `threshold_disk` | `80` | `PATCH /api/settings/thresholds` | Limiar de disco (%) para alerta `disk_high` |
 
 **Uso:**
 - `api_key` é gerada via `POST /api/settings/apikey/generate` e carregada para `app.config['API_KEY']` no startup.
-- `email_recipients` é gerenciada via `GET/POST/DELETE /api/settings/email-recipients` e lida por `_get_email_recipients(db)` em `detection.py` antes de cada envio de alerta por email. Se vazia, o backend usa `ALERT_RECIPIENT` do `.env` como fallback.
+- `email_recipients` lida por `_get_email_recipients(db)` em `detection.py` antes de cada alerta; fallback para `ALERT_RECIPIENT` do `.env` se vazia.
+- `notify_teams` / `notify_email` inseridos com `ON CONFLICT DO NOTHING` no startup — não sobrescrevem valores existentes.
+- `threshold_*` inseridos com `ON CONFLICT DO NOTHING` no startup — não sobrescrevem valores configurados pelo operador.
 
-Ambas sobrevivem a restarts do container enquanto o volume PostgreSQL existir.
+Todos os valores sobrevivem a restarts do container enquanto o volume PostgreSQL existir.
 
 ---
 
@@ -360,15 +350,6 @@ Ambas sobrevivem a restarts do container enquanto o volume PostgreSQL existir.
 | idx_alerts_type_ts      | (alert_type, timestamp DESC)| Filtrar por tipo de alerta              |
 | idx_alerts_source_ip_ts | (source_ip, timestamp DESC) | Histórico de ataques de um IP           |
 
-### Índices em active_connections
-
-| Nome               | Colunas                     | Uso                                         |
-|--------------------|-----------------------------|---------------------------------------------|
-| idx_conn_host_ts   | (host_id, timestamp DESC)   | Últimas conexões de um host                 |
-| idx_conn_status    | status                      | Filtrar por estado TCP                      |
-| idx_conn_dst_ip_ts | (dst_ip, timestamp DESC)    | Conexões para um IP de destino específico   |
-| idx_conn_duration  | duration_sec WHERE > 3600   | Conexões de longa duração (> 1 hora)        |
-
 ---
 
 ## 5. Funções Armazenadas
@@ -379,15 +360,16 @@ Ambas sobrevivem a restarts do container enquanto o volume PostgreSQL existir.
 CREATE OR REPLACE FUNCTION cleanup_old_data(days_to_keep INTEGER DEFAULT 7)
 RETURNS VOID AS $$
 BEGIN
-    DELETE FROM metrics             WHERE timestamp < NOW() - (days_to_keep || ' days')::INTERVAL;
-    DELETE FROM logs                WHERE timestamp < NOW() - (days_to_keep || ' days')::INTERVAL;
-    DELETE FROM active_connections  WHERE timestamp < NOW() - (days_to_keep || ' days')::INTERVAL;
+    DELETE FROM metrics  WHERE timestamp < NOW() - (days_to_keep || ' days')::INTERVAL;
+    DELETE FROM logs     WHERE timestamp < NOW() - (days_to_keep || ' days')::INTERVAL;
 END;
 $$ LANGUAGE plpgsql;
 ```
 
-**Tabelas limpas:** `metrics`, `logs`, `active_connections`  
+**Tabelas limpas:** `metrics`, `logs`  
 **Não afeta:** `host`, `agents`, `host_discovery`, `alerts`, `app_settings`
+
+> A tabela `active_connections` foi removida — a função não a limpa mais.
 
 **Chamada manual:**
 ```sql
@@ -395,22 +377,21 @@ SELECT cleanup_old_data(7);   -- apaga dados com mais de 7 dias
 SELECT cleanup_old_data(30);  -- apaga dados com mais de 30 dias
 ```
 
-> Não há trigger automático — a função deve ser chamada manualmente ou via cron externo ao container. Sem isso, as tabelas crescem indefinidamente.
+**Chamada automática:** o backend (`app.py`) usa `APScheduler` para disparar `cleanup_old_data(:dias)` todos os dias às **03:00 UTC**. O número de dias é controlado pela variável `RETENTION_DAYS` (padrão 7). O endpoint `POST /api/maintenance/cleanup` permite disparar manualmente.
 
 ---
 
 ## 6. Política de Retenção
 
-| Tabela              | Retida pela função | Critério de limpeza                         |
-|---------------------|--------------------|---------------------------------------------|
-| metrics             | Sim                | timestamp > N dias                          |
-| logs                | Sim                | timestamp > N dias                          |
-| active_connections  | Sim                | timestamp > N dias                          |
-| host                | Não                | Permanente (gerenciado manualmente)         |
-| agents              | Não                | Permanente                                  |
-| host_discovery      | Não                | Permanente (sobrescrito no restart do agente) |
-| alerts              | Não                | Permanente (resolvidos manualmente pelo operador) |
-| app_settings        | Não                | Permanente (configurações do sistema)       |
+| Tabela         | Retida pela função | Critério de limpeza                         |
+|----------------|--------------------|---------------------------------------------|
+| metrics        | Sim                | timestamp > N dias                          |
+| logs           | Sim                | timestamp > N dias                          |
+| host           | Não                | Permanente (gerenciado manualmente)         |
+| agents         | Não                | Permanente                                  |
+| host_discovery | Não                | Permanente (sobrescrito no restart do agente) |
+| alerts         | Não                | Permanente (resolvidos manualmente pelo operador) |
+| app_settings   | Não                | Permanente (configurações do sistema)       |
 
 ---
 
@@ -510,13 +491,31 @@ Campos adicionados após a criação inicial do banco são aplicados pelo backen
 | `garantir_schema_alerts_message()`   | ADD COLUMN: `message` (TEXT)                                                               | Semana 6 |
 | `garantir_schema_iops()`             | ADD COLUMN: `read_iops`, `write_iops`, `read_bytes_per_sec`, `write_bytes_per_sec`, `net_sent_bytes_per_sec`, `net_recv_bytes_per_sec` | Semana 7 |
 | `garantir_schema_settings()`         | CREATE TABLE IF NOT EXISTS `app_settings`                                                  | Semana 7 |
-| `garantir_schema_connections_ip()`   | ALTER COLUMN `src_ip`, `dst_ip` TYPE VARCHAR(45) em `active_connections`                   | Semana 7 |
 | `garantir_schema_alerts_source_ip()` | ALTER COLUMN `source_ip` TYPE VARCHAR(45) + DROP NOT NULL em `alerts`                      | Semana 7 |
+| `garantir_schema_notifications()`    | INSERT ON CONFLICT DO NOTHING: `notify_teams=true`, `notify_email=false` em `app_settings` | Fase D |
+| `garantir_schema_thresholds()`       | INSERT ON CONFLICT DO NOTHING: `threshold_cpu/mem/disk=80` em `app_settings`               | Fase C |
+
+> **Nota:** `garantir_schema_connections_ip()` existiu durante a Semana 7 para migrar `active_connections.src_ip`/`dst_ip` de INET para VARCHAR(45). Foi removida junto com a tabela `active_connections`.
 
 **Todas as migrações são idempotentes** — re-executar não causa erro. Erros em migrações individuais são capturados com rollback e log de WARNING, nunca impedir o startup do backend.
 
 ---
 
-*Documentação atualizada em 03/06/2026 — v1.2*  
+## 10. Evolução do Projeto — Decisões Iniciais vs. Decisões Finais
+
+| Decisão | Inicial | Final/Atual | Motivo |
+|---------|---------|-------------|--------|
+| **Tabela `active_connections`** | Criada para persistir snapshots de conexões TCP via `psutil` | Removida | Sem tela consumidora no frontend; causava erro 500 por FK violada durante startup |
+| **Detecção de port scan** | Analisava conexões TCP armazenadas na tabela | Via threads `tcpdump` no agente; alerta vai direto para `alerts` | Abordagem via psutil não diferenciava conexões legítimas de escaneamento |
+| **`alerts.source_ip`** | Tipo `INET NOT NULL` no init.sql | `VARCHAR(45) nullable` | Alertas de recurso (cpu/mem/disk) não têm IP de origem; NULL necessário |
+| **Retenção de dados** | `cleanup_old_data()` chamada manualmente no banco | Invocada automaticamente pelo APScheduler às 03:00 UTC | Evita crescimento indefinido sem intervenção manual |
+| **`app_settings` — chaves** | Apenas `api_key` | `api_key`, `email_recipients`, `notify_teams`, `notify_email`, `threshold_cpu/mem/disk` | Expansão das funcionalidades configuráveis pelo operador |
+| **`cleanup_old_data()` — tabelas** | Limpava `metrics`, `logs`, `active_connections` | Limpa apenas `metrics` e `logs` | Tabela `active_connections` removida |
+| **`init.sql` — status** | Defasado (declarava `source_ip INET NOT NULL`, sem migrações) | Consolidado — reflete schema atual de produção | Facilita criação de novos ambientes sem depender de migrações do backend |
+
+---
+
+*Documentação atualizada em 05/06/2026 — v1.3*  
 *Adições v1.1: app_settings, migrações de tipo IP (INET → VARCHAR(45)), nullable source_ip, deduplicação por cooldown de port scan, alertas de recurso (cpu_high/mem_high/disk_high).*  
-*Adições v1.2: app_settings agora armazena `email_recipients` (JSON array de destinatários para notificações por email); query de exemplo adicionada.*
+*Adições v1.2: app_settings agora armazena `email_recipients` (JSON array de destinatários para notificações por email); query de exemplo adicionada.*  
+*Adições v1.3 (05/06/2026): tabela `active_connections` removida do diagrama e da documentação; `cleanup_old_data()` atualizada (remove active_connections); app_settings com chaves completas (notify_*, threshold_*); `garantir_schema_connections_ip()` removida; `garantir_schema_notifications/thresholds()` adicionadas; retenção automática via APScheduler documentada; init.sql marcado como consolidado; seção 10 (Evolução) adicionada.*
