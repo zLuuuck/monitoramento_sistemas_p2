@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TopTabs } from './TopTabs';
@@ -5,6 +6,8 @@ import { TopTabs } from './TopTabs';
 export function Layout({ children, hostType = 'physical' }) {
   const location = useLocation();
   const activeTab = location.pathname.substring(1) || 'dashboard';
+
+  const [activeSubTab, setActiveSubTab] = useState('overview');
 
   return (
     <div 
