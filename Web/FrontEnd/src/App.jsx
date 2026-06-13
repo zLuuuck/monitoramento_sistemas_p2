@@ -112,7 +112,15 @@ function App() {
         setLoading(false);
       }
     };
+
+    // Carrega imediatamente
     carregarMetricas();
+
+    // POLLING: atualiza a cada 10 segundos
+    const intervalId = setInterval(carregarMetricas, 10000);
+
+    // Limpa o intervalo quando o componente desmontar ou dependências mudarem
+    return () => clearInterval(intervalId);
   }, [selectedHost, reloadKey]);
 
   const hostsDisponiveis = discovery.map((item) => ({
