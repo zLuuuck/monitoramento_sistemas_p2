@@ -42,7 +42,7 @@ const AlertsPanel = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // ✅ Card único para cada estado
+    // Card único para cada estado
     if (loading && alerts.length === 0) {
         return (
             <div className="bg-card rounded-lg shadow-md p-6 text-page opacity-70">

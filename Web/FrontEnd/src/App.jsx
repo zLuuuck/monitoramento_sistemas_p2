@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Outlet } from 'react-router-dom';
 import { Layout } from './shared/components/Layout';
 import { api, saveApiKey, loginWithPassword } from './shared/services/api';
 import './App.css';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { Outlet, useLocation } from 'react-router-dom';
 
 function LoginModal({ onSuccess }) {
   const [password, setPassword] = useState('');
@@ -56,6 +56,8 @@ function LoginModal({ onSuccess }) {
 }
 
 function App() {
+  const location = useLocation();
+  const isAlertsPage = location.pathname === '/alerts';
   const [selectedHost, setSelectedHost] = useState('');
   const [metrics, setMetrics] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -142,25 +144,27 @@ function App() {
       )}
       <Layout hostType={selectedDiscovery?.is_virtualized ? 'virtual' : 'physical'}>
 
-        {/* Seletor Global de Host no Topo das Páginas (sem o ThemeToggle) */}
-        <div className="flex justify-end mb-6">
-          <div className="flex items-center gap-3">
-            <label className="text-gray-600 dark:text-gray-300 text-sm font-medium">Host:</label>
-            <select
-              value={selectedHost}
-              onChange={(e) => setSelectedHost(e.target.value)}
-              className="border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-white dark:bg-gray-800 dark:text-white focus:outline-none"
-              disabled={hostsDisponiveis.length === 0}
-            >
-              {hostsDisponiveis.length === 0 && <option value="">Nenhum host</option>}
-              {hostsDisponiveis.map((host) => (
-                <option key={host.id} value={host.id}>
-                  {host.name} {host.status === 'offline' && '(Offline)'}
-                </option>
-              ))}
-            </select>
+        {/* Seletor Global de Host - NÃO aparece na página de alertas */}
+        {!isAlertsPage && (
+          <div className="flex justify-end mb-6">
+            <div className="flex items-center gap-3">
+              <label className="text-gray-600 dark:text-gray-300 text-sm font-medium">Host:</label>
+              <select
+                value={selectedHost}
+                onChange={(e) => setSelectedHost(e.target.value)}
+                className="border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-white dark:bg-gray-800 dark:text-white focus:outline-none"
+                disabled={hostsDisponiveis.length === 0}
+              >
+                {hostsDisponiveis.length === 0 && <option value="">Nenhum host</option>}
+                {hostsDisponiveis.map((host) => (
+                  <option key={host.id} value={host.id}>
+                    {host.name} {host.status === 'offline' && '(Offline)'}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* O Outlet injeta a subpágina da rota atual e distribui os dados compartilhados via context */}
         <Outlet context={{ selectedHost, metrics, loading, metricsError, selectedDiscovery, selectedHostInfo, discovery, discoveryLoading, discoveryError }} />
