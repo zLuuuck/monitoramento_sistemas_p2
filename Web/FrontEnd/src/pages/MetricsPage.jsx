@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { MetricCards } from '../components/DiscoveryDashboard';
 import { MetricsChart } from '../features/metrics/components/MetricsChart';
 import { GaugeCard } from '../components/GaugeCard';
+import { Icon } from '../shared/components/Icon';
 
 export function MetricsPage() {
   const { metrics, loading, metricsError, selectedHostInfo } = useOutletContext();
@@ -34,31 +35,31 @@ export function MetricsPage() {
             Status em Tempo Real
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <GaugeCard 
-              title="CPU" 
-              value={ultimaMetrica.cpu_percent || 0} 
-              unit="%" 
+            <GaugeCard
+              title="CPU"
+              value={ultimaMetrica.cpu_percent || 0}
+              unit="%"
               icon="cpu"
               color="blue"
             />
-            <GaugeCard 
-              title="Memória" 
-              value={ultimaMetrica.memory_percent || 0} 
-              unit="%" 
+            <GaugeCard
+              title="Memória"
+              value={ultimaMetrica.memory_percent || 0}
+              unit="%"
               icon="memory"
               color="green"
             />
-            <GaugeCard 
-              title="Disco" 
-              value={discoPercent} 
-              unit="%" 
+            <GaugeCard
+              title="Disco"
+              value={discoPercent}
+              unit="%"
               icon="disk"
               color="orange"
             />
-            <GaugeCard 
-              title="Rede" 
-              value={redePercent} 
-              unit="%" 
+            <GaugeCard
+              title="Rede"
+              value={redePercent}
+              unit="%"
               icon="network"
               color="purple"
             />
@@ -71,9 +72,13 @@ export function MetricsPage() {
         {metrics.length > 0 ? (
           <>
             <div>
-              <h3 className="text-md font-semibold text-page mb-3">📈 Histórico de Métricas</h3>
+              <h3 className="... flex items-center gap-2">
+                <Icon name="bezier" size="text-lg" />
+                Histórico de Métricas
+              </h3>
               <MetricsChart metrics={metrics} title={`Evolução - ${selectedHostInfo?.name}`} />
             </div>
+
             {/* Cards com valores detalhados (opcional - pode remover se quiser) */}
             <MetricCards latestMetric={ultimaMetrica} />
           </>

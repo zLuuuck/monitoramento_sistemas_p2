@@ -20,6 +20,7 @@ import {
   faNetworkWired,     // Rede
   faHdd,              // Disco
   faClock,            // Relógio
+  faBezierCurve,     // Grafico
 } from '@fortawesome/free-solid-svg-icons';
 
 // Mapeamento dos ícones
@@ -29,6 +30,7 @@ const icons = {
   memory: faMemory,
   disk: faHdd,
   network: faNetworkWired,
+  bezier: faBezierCurve,
   
   // Navegação
   dashboard: faTachometerAlt,
