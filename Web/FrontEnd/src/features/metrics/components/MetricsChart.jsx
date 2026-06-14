@@ -95,7 +95,7 @@ export function MetricsChart({ metrics, title }) {
       },
       tooltip: {
         callbacks: {
-          label: function(context) {
+          label: function (context) {
             return `${context.dataset.label}: ${Number(context.raw || 0).toFixed(1)}%`;
           }
         }
@@ -120,7 +120,7 @@ export function MetricsChart({ metrics, title }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-[#1A1A2E] rounded-lg border border-[#2D2D44] shadow-lg p-6">
       <div className="h-96">
         <Line data={data} options={options} updateMode="none" />
       </div>

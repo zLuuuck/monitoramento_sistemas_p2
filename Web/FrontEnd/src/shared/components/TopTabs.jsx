@@ -17,8 +17,8 @@ export function TopTabs({ activeSubTab, onSubTabChange, hostType }) {
             onClick={() => onSubTabChange(tab.id)}
             className={`flex items-center gap-2 py-4 px-1 border-b-2 transition-colors ${
               activeSubTab === tab.id
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-purple-500 text-purple-500'
+                : 'border-transparent text-gray-500 hover:text-purple-400'
             }`}
             style={{ color: activeSubTab === tab.id ? undefined : 'var(--text-page)' }}
           >
@@ -28,14 +28,15 @@ export function TopTabs({ activeSubTab, onSubTabChange, hostType }) {
         ))}
       </div>
       
-      <div className="px-6 py-2 border-t" style={{ backgroundColor: 'var(--bg-page)', borderColor: 'var(--card-border)' }}>
+      {/* Badge sem linha (border-t removido) */}
+      <div className="px-6 py-2" style={{ backgroundColor: 'var(--bg-page)' }}>
         {hostType === 'physical' ? (
-          <span className="flex items-center gap-1 text-blue-600">
+          <span className="flex items-center gap-1 text-purple-500">  {/* ← ROXO */}
             <Icon name="physical" size="text-xs" />
             Hardware Físico
           </span>
         ) : (
-          <span className="flex items-center gap-1 text-green-600">
+          <span className="flex items-center gap-1 text-purple-500">  {/* ← ROXO também */}
             <Icon name="virtual" size="text-xs" />
             Ambiente Virtualizado
           </span>

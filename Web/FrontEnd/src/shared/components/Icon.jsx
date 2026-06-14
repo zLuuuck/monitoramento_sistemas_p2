@@ -7,7 +7,7 @@ import {
   faBell,             // Alertas
   faFileAlt,          // Logs
   faTachometerAlt,    // Dashboard
-  faCheckCircle,      // Status Online
+  faCheckCircle,      // Status Onlinefontawesomw
   faExclamationCircle, // Status Offline
   faInfoCircle,       // Info
   faExternalLinkAlt,  // Ver mais
@@ -21,6 +21,7 @@ import {
   faHdd,              // Disco
   faClock,            // Relógio
   faBezierCurve,     // Grafico
+  faAt,               //@
 } from '@fortawesome/free-solid-svg-icons';
 
 // Mapeamento dos ícones
@@ -50,6 +51,7 @@ const icons = {
   minimize: faChevronLeft,
   expand: faChevronRight,
   menu: faBars,
+  email: faAt,
   
   // Hardware
   physical: faDesktop,

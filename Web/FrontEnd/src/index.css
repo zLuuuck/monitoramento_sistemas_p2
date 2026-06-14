@@ -1,32 +1,62 @@
 @import "tailwindcss";
 
-/* ========== MODO CLARO (padrão) ========== */
+/* ========== TEMA CORVO ========== */
 :root {
-    --bg-page: #f3f4f6;      /* fundo da página */
-    --text-page: #111827;     /* cor dos textos (escuro) */
-    --card-bg: #ffffff;
-    --card-border: #e5e7eb;
-    --sidebar-bg: #ffffff;    /* ← fundo da sidebar BRANCO no modo claro */
+  /* Cores principais */
+  --bg-primary: #080518;
+  --bg-secondary: #050508;
+  --bg-card: #1a1a2e;
+  --bg-hover: #2d2d44;
+  
+  /* Bordas */
+  --border-subtle: #2d2d44;
+  --border-accent: #6b21a5;
+  
+  /* Texto */
+  --text-primary: #e2e2e8;
+  --text-secondary: #8b8b9d;
+  --text-muted: #5c5c72;
+  
+  /* Roxo corvo */
+  --raven-purple: #6b21a5;
+  --raven-purple-light: #7e22ce;
+  --raven-purple-glow: rgba(107, 33, 165, 0.3);
 }
 
-/* ========== MODO ESCURO ========== */
-.dark {
-    --bg-page: #111827;
-    --text-page: #f3f4f6;     /* cor dos textos (claro) */
-    --card-bg: #1f2937;
-    --card-border: #374151;
-    --sidebar-bg: #030712;    /* fundo da sidebar escuro */
-}
-
-/* Aplica as variáveis */
+/* Fundo geral */
 body {
-    background-color: var(--bg-page);
-    color: var(--text-page);
-    transition: background-color 0.3s, color 0.3s;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* Classes utilitárias (opcional) */
-.bg-page { background-color: var(--bg-page); }
-.text-page { color: var(--text-page); }
-.bg-card { background-color: var(--card-bg); }
-.border-card { border-color: var(--card-border); }
+/* Scrollbar estilizada */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--raven-purple);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--raven-purple-light);
+}
+
+/* Animações */
+@keyframes ravenGlow {
+  0% { box-shadow: 0 0 0px var(--raven-purple-glow); }
+  50% { box-shadow: 0 0 15px var(--raven-purple-glow); }
+  100% { box-shadow: 0 0 0px var(--raven-purple-glow); }
+}
+
+.raven-glow {
+  animation: ravenGlow 3s infinite;
+}

@@ -6,17 +6,20 @@ import { TopTabs } from './TopTabs';
 export function Layout({ children, hostType = 'physical' }) {
   const location = useLocation();
   const activeTab = location.pathname.substring(1) || 'dashboard';
-
   const [activeSubTab, setActiveSubTab] = useState('overview');
 
   return (
     <div 
       className="flex h-screen" 
-      style={{ minWidth: '1024px', backgroundColor: 'var(--bg-page)' }}
+      style={{ 
+        minWidth: '1024px', 
+        backgroundColor: 'var(--bg-primary)',
+        backgroundImage: 'radial-gradient(circle at 10% 20%, rgba(107, 33, 165, 0.05) 0%, transparent 50%)'
+      }}
     >
       <Sidebar activeTab={activeTab} />
       <div className="flex-1 flex flex-col overflow-hidden">
-          <TopTabs 
+        <TopTabs 
           activeSubTab={activeSubTab}
           onSubTabChange={setActiveSubTab}
           hostType={hostType}

@@ -1,4 +1,5 @@
 import { Card } from '../shared/components/Card';
+import { Icon } from '../shared/components/Icon';
 
 export function DiscoveryDashboard({ discovery }) {
   const redes = normalizeNetworks(discovery?.networks);
@@ -8,21 +9,22 @@ export function DiscoveryDashboard({ discovery }) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-5">
+      {/* Card principal do host */}
+      <div className="bg-[#1A1A2E] rounded-xl border border-[#2D2D44] shadow-lg p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-xl font-bold text-slate-900">
+              <h3 className="text-xl font-bold text-[#E2E2E8]">
                 {discovery.host?.hostname || `Host ${discovery.host_id}`}
               </h3>
-              <span className={`rounded-md px-2 py-1 text-xs font-semibold ${discovery.host?.status === 'online' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+              <span className={`rounded-md px-2 py-1 text-xs font-semibold ${discovery.host?.status === 'online' ? 'bg-[#10B981] text-white' : 'bg-[#4B5563] text-[#E2E2E8]'}`}>
                 {discovery.host?.status || 'offline'}
               </span>
-              <span className="rounded-md bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">
+              <span className="rounded-md bg-[#4B2D6E] px-2 py-1 text-xs font-semibold text-[#A855F7]">
                 {discovery.is_virtualized ? 'Virtual' : 'Fisico'}
               </span>
             </div>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-[#8B8B9D]">
               {discovery.host?.ip_address || 'IP nao informado'} | Discovery em {formatDate(discovery.discovery_date)}
             </p>
           </div>
@@ -35,6 +37,7 @@ export function DiscoveryDashboard({ discovery }) {
         </div>
       </div>
 
+      {/* Cards de métricas */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         <Card
           title="CPU"
@@ -93,6 +96,7 @@ export function DiscoveryDashboard({ discovery }) {
         </Card>
       </div>
 
+      {/* Detalhes do sistema */}
       <Panel title="Detalhes do sistema">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           <Info label="Hostname" value={discovery.host?.hostname} />
@@ -169,18 +173,21 @@ export function MetricCards({ latestMetric }) {
 
 function MiniStat({ label, value, detail }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 text-lg font-bold text-slate-900">{value}</p>
-      <p className="text-xs text-slate-500">{detail}</p>
+    <div className="rounded-lg border border-[#2D2D44] bg-[#1A1A2E] p-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-[#8B8B9D]">{label}</p>
+      <p className="mt-1 text-lg font-bold text-[#E2E2E8]">{value}</p>
+      <p className="text-xs text-[#8B8B9D]">{detail}</p>
     </div>
   );
 }
 
 function Panel({ title, children }) {
   return (
-    <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
-      <h3 className="text-lg font-semibold text-slate-900 mb-4">{title}</h3>
+    <div className="bg-[#1A1A2E] rounded-xl border border-[#2D2D44] shadow-lg p-6">
+      <h3 className="text-lg font-semibold text-[#E2E2E8] mb-4 flex items-center gap-2">
+        <Icon name="info" size="text-lg" />
+        {title}
+      </h3>
       {children}
     </div>
   );
@@ -192,9 +199,9 @@ function Details({ children }) {
 
 function Info({ label, value, compact = false }) {
   return (
-    <div className={`${compact ? '' : 'border border-slate-200 rounded-lg p-3 bg-slate-50/60'}`}>
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="font-semibold text-slate-800 break-words">{isEmpty(value) ? '-' : value}</p>
+    <div className={`${compact ? '' : 'border border-[#2D2D44] rounded-lg p-3 bg-[#1A1A2E]'}`}>
+      <p className="text-xs font-medium uppercase tracking-wide text-[#8B8B9D]">{label}</p>
+      <p className="font-semibold text-[#E2E2E8] break-words">{isEmpty(value) ? '-' : value}</p>
     </div>
   );
 }
@@ -203,17 +210,17 @@ function DiskList({ disks }) {
   return (
     <Panel title="Discos">
       {disks.length === 0 ? (
-        <p className="text-sm text-slate-500">Nenhum disco informado.</p>
+        <p className="text-sm text-[#8B8B9D]">Nenhum disco informado.</p>
       ) : (
         <div className="space-y-3">
           {disks.map((disk, index) => (
-            <div key={disk.device || disk.serial || index} className="border border-slate-200 rounded-lg p-4">
+            <div key={disk.device || disk.serial || index} className="border border-[#2D2D44] rounded-lg p-4 bg-[#1A1A2E]">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="font-semibold text-slate-900">{disk.device || `Disco ${index + 1}`}</p>
-                  <p className="text-sm text-slate-500">{disk.model || disk.vendor || 'Modelo nao informado'}</p>
+                  <p className="font-semibold text-[#E2E2E8]">{disk.device || `Disco ${index + 1}`}</p>
+                  <p className="text-sm text-[#8B8B9D]">{disk.model || disk.vendor || 'Modelo nao informado'}</p>
                 </div>
-                <span className="rounded-md bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
+                <span className="rounded-md bg-[#4B2D6E] px-3 py-1 text-sm font-semibold text-[#A855F7]">
                   {formatStorage(getDiskSizeGb(disk))}
                 </span>
               </div>
@@ -239,21 +246,21 @@ function PartitionList({ partitions, level = 0 }) {
   }
 
   return (
-    <div className={`${level === 0 ? 'mt-4 border-t border-slate-100 pt-3' : 'mt-2 ml-4 border-l border-slate-200 pl-3'}`}>
+    <div className={`${level === 0 ? 'mt-4 border-t border-[#2D2D44] pt-3' : 'mt-2 ml-4 border-l border-[#2D2D44] pl-3'}`}>
       {level === 0 && (
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Particoes</p>
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[#8B8B9D]">Particoes</p>
       )}
       <div className="space-y-2">
         {partitions.map((partition, index) => (
-          <div key={`${partition.name || 'partition'}-${index}`} className="rounded-md bg-slate-50 p-3">
+          <div key={`${partition.name || 'partition'}-${index}`} className="rounded-md bg-[#1A1A2E] p-3 border border-[#2D2D44]">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <p className="font-semibold text-slate-800">{partition.name || `Particao ${index + 1}`}</p>
-                <p className="text-xs text-slate-500">
+                <p className="font-semibold text-[#E2E2E8]">{partition.name || `Particao ${index + 1}`}</p>
+                <p className="text-xs text-[#8B8B9D]">
                   {[partition.type, partition.fstype, partition.mountpoint].filter(Boolean).join(' | ') || 'Sem montagem informada'}
                 </p>
               </div>
-              <span className="rounded-md bg-white px-2 py-1 text-sm font-semibold text-slate-700 ring-1 ring-slate-200">
+              <span className="rounded-md bg-[#4B2D6E] px-2 py-1 text-sm font-semibold text-[#A855F7]">
                 {formatStorage(getPartitionSizeGb(partition))}
               </span>
             </div>
@@ -269,19 +276,19 @@ function NetworkList({ networks }) {
   return (
     <Panel title="Redes">
       {networks.length === 0 ? (
-        <p className="text-sm text-slate-500">Nenhuma interface informada.</p>
+        <p className="text-sm text-[#8B8B9D]">Nenhuma interface informada.</p>
       ) : (
         <div className="space-y-3">
           {networks.map((network, index) => {
             const ips = getInterfaceIps(network);
             return (
-              <div key={network.name || network.mac || index} className="border border-slate-200 rounded-lg p-4">
+              <div key={network.name || network.mac || index} className="border border-[#2D2D44] rounded-lg p-4 bg-[#1A1A2E]">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="font-semibold text-slate-900">{network.name || `Interface ${index + 1}`}</p>
-                    <p className="text-sm text-slate-500">{network.mac || 'MAC nao informado'}</p>
+                    <p className="font-semibold text-[#E2E2E8]">{network.name || `Interface ${index + 1}`}</p>
+                    <p className="text-sm text-[#8B8B9D]">{network.mac || 'MAC nao informado'}</p>
                   </div>
-                  <span className={`rounded-md px-3 py-1 text-sm font-semibold ${network.state === 'UP' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                  <span className={`rounded-md px-3 py-1 text-sm font-semibold ${network.state === 'UP' ? 'bg-[#10B981] text-white' : 'bg-[#4B5563] text-[#E2E2E8]'}`}>
                     {network.state || 'N/A'}
                   </span>
                 </div>
@@ -311,17 +318,17 @@ function MemoryDetails({ memories, modules }) {
         <Info label="Slots livres" value={slots.free} />
       </div>
       {modules.length === 0 ? (
-        <p className="text-sm text-slate-500">Nenhum modulo de memoria informado.</p>
+        <p className="text-sm text-[#8B8B9D]">Nenhum modulo de memoria informado.</p>
       ) : (
         <div className="space-y-3">
           {modules.map((module, index) => (
-            <div key={module.locator || index} className="border border-slate-200 rounded-lg p-4">
+            <div key={module.locator || index} className="border border-[#2D2D44] rounded-lg p-4 bg-[#1A1A2E]">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="font-semibold text-slate-900">{module.locator || `Slot ${index + 1}`}</p>
-                  <p className="text-sm text-slate-500">{module.bank_locator || 'Banco nao informado'}</p>
+                  <p className="font-semibold text-[#E2E2E8]">{module.locator || `Slot ${index + 1}`}</p>
+                  <p className="text-sm text-[#8B8B9D]">{module.bank_locator || 'Banco nao informado'}</p>
                 </div>
-                <span className="rounded-md bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
+                <span className="rounded-md bg-[#4B2D6E] px-3 py-1 text-sm font-semibold text-[#A855F7]">
                   {module.populated ? formatMemoryModuleSize(module) : 'Vazio'}
                 </span>
               </div>
@@ -343,7 +350,7 @@ function MotherboardDetails({ motherboard }) {
   if (!motherboard) {
     return (
       <Panel title="Placa mae">
-        <p className="text-sm text-slate-500">Nenhuma informacao de placa mae foi informada.</p>
+        <p className="text-sm text-[#8B8B9D]">Nenhuma informacao de placa mae foi informada.</p>
       </Panel>
     );
   }
@@ -363,6 +370,8 @@ function MotherboardDetails({ motherboard }) {
     </Panel>
   );
 }
+
+// ==================== FUNÇÕES AUXILIARES (mantidas iguais) ====================
 
 function normalizeNetworks(networks) {
   if (Array.isArray(networks?.interfaces)) {
@@ -472,7 +481,6 @@ function formatNumber(value) {
   if (isEmpty(value)) {
     return '-';
   }
-
   return Number(value).toLocaleString('pt-BR', {
     maximumFractionDigits: 2,
   });
@@ -506,7 +514,6 @@ function formatMhz(value) {
   if (isEmpty(value)) {
     return '-';
   }
-
   return `${formatNumber(value)} MHz`;
 }
 
@@ -514,7 +521,6 @@ function formatDate(value) {
   if (!value) {
     return '-';
   }
-
   return new Date(value).toLocaleString('pt-BR');
 }
 

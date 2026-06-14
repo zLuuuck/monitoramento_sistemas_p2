@@ -1,32 +1,32 @@
 import { Icon } from '../../shared/components/Icon';
 
-export function Card({ title, value, unit, iconName, icon, color = 'blue', subtitle, children }) {
+export function Card({ title, value, unit, iconName, icon, color = 'purple', subtitle, children }) {
   const cores = {
-    blue: 'bg-blue-50 text-blue-600 ring-blue-100',
-    green: 'bg-emerald-50 text-emerald-600 ring-emerald-100',
-    red: 'bg-red-50 text-red-600 ring-red-100',
-    yellow: 'bg-amber-50 text-amber-600 ring-amber-100',
-    purple: 'bg-violet-50 text-violet-600 ring-violet-100',
-    gray: 'bg-slate-100 text-slate-600 ring-slate-200',
+    purple: 'bg-[#4B2D6E] text-[#A855F7] ring-[#4B2D6E]',
+    blue: 'bg-[#2D3A6E] text-[#6B8BFF] ring-[#2D3A6E]',
+    green: 'bg-[#2D5A4E] text-[#6BFFB8] ring-[#2D5A4E]',
+    red: 'bg-[#6E2D2D] text-[#FF6B6B] ring-[#6E2D2D]',
+    yellow: 'bg-[#6E5A2D] text-[#FFD66B] ring-[#6E5A2D]',
+    gray: 'bg-[#4A4A5A] text-[#B8B8C8] ring-[#4A4A5A]',
   };
   const resolvedIcon = iconName || icon;
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-5">
+    <div className="bg-[#1A1A2E] rounded-xl border border-[#2D2D44] shadow-lg p-5 hover:shadow-xl transition-all duration-300">
       <div className="flex justify-between items-start gap-4">
         <div className="min-w-0">
-          <p className="text-slate-500 text-sm font-medium">{title}</p>
-          <p className="mt-1 text-2xl md:text-3xl font-bold text-slate-900 break-words leading-tight">
-            {value ?? '-'} {unit && <span className="text-base font-semibold text-slate-500">{unit}</span>}
+          <p className="text-[#8B8B9D] text-sm font-medium tracking-wide">{title}</p>
+          <p className="mt-1 text-2xl md:text-3xl font-bold text-[#E2E2E8] break-words leading-tight">
+            {value ?? '-'} {unit && <span className="text-base font-semibold text-[#8B8B9D]">{unit}</span>}
           </p>
-          {subtitle && <p className="mt-1 text-xs text-slate-500 break-words">{subtitle}</p>}
+          {subtitle && <p className="mt-1 text-xs text-[#8B8B9D] break-words">{subtitle}</p>}
         </div>
-        <div className={`${cores[color] || cores.blue} shrink-0 p-3 rounded-lg ring-1`}>
+        <div className={`${cores[color] || cores.purple} shrink-0 p-3 rounded-xl ring-1`}>
           <Icon name={resolvedIcon} size="text-xl" />
         </div>
       </div>
       {children && (
-        <div className="mt-4 border-t border-slate-100 pt-4">
+        <div className="mt-4 border-t border-[#2D2D44] pt-4">
           {children}
         </div>
       )}
