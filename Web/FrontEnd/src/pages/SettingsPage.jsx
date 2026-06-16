@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Card } from '../shared/components/Card';
 import { api } from '../shared/services/api';
+import ApiKeyCard from '../components/ApiKeyCard';
 
 export function SettingsPage() {
   // Estados para os limites
   const [thresholds, setThresholds] = useState({ cpu: 80, mem: 80, disk: 80 });
   const [thresholdsLoading, setThresholdsLoading] = useState(true);
-  
+
   // Estados para notificações
   const [notifications, setNotifications] = useState({ teams: true, email: false });
   const [notifLoading, setNotifLoading] = useState(true);
-  
+
   // Estados para emails
   const [recipients, setRecipients] = useState([]);
   const [recipientsLoading, setRecipientsLoading] = useState(true);
@@ -155,11 +156,11 @@ export function SettingsPage() {
           <div className="space-y-3 mt-2">
             <div className="flex justify-between items-center">
               <span className="crow-text-primary">CPU</span>
-              <input 
-                type="number" 
+              <input
+                type="number"
                 value={thresholds.cpu}
                 onChange={(e) => setThresholds({ ...thresholds, cpu: parseInt(e.target.value) || 0 })}
-                min="1" 
+                min="1"
                 max="99"
                 className="w-20 px-2 py-1 rounded bg-[#1A1A2E] border border-[#1A2A4A] text-center crow-text-primary focus:outline-none focus:ring-2 focus:ring-[#A855F7]"
               />
@@ -167,11 +168,11 @@ export function SettingsPage() {
             </div>
             <div className="flex justify-between items-center">
               <span className="crow-text-primary">RAM</span>
-              <input 
-                type="number" 
+              <input
+                type="number"
                 value={thresholds.mem}
                 onChange={(e) => setThresholds({ ...thresholds, mem: parseInt(e.target.value) || 0 })}
-                min="1" 
+                min="1"
                 max="99"
                 className="w-20 px-2 py-1 rounded bg-[#1A1A2E] border border-[#1A2A4A] text-center crow-text-primary focus:outline-none focus:ring-2 focus:ring-[#A855F7]"
               />
@@ -179,17 +180,17 @@ export function SettingsPage() {
             </div>
             <div className="flex justify-between items-center">
               <span className="crow-text-primary">Disco</span>
-              <input 
-                type="number" 
+              <input
+                type="number"
                 value={thresholds.disk}
                 onChange={(e) => setThresholds({ ...thresholds, disk: parseInt(e.target.value) || 0 })}
-                min="1" 
+                min="1"
                 max="99"
                 className="w-20 px-2 py-1 rounded bg-[#1A1A2E] border border-[#1A2A4A] text-center crow-text-primary focus:outline-none focus:ring-2 focus:ring-[#A855F7]"
               />
               <span className="crow-text-secondary">%</span>
             </div>
-            <button 
+            <button
               onClick={saveThresholds}
               disabled={saving}
               className="w-full mt-3 px-4 py-2 bg-[#4B2D6E] text-[#A855F7] rounded-lg hover:bg-[#2D2D44] transition-colors disabled:opacity-50"
@@ -211,7 +212,7 @@ export function SettingsPage() {
           <div className="space-y-3 mt-2">
             <div className="flex justify-between items-center">
               <span className="crow-text-primary">Alertas no Teams</span>
-              <button 
+              <button
                 onClick={() => toggleNotification('teams')}
                 className={`px-3 py-1 rounded-full text-sm transition-colors ${notifications.teams ? 'bg-[#A855F7] text-white' : 'bg-[#2D2D44] text-[#A8B3CF]'}`}
               >
@@ -220,7 +221,7 @@ export function SettingsPage() {
             </div>
             <div className="flex justify-between items-center">
               <span className="crow-text-primary">Alertas por E-mail</span>
-              <button 
+              <button
                 onClick={() => toggleNotification('email')}
                 className={`px-3 py-1 rounded-full text-sm transition-colors ${notifications.email ? 'bg-[#A855F7] text-white' : 'bg-[#2D2D44] text-[#A8B3CF]'}`}
               >
@@ -247,7 +248,7 @@ export function SettingsPage() {
                 recipients.map((email) => (
                   <div key={email} className="flex justify-between items-center px-3 py-2 rounded-lg border border-[#1A2A4A]">
                     <span className="text-sm crow-text-primary">{email}</span>
-                    <button 
+                    <button
                       onClick={() => removeEmail(email)}
                       className="text-red-500 hover:text-red-400 text-sm"
                     >
@@ -258,14 +259,14 @@ export function SettingsPage() {
               )}
             </div>
             <div className="flex gap-2 mt-3">
-              <input 
-                type="email" 
-                placeholder="email@exemplo.com" 
+              <input
+                type="email"
+                placeholder="email@exemplo.com"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 className="flex-1 px-3 py-2 rounded bg-[#1A1A2E] border border-[#1A2A4A] crow-text-primary focus:outline-none focus:ring-2 focus:ring-[#A855F7]"
               />
-              <button 
+              <button
                 onClick={addEmail}
                 disabled={saving}
                 className="px-4 py-2 bg-[#4B2D6E] text-[#A855F7] rounded-lg hover:bg-[#2D2D44] transition-colors disabled:opacity-50"
@@ -290,6 +291,17 @@ export function SettingsPage() {
             <p>Frontend: React + Vite + Tailwind</p>
             <p className="text-xs pt-2">© 2026 - Projeto de Monitoramento</p>
           </div>
+        </Card>
+
+        <Card
+          title="API"
+          value="Autenticação"
+          unit=""
+          iconName="key"
+          color="purple"
+          subtitle="Gerenciamento da API Key"
+        >
+          <ApiKeyCard />
         </Card>
 
       </div>

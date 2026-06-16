@@ -22,6 +22,7 @@ import {
   faClock,            // Relógio
   faBezierCurve,     // Grafico
   faAt,               //@
+  faKey,
 } from '@fortawesome/free-solid-svg-icons';
 
 // Mapeamento dos ícones
@@ -59,6 +60,7 @@ const icons = {
   
   // Utilitários
   time: faClock,
+  key: faKey,
 };
 
 export function Icon({ name, className, size = 'text-base' }) {
