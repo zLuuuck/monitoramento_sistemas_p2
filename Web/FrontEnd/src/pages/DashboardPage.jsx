@@ -11,7 +11,7 @@ export function DashboardPage() {
     <section className="mb-8">
       <div className="mb-4">
         <h2 className="text-xl font-bold text-page">Discovery do Host</h2>
-        <p className="text-sm text-page opacity-80">Dados coletados sobre hardware, virtualização e rede.</p>
+        <p className="text-sm text-page opacity-80">Dados coletados sobre hardware, virtualização e rede. teste</p>
       </div>
       {selectedDiscovery ? (
         <DiscoveryDashboard discovery={selectedDiscovery} />
