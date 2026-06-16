@@ -15,6 +15,8 @@ export default defineConfig({
     // HMR via Nginx (porta 80) — necessário quando a 5173 não está exposta no host
     hmr: {
       clientPort: 80,
+      host: 'painel.monitoramento.lan',
+      protocol: 'ws',
     },
     // Proxy para o BackEnd — acesso via nome de serviço interno do Docker
     proxy: {
