@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { Layout } from './shared/components/Layout';
 import { api, saveApiKey, loginWithPassword } from './shared/services/api';
 import './App.css';
-import { ThemeProvider } from './contexts/ThemeContext';
 import { Outlet, useLocation } from 'react-router-dom';
 
 function LoginModal({ onSuccess }) {
@@ -135,7 +134,7 @@ function App() {
   const selectedHostInfo = hostsDisponiveis.find((host) => host.id === selectedHost);
 
   return (
-    <ThemeProvider>
+    <>
       {authRequired && (
         <LoginModal onSuccess={() => {
           setAuthRequired(false);
@@ -143,32 +142,9 @@ function App() {
         }} />
       )}
       <Layout hostType={selectedDiscovery?.is_virtualized ? 'virtual' : 'physical'}>
-
-        {/* Seletor Global de Host - NÃO aparece na página de alertas */}
-        {!isAlertsPage && (
-          <div className="flex justify-end mb-6">
-            <div className="flex items-center gap-3">
-              <label className="text-[#A8B3CF] text-sm font-medium">Host:</label>
-              <select
-                value={selectedHost}
-                onChange={(e) => setSelectedHost(e.target.value)}
-                className="border border-[#1A2A4A] rounded-lg px-4 py-2 bg-[#1A1A2E] text-[#E2E2E8] focus:outline-none focus:ring-2 focus:ring-[#A855F7]"
-                disabled={hostsDisponiveis.length === 0}
-              >
-                {hostsDisponiveis.length === 0 && <option value="">Nenhum host</option>}
-                {hostsDisponiveis.map((host) => (
-                  <option key={host.id} value={host.id} className="bg-[#1A1A2E] text-[#E2E2E8]">
-                    {host.name} {host.status === 'offline' && '(Offline)'}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
-        {/* O Outlet injeta a subpágina da rota atual e distribui os dados compartilhados via context */}
         <Outlet context={{ selectedHost, metrics, loading, metricsError, selectedDiscovery, selectedHostInfo, discovery, discoveryLoading, discoveryError }} />
       </Layout>
-    </ThemeProvider>
+    </>
   );
 }
 

@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from './Icon';
-import { api } from '../services/api';  
+import { api } from '../services/api';
 
 export function Sidebar({ activeTab }) {
   const [isMinimized, setIsMinimized] = useState(false);
-  const [alertCount, setAlertCount] = useState(0);  
+  const [alertCount, setAlertCount] = useState(0);
 
   // Buscar número real de alertas
   useEffect(() => {
@@ -17,7 +17,7 @@ export function Sidebar({ activeTab }) {
         console.error('Erro ao carregar alertas:', error);
       }
     };
-    
+
     loadAlerts();
     const interval = setInterval(loadAlerts, 30000);
     return () => clearInterval(interval);
@@ -38,7 +38,6 @@ export function Sidebar({ activeTab }) {
 
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: 'dashboard', path: '/dashboard' },
-    { id: 'metrics', name: 'Métricas', icon: 'chart', path: '/metrics' },
     { id: 'logs', name: 'Logs', icon: 'log', path: '/logs' },
     { id: 'alerts', name: 'Alertas', icon: 'alert', path: '/alerts' },
     { id: 'endpoints', name: 'Endpoints', icon: 'server', path: '/endpoints' },
@@ -47,16 +46,14 @@ export function Sidebar({ activeTab }) {
 
   return (
     <aside
-      className={`flex flex-col transition-all duration-300 ease-in-out ${
-        isMinimized ? 'w-20' : 'w-64'
-      }`}
+      className={`flex flex-col transition-all duration-300 ease-in-out ${isMinimized ? 'w-20' : 'w-64'
+        }`}
       style={{ backgroundColor: 'var(--bg-secondary)', borderRight: '1px solid var(--border-subtle)' }}
     >
       {/* Logo Corvo */}
       <div
-        className={`p-4 border-b flex items-center ${
-          isMinimized ? 'justify-center' : 'justify-between'
-        }`}
+        className={`p-4 border-b flex items-center ${isMinimized ? 'justify-center' : 'justify-between'
+          }`}
         style={{ borderColor: 'var(--border-subtle)' }}
       >
         {!isMinimized && (
@@ -92,9 +89,8 @@ export function Sidebar({ activeTab }) {
             <li key={item.id}>
               <Link
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 transition-all duration-200 ${
-                  activeTab === item.id ? 'border-r-4' : ''
-                } ${isMinimized ? 'justify-center' : ''}`}
+                className={`flex items-center gap-3 px-4 py-3 transition-all duration-200 ${activeTab === item.id ? 'border-r-4' : ''
+                  } ${isMinimized ? 'justify-center' : ''}`}
                 title={isMinimized ? item.name : ''}
                 style={{
                   backgroundColor: activeTab === item.id ? 'var(--raven-purple)' : 'transparent',
@@ -116,7 +112,7 @@ export function Sidebar({ activeTab }) {
               >
                 <Icon name={item.icon} size="text-lg" />
                 {!isMinimized && <span className="text-sm">{item.name}</span>}
-                
+
                 {/* usa alertCount real */}
                 {item.id === 'alerts' && !isMinimized && alertCount > 0 && (
                   <span className="ml-auto text-white text-xs rounded-full px-2 py-0.5" style={{ backgroundColor: 'var(--raven-purple)' }}>

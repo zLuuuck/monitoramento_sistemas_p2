@@ -1,4 +1,5 @@
-export { DashboardPage } from './DashboardPage';
+export { DashboardPage } from './DashboardPage';   
+export { DetailsPage } from './DetailsPage';
 export { MetricsPage } from './MetricsPage';
 export { LogsPage } from './LogsPage';
 export { AlertsPage } from './AlertsPage';

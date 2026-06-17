@@ -1,7 +1,8 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import App from './App.jsx';
 import {
-  DashboardPage,
+  DashboardPage,   
+  DetailsPage,       
   MetricsPage,
   LogsPage,
   AlertsPage,
@@ -14,9 +15,10 @@ const router = createBrowserRouter([
     path: '/',
     element: <App />,
     children: [
-      { path: '/', element: <Navigate to="/dashboard" replace /> },
-      { path: '/dashboard', element: <DashboardPage /> },
-      { path: '/metrics', element: <MetricsPage /> },
+      { path: '/', element: <Navigate to="/dashboard" replace /> },  
+      { path: '/dashboard', element: <DashboardPage /> },            
+      { path: '/details/:hostId', element: <DetailsPage /> },      
+      { path: '/metrics/:hostId', element: <MetricsPage /> },      
       { path: '/logs', element: <LogsPage /> },
       { path: '/alerts', element: <AlertsPage /> },
       { path: '/endpoints', element: <EndpointsPage /> },
