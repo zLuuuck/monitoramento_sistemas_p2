@@ -38,8 +38,6 @@ export function Sidebar({ activeTab }) {
 
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: 'dashboard', path: '/dashboard' },
-    { id: 'logs', name: 'Logs', icon: 'log', path: '/logs' },
-    { id: 'alerts', name: 'Alertas', icon: 'alert', path: '/alerts' },
     { id: 'endpoints', name: 'Endpoints', icon: 'server', path: '/endpoints' },
     { id: 'settings', name: 'Configurações', icon: 'settings', path: '/settings' },
   ];

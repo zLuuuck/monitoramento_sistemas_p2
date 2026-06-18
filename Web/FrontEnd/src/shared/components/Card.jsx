@@ -2,12 +2,12 @@ import { Icon } from '../../shared/components/Icon';
 
 export function Card({ title, value, unit, iconName, icon, color = 'purple', subtitle, children }) {
   const cores = {
-    purple: 'bg-[#4B2D6E] text-[#A855F7] ring-[#4B2D6E]',
-    blue: 'bg-[#2D3A6E] text-[#6B8BFF] ring-[#2D3A6E]',
-    green: 'bg-[#2D5A4E] text-[#6BFFB8] ring-[#2D5A4E]',
-    red: 'bg-[#6E2D2D] text-[#FF6B6B] ring-[#6E2D2D]',
-    yellow: 'bg-[#6E5A2D] text-[#FFD66B] ring-[#6E5A2D]',
-    gray: 'bg-[#4A4A5A] text-[#B8B8C8] ring-[#4A4A5A]',
+    purple: 'bg-[#4B2D6E] text-[#E2E2E8] ring-[#4B2D6E]',
+    blue: 'bg-[#2D3A6E] text-[#E2E2E8] ring-[#2D3A6E]',
+    green: 'bg-[#2D5A4E] text-[#E2E2E8] ring-[#2D5A4E]',
+    red: 'bg-[#6E2D2D] text-[#E2E2E8] ring-[#6E2D2D]',
+    yellow: 'bg-[#6E5A2D] text-[#E2E2E8] ring-[#6E5A2D]',
+    gray: 'bg-[#4A4A5A] text-[#E2E2E8] ring-[#4A4A5A]',
   };
   const resolvedIcon = iconName || icon;
 

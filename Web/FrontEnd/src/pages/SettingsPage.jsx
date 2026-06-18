@@ -193,7 +193,7 @@ export function SettingsPage() {
             <button
               onClick={saveThresholds}
               disabled={saving}
-              className="w-full mt-3 px-4 py-2 bg-[#4B2D6E] text-[#A855F7] rounded-lg hover:bg-[#2D2D44] transition-colors disabled:opacity-50"
+              className="w-full mt-3 px-4 py-2 bg-[#4B2D6E] text-[#E2E2E8] rounded-lg hover:bg-[#2D2D44] transition-colors disabled:opacity-50"
             >
               {saving ? 'Salvando...' : 'Salvar'}
             </button>
@@ -223,7 +223,7 @@ export function SettingsPage() {
               <span className="crow-text-primary">Alertas por E-mail</span>
               <button
                 onClick={() => toggleNotification('email')}
-                className={`px-3 py-1 rounded-full text-sm transition-colors ${notifications.email ? 'bg-[#A855F7] text-white' : 'bg-[#2D2D44] text-[#A8B3CF]'}`}
+                className={`px-3 py-1 rounded-full text-[#E2E2E8] transition-colors ${notifications.email ? 'bg-[#A855F7] text-white' : 'bg-[#2D2D44] text-[#A8B3CF]'}`}
               >
                 {notifications.email ? 'Ativado' : 'Desativado'}
               </button>
@@ -264,12 +264,12 @@ export function SettingsPage() {
                 placeholder="email@exemplo.com"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
-                className="flex-1 px-3 py-2 rounded bg-[#1A1A2E] border border-[#1A2A4A] crow-text-primary focus:outline-none focus:ring-2 focus:ring-[#A855F7]"
+                className="flex-1 px-3 py-2 rounded bg-[#1A1A2E] border border-[#1A2A4A] text-[#E2E2E8] focus:outline-none focus:ring-2 focus:ring-[#A855F7]"
               />
               <button
                 onClick={addEmail}
                 disabled={saving}
-                className="px-4 py-2 bg-[#4B2D6E] text-[#A855F7] rounded-lg hover:bg-[#2D2D44] transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-[#4B2D6E] text-[#E2E2E8] rounded-lg hover:bg-[#2D2D44] transition-colors disabled:opacity-50"
               >
                 Adicionar
               </button>

@@ -19,8 +19,8 @@ function StatusBadge({ status }) {
   if (!status) return <span className="text-[#8B8B9D] text-xs">—</span>;
 
   const cfg = {
-    failed:   'bg-[#EF4444]/20 text-[#EF4444] border border-[#EF4444]/30',
-    accepted: 'bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/30',
+    failed: 'bg-red-600 text-white font-bold',
+    accepted: 'bg-green-600 text-white font-bold',
   };
 
   const label = { failed: 'FALHA', accepted: 'ACEITO' };
@@ -60,13 +60,12 @@ function ParsedTable({ logs }) {
                 <tr
                   key={log.id}
                   onClick={() => setExpanded(isOpen ? null : log.id)}
-                  className={`cursor-pointer transition-colors ${
-                    isParsed
+                  className={`cursor-pointer transition-colors ${isParsed
                       ? p.status === 'failed'
                         ? 'hover:bg-[#EF4444]/10'
                         : 'hover:bg-[#10B981]/10'
                       : 'hover:bg-[#1A1A2E]'
-                  } ${isOpen ? 'bg-[#1A1A2E]' : ''}`}
+                    } ${isOpen ? 'bg-[#1A1A2E]' : ''}`}
                 >
                   {isParsed ? (
                     <>
@@ -115,9 +114,9 @@ function RawView({ logs }) {
       {logs.map((log) => {
         const status = log.parsed_data?.status;
         const color =
-          status === 'failed'   ? 'text-[#EF4444]' :
-          status === 'accepted' ? 'text-[#10B981]' :
-                                  'text-[#A8B3CF]';
+          status === 'failed' ? 'text-[#EF4444]' :
+            status === 'accepted' ? 'text-[#10B981]' :
+              'text-[#A8B3CF]';
         return (
           <div key={log.id} className={`py-0.5 leading-5 ${color} hover:bg-[#1A1A2E] px-2 rounded`}>
             <span className="text-[#6B6B7D] mr-2 select-none">{formatTs(log.timestamp)}</span>
@@ -132,19 +131,19 @@ function RawView({ logs }) {
 // ─── main component ──────────────────────────────────────────────────────────
 
 const FILTER_TABS = [
-  { key: 'all',      label: 'Todos'    },
-  { key: 'failed',   label: 'Falha'    },
-  { key: 'accepted', label: 'Aceito'   },
-  { key: 'unparsed', label: 'Outros'   },
+  { key: 'all', label: 'Todos' },
+  { key: 'failed', label: 'Falha' },
+  { key: 'accepted', label: 'Aceito' },
+  { key: 'unparsed', label: 'Outros' },
 ];
 
 export function LogsPanel({ hostId }) {
-  const [logs, setLogs]               = useState([]);
-  const [total, setTotal]             = useState(0);
-  const [loading, setLoading]         = useState(false);
-  const [error, setError]             = useState('');
-  const [view, setView]               = useState('parsed');
-  const [statusFilter, setFilter]     = useState('all');
+  const [logs, setLogs] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [view, setView] = useState('parsed');
+  const [statusFilter, setFilter] = useState('all');
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const fetchLogs = useCallback(async () => {
@@ -170,14 +169,14 @@ export function LogsPanel({ hostId }) {
   }, [fetchLogs]);
 
   const counts = {
-    all:      logs.length,
-    failed:   logs.filter((l) => l.parsed_data?.status === 'failed').length,
+    all: logs.length,
+    failed: logs.filter((l) => l.parsed_data?.status === 'failed').length,
     accepted: logs.filter((l) => l.parsed_data?.status === 'accepted').length,
     unparsed: logs.filter((l) => !l.parsed_data).length,
   };
 
   const filtered = logs.filter((log) => {
-    if (statusFilter === 'all')      return true;
+    if (statusFilter === 'all') return true;
     if (statusFilter === 'unparsed') return !log.parsed_data;
     return log.parsed_data?.status === statusFilter;
   });
@@ -220,11 +219,10 @@ export function LogsPanel({ hostId }) {
             <button
               key={key}
               onClick={() => setView(key)}
-              className={`px-3 py-1.5 transition-colors ${
-                view === key
+              className={`px-3 py-1.5 transition-colors ${view === key
                   ? 'bg-[#4B2D6E] text-[#A855F7]'
                   : 'bg-[#1A1A2E] text-[#A8B3CF] hover:bg-[#2D2D44]'
-              }`}
+                }`}
             >
               {label}
             </button>
@@ -236,16 +234,14 @@ export function LogsPanel({ hostId }) {
             <button
               key={key}
               onClick={() => setFilter(key)}
-              className={`px-3 py-1.5 transition-colors ${
-                statusFilter === key
+              className={`px-3 py-1.5 transition-colors ${statusFilter === key
                   ? 'bg-[#4B2D6E] text-[#A855F7]'
                   : 'bg-[#1A1A2E] text-[#A8B3CF] hover:bg-[#2D2D44]'
-              }`}
+                }`}
             >
               {label}
-              <span className={`ml-1 text-xs rounded-full px-1.5 ${
-                statusFilter === key ? 'bg-white/20' : 'bg-[#2D2D44]'
-              }`}>
+              <span className={`ml-1 text-xs rounded-full px-1.5 ${statusFilter === key ? 'bg-white/20' : 'bg-[#2D2D44]'
+                }`}>
                 {counts[key]}
               </span>
             </button>
@@ -283,7 +279,7 @@ export function LogsPanel({ hostId }) {
 
       {/* ── Conteúdo ── */}
       {filtered.length > 0 && view === 'parsed' && <ParsedTable logs={filtered} />}
-      {filtered.length > 0 && view === 'raw'    && <RawView    logs={filtered} />}
+      {filtered.length > 0 && view === 'raw' && <RawView logs={filtered} />}
     </div>
   );
 }

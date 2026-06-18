@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../../../shared/services/api';
 
 const severityColors = {
-    high: 'bg-red-100 text-red-800',
-    medium: 'bg-yellow-100 text-yellow-800',
-    low: 'bg-blue-100 text-blue-800',
+    high: 'bg-red-600 text-white font-bold',
+    medium: 'bg-yellow-600 text-white font-bold',
+    low: 'bg-blue-600 text-white font-bold',
 };
 
 const AlertsPanel = () => {
@@ -70,9 +70,8 @@ const AlertsPanel = () => {
                             <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
                                     <span
-                                        className={`text-xs font-semibold px-2 py-1 rounded ${
-                                            severityColors[alert.severity] || severityColors.low
-                                        }`}
+                                        className={`text-xs font-semibold px-2 py-1 rounded ${severityColors[alert.severity] || severityColors.low
+                                            }`}
                                     >
                                         {alert.severity?.toUpperCase() || 'MÉDIO'}
                                     </span>
@@ -86,7 +85,11 @@ const AlertsPanel = () => {
                             </div>
                             <button
                                 onClick={() => handleResolve(alert.id)}
-                                className="ml-4 text-sm bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded"
+                                className="ml-4 text-sm text-white px-3 py-1 rounded"
+                                style={{
+                                    backgroundColor: '#4B2D6E',
+                                    color: '#E2E2E8'  
+                                }}
                             >
                                 Resolver
                             </button>
