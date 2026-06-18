@@ -69,13 +69,20 @@ export function DashboardPage() {
               </span>
             </div>
 
-            {/* Cards internos com cores MELHORADAS */}
+            {/* Cards internos — IDs em cima, métricas embaixo */}
             <div className="grid grid-cols-2 gap-3 mb-4">
               {/* Host ID */}
               <div className="rounded-lg p-3 text-center" style={{ backgroundColor: '#2D2D44' }}>
                 <p className="text-[#A8B3CF] text-xs uppercase tracking-wide">Host ID</p>
                 <p className="text-[#E2E2E8] text-xl font-bold">{host.host_id}</p>
                 <p className="text-[#A8B3CF] text-xs">Identificador</p>
+              </div>
+
+              {/* Agente */}
+              <div className="rounded-lg p-3 text-center" style={{ backgroundColor: '#2D2D44' }}>
+                <p className="text-[#A8B3CF] text-xs uppercase tracking-wide">Agente</p>
+                <p className="text-[#E2E2E8] text-xl font-bold">{host.agent_id ?? '-'}</p>
+                <p className="text-[#A8B3CF] text-xs">ID do agente</p>
               </div>
 
               {/* CPU */}
@@ -90,13 +97,6 @@ export function DashboardPage() {
                 <p className="text-[#A8B3CF] text-xs uppercase tracking-wide">RAM</p>
                 <p className="text-[#E2E2E8] text-xl font-bold">{host.total_memory_gb || 0}</p>
                 <p className="text-[#A8B3CF] text-xs">GB</p>
-              </div>
-
-              {/* Agente */}
-              <div className="rounded-lg p-3 text-center" style={{ backgroundColor: '#2D2D44' }}>
-                <p className="text-[#A8B3CF] text-xs uppercase tracking-wide">Agente</p>
-                <p className="text-[#E2E2E8] text-xl font-bold">{host.agent_id || '-'}</p>
-                <p className="text-[#A8B3CF] text-xs">ID do agente</p>
               </div>
             </div>
 

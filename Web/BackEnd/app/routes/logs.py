@@ -206,37 +206,41 @@ def create_log_blueprint(app, db, HostModel, LogEntryModel, AlertModel):
     @require_api_key
     def get_logs():
         """
-        Consulta logs de um host com paginação e filtro por tipo.
+        Consulta logs com paginação e filtro por tipo.
 
         Parâmetros (query string):
-            host_id  (obrigatório)
+            host_id  (opcional — quando ausente, retorna logs de todos os hosts)
             limit    (padrão: 20, máximo: 100)
             offset   (padrão: 0)
             log_type (opcional — ex: "auth", "system")
 
         Exemplo: GET /api/logs?host_id=1&log_type=auth&limit=10
+        Exemplo (todos os hosts): GET /api/logs?log_type=auth&limit=50
         """
         try:
             host_id_raw = request.args.get('host_id')
-            if not host_id_raw:
-                return jsonify({'erro': 'Parâmetro "host_id" é obrigatório'}), 400
+            host_id = None
+            host = None
 
-            try:
-                host_id = int(host_id_raw)
-            except (TypeError, ValueError):
-                return jsonify({'erro': 'Parâmetro "host_id" deve ser numérico'}), 400
+            if host_id_raw:
+                try:
+                    host_id = int(host_id_raw)
+                except (TypeError, ValueError):
+                    return jsonify({'erro': 'Parâmetro "host_id" deve ser numérico'}), 400
 
-            host = HostModel.query.get(host_id)
-            if not host:
-                return jsonify({'erro': f'Host com id {host_id} não encontrado'}), 404
+                host = HostModel.query.get(host_id)
+                if not host:
+                    return jsonify({'erro': f'Host com id {host_id} não encontrado'}), 404
 
             # Parâmetros de paginação com limites de segurança
             limit    = min(max(request.args.get('limit',  20, type=int), 1), 100)
             offset   = max(request.args.get('offset',  0, type=int), 0)
             log_type = request.args.get('log_type')
 
-            # Monta a query com filtros
-            query = LogEntryModel.query.filter_by(host_id=host_id)
+            # Monta a query com filtros — sem host_id, abrange todos os hosts
+            query = LogEntryModel.query
+            if host_id is not None:
+                query = query.filter_by(host_id=host_id)
             if log_type:
                 query = query.filter_by(log_type=log_type)
 
@@ -249,19 +253,31 @@ def create_log_blueprint(app, db, HostModel, LogEntryModel, AlertModel):
                 .all()
             )
 
-            # Conta o total sem paginação para o frontend calcular páginas
-            total_query = LogEntryModel.query.filter_by(host_id=host_id)
-            if log_type:
-                total_query = total_query.filter_by(log_type=log_type)
-            total = total_query.count()
+            total = query.count()
+
+            # Mapa host_id -> hostname para exibição na visão geral (todos os hosts)
+            hostnames = {}
+            if host_id is None and logs:
+                ids = {log.host_id for log in logs}
+                hostnames = {
+                    h.id: h.hostname
+                    for h in HostModel.query.filter(HostModel.id.in_(ids)).all()
+                }
+
+            logs_dict = []
+            for log in logs:
+                item = log.to_dict()
+                if host_id is None:
+                    item['hostname'] = hostnames.get(log.host_id)
+                logs_dict.append(item)
 
             return jsonify({
-                'logs':     [log.to_dict() for log in logs],
+                'logs':     logs_dict,
                 'total':    total,
                 'limit':    limit,
                 'offset':   offset,
                 'host_id':  host_id,
-                'hostname': host.hostname,
+                'hostname': host.hostname if host else None,
                 'log_type': log_type,
             }), 200
 

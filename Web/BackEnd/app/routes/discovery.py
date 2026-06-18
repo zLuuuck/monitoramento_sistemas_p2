@@ -225,7 +225,7 @@ def create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel, Me
 
             return jsonify({
                 'discoveries': [
-                    _discovery_to_response(discovery, MetricModel)
+                    _discovery_to_response(discovery, MetricModel, AgentModel)
                     for discovery in discoveries
                 ],
                 'total': len(discoveries),
@@ -241,11 +241,14 @@ def create_discovery_blueprint(db, HostModel, AgentModel, HostDiscoveryModel, Me
 
 # ==================== HELPERS ====================
 
-def _discovery_to_response(discovery, MetricModel):
+def _discovery_to_response(discovery, MetricModel, AgentModel):
     dados = discovery.to_dict()
     host = discovery.host
     latest_metric_at = _latest_metric_at(MetricModel, host.id) if host else None
     is_online = _is_host_online(latest_metric_at)
+
+    agent = AgentModel.query.filter_by(host_id=host.id).first() if host else None
+    dados['agent_id'] = agent.id if agent else None
 
     dados['host'] = {
         'id': host.id,

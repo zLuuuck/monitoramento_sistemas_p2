@@ -1,7 +1,7 @@
-import { useOutletContext } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { LogsPanel } from '../features/logs_feat/components/LogsPanel';
 
 export function LogsPage() {
-  const { selectedHost } = useOutletContext();
-  return <LogsPanel hostId={selectedHost} />;
+  const { hostId } = useParams();
+  return <LogsPanel hostId={hostId} />;
 }

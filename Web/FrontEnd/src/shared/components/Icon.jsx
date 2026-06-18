@@ -23,6 +23,9 @@ import {
   faBezierCurve,     // Grafico
   faAt,               //@
   faKey,
+  faEye,              // Ver detalhes
+  faMagnifyingGlass,  // Busca
+  faTriangleExclamation, // Em alerta
 } from '@fortawesome/free-solid-svg-icons';
 
 // Mapeamento dos ícones
@@ -61,6 +64,9 @@ const icons = {
   // Utilitários
   time: faClock,
   key: faKey,
+  eye: faEye,
+  search: faMagnifyingGlass,
+  warning: faTriangleExclamation,
 };
 
 export function Icon({ name, className, size = 'text-base' }) {

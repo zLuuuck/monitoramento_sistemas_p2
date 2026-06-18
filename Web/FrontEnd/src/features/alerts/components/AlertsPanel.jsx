@@ -7,7 +7,7 @@ const severityColors = {
     low: 'bg-blue-600 text-white font-bold',
 };
 
-const AlertsPanel = ({ hostId }) => {
+const AlertsPanel = ({ hostId, hostNames }) => {
     const [alerts, setAlerts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -76,6 +76,11 @@ const AlertsPanel = ({ hostId }) => {
                                         {alert.severity?.toUpperCase() || 'MÉDIO'}
                                     </span>
                                     <span className="font-mono text-sm text-page">{alert.alert_type || 'Desconhecido'}</span>
+                                    {hostNames && (
+                                        <span className="text-xs px-2 py-0.5 rounded bg-[#2D2D44] text-[#A8B3CF]">
+                                            {hostNames[alert.host_id] || `Host ${alert.host_id}`}
+                                        </span>
+                                    )}
                                 </div>
                                 <p className="text-sm text-page opacity-70">
                                     IP: {alert.source_ip || 'N/A'} |{' '}

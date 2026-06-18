@@ -34,8 +34,9 @@ function StatusBadge({ status }) {
 
 // ─── parsed table ────────────────────────────────────────────────────────────
 
-function ParsedTable({ logs }) {
+function ParsedTable({ logs, showHost }) {
   const [expanded, setExpanded] = useState(null);
+  const colSpan = showHost ? 4 : 3;
 
   return (
     <div className="overflow-x-auto rounded-lg border border-[#1A2A4A]">
@@ -43,6 +44,7 @@ function ParsedTable({ logs }) {
         <thead>
           <tr className="bg-[#101C35] text-[#A8B3CF] text-left">
             <th className="px-4 py-2 font-medium">Timestamp</th>
+            {showHost && <th className="px-4 py-2 font-medium">Host</th>}
             <th className="px-4 py-2 font-medium">Status</th>
             <th className="px-4 py-2 font-medium">Usuário</th>
             <th className="px-4 py-2 font-medium">IP Origem</th>
@@ -70,6 +72,7 @@ function ParsedTable({ logs }) {
                   {isParsed ? (
                     <>
                       <td className="px-4 py-2 text-[#E2E2E8] whitespace-nowrap">{formatTs(log.timestamp)}</td>
+                      {showHost && <td className="px-4 py-2 text-[#A8B3CF]">{log.hostname || `Host ${log.host_id}`}</td>}
                       <td className="px-4 py-2"><StatusBadge status={p.status} /></td>
                       <td className="px-4 py-2 font-mono text-[#E2E2E8]">{p.usuario ?? '—'}</td>
                       <td className="px-4 py-2 font-mono text-[#E2E2E8]">{p.ip_origem ?? '—'}</td>
@@ -77,7 +80,8 @@ function ParsedTable({ logs }) {
                   ) : (
                     <>
                       <td className="px-4 py-2 text-[#8B8B9D] whitespace-nowrap">{formatTs(log.timestamp)}</td>
-                      <td colSpan={3} className="px-4 py-2 text-[#8B8B9D] italic truncate max-w-xs">
+                      {showHost && <td className="px-4 py-2 text-[#A8B3CF]">{log.hostname || `Host ${log.host_id}`}</td>}
+                      <td colSpan={colSpan} className="px-4 py-2 text-[#8B8B9D] italic truncate max-w-xs">
                         {log.raw_line}
                       </td>
                     </>
@@ -89,7 +93,7 @@ function ParsedTable({ logs }) {
 
                 {isOpen && (
                   <tr key={`${log.id}-raw`} className="bg-[#1A1A2E]">
-                    <td colSpan={5} className="px-4 py-2">
+                    <td colSpan={showHost ? 6 : 5} className="px-4 py-2">
                       <p className="text-xs text-[#8B8B9D] mb-1">Raw line</p>
                       <pre className="text-xs font-mono text-[#E2E2E8] whitespace-pre-wrap break-all bg-[#050816] rounded px-3 py-2">
                         {log.raw_line}
@@ -108,7 +112,7 @@ function ParsedTable({ logs }) {
 
 // ─── raw view ────────────────────────────────────────────────────────────────
 
-function RawView({ logs }) {
+function RawView({ logs, showHost }) {
   return (
     <div className="rounded-lg bg-[#101C35] border border-[#1A2A4A] p-4 font-mono text-xs overflow-x-auto max-h-[480px] overflow-y-auto">
       {logs.map((log) => {
@@ -120,6 +124,7 @@ function RawView({ logs }) {
         return (
           <div key={log.id} className={`py-0.5 leading-5 ${color} hover:bg-[#1A1A2E] px-2 rounded`}>
             <span className="text-[#6B6B7D] mr-2 select-none">{formatTs(log.timestamp)}</span>
+            {showHost && <span className="text-[#8B8B9D] mr-2 select-none">[{log.hostname || `Host ${log.host_id}`}]</span>}
             {log.raw_line}
           </div>
         );
@@ -147,7 +152,6 @@ export function LogsPanel({ hostId }) {
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const fetchLogs = useCallback(async () => {
-    if (!hostId) return;
     setLoading(true);
     setError('');
     try {
@@ -187,7 +191,9 @@ export function LogsPanel({ hostId }) {
       {/* ── Cabeçalho ── */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-xl font-semibold crow-text-primary">Logs de Autenticação</h2>
+          <h2 className="text-xl font-semibold crow-text-primary">
+            {hostId ? 'Logs de Autenticação' : 'Logs Gerais — Todos os Hosts'}
+          </h2>
           {total > 0 && (
             <span className="text-xs text-[#A8B3CF] bg-[#1A1A2E] rounded-full px-2 py-0.5">
               {total} no banco
@@ -256,30 +262,23 @@ export function LogsPanel({ hostId }) {
         </div>
       )}
 
-      {/* ── Sem host ── */}
-      {!hostId && (
-        <div className="text-center py-12 text-[#8B8B9D]">
-          Selecione um host para ver os logs.
-        </div>
-      )}
-
       {/* ── Carregando (primeira carga) ── */}
-      {hostId && loading && logs.length === 0 && (
+      {loading && logs.length === 0 && (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#A855F7]" />
         </div>
       )}
 
       {/* ── Sem resultados ── */}
-      {hostId && !loading && filtered.length === 0 && !error && (
+      {!loading && filtered.length === 0 && !error && (
         <div className="text-center py-12 text-[#8B8B9D]">
           Nenhum log encontrado para o filtro selecionado.
         </div>
       )}
 
       {/* ── Conteúdo ── */}
-      {filtered.length > 0 && view === 'parsed' && <ParsedTable logs={filtered} />}
-      {filtered.length > 0 && view === 'raw' && <RawView logs={filtered} />}
+      {filtered.length > 0 && view === 'parsed' && <ParsedTable logs={filtered} showHost={!hostId} />}
+      {filtered.length > 0 && view === 'raw' && <RawView logs={filtered} showHost={!hostId} />}
     </div>
   );
 }

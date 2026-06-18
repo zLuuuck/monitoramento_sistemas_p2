@@ -71,16 +71,17 @@ export const api = {
     return request(`/api/metrics?host_id=${hostId}&limit=${limit}`);
   },
   getLogs: async (hostId, options = {}) => {
-    if (!hostId) return { logs: [], total: 0 };
     const { limit = 50, offset = 0, log_type = 'auth' } = options;
-    let url = `/api/logs?host_id=${hostId}&limit=${limit}&offset=${offset}`;
-    if (log_type) url += `&log_type=${log_type}`;
-    return request(url);
+    const params = new URLSearchParams({ limit, offset });
+    if (hostId) params.set('host_id', hostId);
+    if (log_type) params.set('log_type', log_type);
+    return request(`/api/logs?${params.toString()}`);
   },
-  getAlerts: async (status = 'active', hostId = null) => {
+  getAlerts: async (status = 'active', hostId = null, limit = null) => {
     const params = new URLSearchParams();
     if (status) params.set('status', status);
     if (hostId) params.set('host_id', hostId);
+    if (limit) params.set('limit', limit);
     const query = params.toString();
     const data = await request(`/api/alerts${query ? `?${query}` : ''}`);
     return data.alerts || [];
