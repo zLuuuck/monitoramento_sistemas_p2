@@ -7,7 +7,7 @@ const severityColors = {
     low: 'bg-blue-600 text-white font-bold',
 };
 
-const AlertsPanel = () => {
+const AlertsPanel = ({ hostId }) => {
     const [alerts, setAlerts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -16,7 +16,7 @@ const AlertsPanel = () => {
         try {
             setLoading(true);
             setError(null);
-            const data = await api.getAlerts('active');
+            const data = await api.getAlerts('active', hostId);
             setAlerts(data);
         } catch (err) {
             console.error('Erro ao carregar alertas:', err);
@@ -40,7 +40,7 @@ const AlertsPanel = () => {
         loadAlerts();
         const interval = setInterval(loadAlerts, 15000);
         return () => clearInterval(interval);
-    }, []);
+    }, [hostId]);
 
     // Card único para cada estado
     if (loading && alerts.length === 0) {

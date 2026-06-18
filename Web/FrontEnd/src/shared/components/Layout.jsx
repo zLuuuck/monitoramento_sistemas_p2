@@ -11,7 +11,6 @@ export function Layout({ children, hostType = 'physical' }) {
     <div
       className="flex h-screen"
       style={{
-        minWidth: '1024px',
         backgroundColor: 'var(--bg-primary)',
         backgroundImage: 'radial-gradient(circle at 10% 20%, rgba(107, 33, 165, 0.05) 0%, transparent 50%)'
       }}

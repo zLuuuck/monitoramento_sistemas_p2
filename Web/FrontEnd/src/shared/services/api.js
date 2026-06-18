@@ -77,9 +77,12 @@ export const api = {
     if (log_type) url += `&log_type=${log_type}`;
     return request(url);
   },
-  getAlerts: async (status = 'active') => {
-    const params = status ? `?status=${status}` : '';
-    const data = await request(`/api/alerts${params}`);
+  getAlerts: async (status = 'active', hostId = null) => {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (hostId) params.set('host_id', hostId);
+    const query = params.toString();
+    const data = await request(`/api/alerts${query ? `?${query}` : ''}`);
     return data.alerts || [];
   },
   resolveAlert: async (alertId) => {

@@ -85,8 +85,7 @@ export function EndpointsPage() {
                   <td className="p-4 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <Link
-                        to={`/logs`}
-                        state={{ hostId: host.host_id }}
+                        to={`/logs/${host.host_id}`}
                         className="px-3 py-1.5 rounded-lg transition-all duration-200 text-xs font-medium flex items-center gap-1.5"
                         style={{
                           backgroundColor: '#4B2D6E',
@@ -99,8 +98,7 @@ export function EndpointsPage() {
                         Logs
                       </Link>
                       <Link
-                        to={`/alerts`}
-                        state={{ hostId: host.host_id }}
+                        to={`/alerts/${host.host_id}`}
                         className="px-3 py-1.5 rounded-lg transition-all duration-200 text-xs font-medium flex items-center gap-1.5"
                         style={{
                           backgroundColor: '#4B2D6E',

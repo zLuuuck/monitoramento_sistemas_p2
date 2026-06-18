@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Layout } from './shared/components/Layout';
 import { api, saveApiKey, loginWithPassword } from './shared/services/api';
 import './App.css';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useParams } from 'react-router-dom';
 
 function LoginModal({ onSuccess }) {
   const [password, setPassword] = useState('');
@@ -55,8 +55,7 @@ function LoginModal({ onSuccess }) {
 }
 
 function App() {
-  const location = useLocation();
-  const isAlertsPage = location.pathname === '/alerts';
+  const { hostId: routeHostId } = useParams();
   const [selectedHost, setSelectedHost] = useState('');
   const [metrics, setMetrics] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -89,16 +88,20 @@ function App() {
 
   useEffect(() => { carregarDiscovery(); }, [carregarDiscovery, reloadKey]);
 
+  // O host da URL (botões "Details"/"Métricas" do Dashboard) tem prioridade
+  // sobre o fallback interno — sem isso, todo card de host abria os mesmos dados.
+  const effectiveHost = routeHostId || selectedHost;
+
   useEffect(() => {
     const carregarMetricas = async () => {
-      if (!selectedHost) {
+      if (!effectiveHost) {
         setMetrics([]);
         setLoading(false);
         return;
       }
       setLoading(true);
       try {
-        const resposta = await api.getMetrics(selectedHost);
+        const resposta = await api.getMetrics(effectiveHost);
         const dados = Array.isArray(resposta?.metrics) ? resposta.metrics : [];
         setMetrics(normalizeMetrics(dados));
         setAuthRequired(false);
@@ -122,7 +125,7 @@ function App() {
 
     // Limpa o intervalo quando o componente desmontar ou dependências mudarem
     return () => clearInterval(intervalId);
-  }, [selectedHost, reloadKey]);
+  }, [effectiveHost, reloadKey]);
 
   const hostsDisponiveis = discovery.map((item) => ({
     id: String(item.host_id),
@@ -130,8 +133,8 @@ function App() {
     status: item.host?.status || 'offline',
   }));
 
-  const selectedDiscovery = discovery.find((item) => String(item.host_id) === selectedHost);
-  const selectedHostInfo = hostsDisponiveis.find((host) => host.id === selectedHost);
+  const selectedDiscovery = discovery.find((item) => String(item.host_id) === effectiveHost);
+  const selectedHostInfo = hostsDisponiveis.find((host) => host.id === effectiveHost);
 
   return (
     <>
@@ -142,7 +145,7 @@ function App() {
         }} />
       )}
       <Layout hostType={selectedDiscovery?.is_virtualized ? 'virtual' : 'physical'}>
-        <Outlet context={{ selectedHost, metrics, loading, metricsError, selectedDiscovery, selectedHostInfo, discovery, discoveryLoading, discoveryError }} />
+        <Outlet context={{ selectedHost: effectiveHost, metrics, loading, metricsError, selectedDiscovery, selectedHostInfo, discovery, discoveryLoading, discoveryError }} />
       </Layout>
     </>
   );
