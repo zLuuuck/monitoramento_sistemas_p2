@@ -129,8 +129,8 @@ export function SettingsPage() {
   return (
     <section className="mb-8">
       <div className="mb-4">
-        <h2 className="text-xl font-bold crow-text-primary">Configurações</h2>
-        <p className="text-sm crow-text-secondary">
+        <h2 className="text-xl font-bold text-[#E2E2E8]">Configurações</h2>
+        <p className="text-sm text-[#A8B3CF]">
           Configure as preferências do sistema de monitoramento.
         </p>
       </div>
@@ -155,40 +155,40 @@ export function SettingsPage() {
         >
           <div className="space-y-3 mt-2">
             <div className="flex justify-between items-center">
-              <span className="crow-text-primary">CPU</span>
+              <span className="text-[#E2E2E8]">CPU</span>
               <input
                 type="number"
                 value={thresholds.cpu}
                 onChange={(e) => setThresholds({ ...thresholds, cpu: parseInt(e.target.value) || 0 })}
                 min="1"
                 max="99"
-                className="w-20 px-2 py-1 rounded bg-[#1A1A2E] border border-[#1A2A4A] text-center crow-text-primary focus:outline-none focus:ring-2 focus:ring-[#A855F7]"
+                className="w-20 px-2 py-1 rounded bg-[#1A1A2E] border border-[#1A2A4A] text-center text-[#E2E2E8] focus:outline-none focus:ring-2 focus:ring-[#A855F7]"
               />
-              <span className="crow-text-secondary">%</span>
+              <span className="text-[#A8B3CF]">%</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="crow-text-primary">RAM</span>
+              <span className="text-[#E2E2E8]">RAM</span>
               <input
                 type="number"
                 value={thresholds.mem}
                 onChange={(e) => setThresholds({ ...thresholds, mem: parseInt(e.target.value) || 0 })}
                 min="1"
                 max="99"
-                className="w-20 px-2 py-1 rounded bg-[#1A1A2E] border border-[#1A2A4A] text-center crow-text-primary focus:outline-none focus:ring-2 focus:ring-[#A855F7]"
+                className="w-20 px-2 py-1 rounded bg-[#1A1A2E] border border-[#1A2A4A] text-center text-[#E2E2E8] focus:outline-none focus:ring-2 focus:ring-[#A855F7]"
               />
-              <span className="crow-text-secondary">%</span>
+              <span className="text-[#A8B3CF]">%</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="crow-text-primary">Disco</span>
+              <span className="text-[#E2E2E8]">Disco</span>
               <input
                 type="number"
                 value={thresholds.disk}
                 onChange={(e) => setThresholds({ ...thresholds, disk: parseInt(e.target.value) || 0 })}
                 min="1"
                 max="99"
-                className="w-20 px-2 py-1 rounded bg-[#1A1A2E] border border-[#1A2A4A] text-center crow-text-primary focus:outline-none focus:ring-2 focus:ring-[#A855F7]"
+                className="w-20 px-2 py-1 rounded bg-[#1A1A2E] border border-[#1A2A4A] text-center text-[#E2E2E8] focus:outline-none focus:ring-2 focus:ring-[#A855F7]"
               />
-              <span className="crow-text-secondary">%</span>
+              <span className="text-[#A8B3CF]">%</span>
             </div>
             <button
               onClick={saveThresholds}
@@ -211,7 +211,7 @@ export function SettingsPage() {
         >
           <div className="space-y-3 mt-2">
             <div className="flex justify-between items-center">
-              <span className="crow-text-primary">Alertas no Teams</span>
+              <span className="text-[#E2E2E8]">Alertas no Teams</span>
               <button
                 onClick={() => toggleNotification('teams')}
                 className={`px-3 py-1 rounded-full text-sm transition-colors ${notifications.teams ? 'bg-[#A855F7] text-white' : 'bg-[#2D2D44] text-[#A8B3CF]'}`}
@@ -220,10 +220,10 @@ export function SettingsPage() {
               </button>
             </div>
             <div className="flex justify-between items-center">
-              <span className="crow-text-primary">Alertas por E-mail</span>
+              <span className="text-[#E2E2E8]">Alertas por E-mail</span>
               <button
                 onClick={() => toggleNotification('email')}
-                className={`px-3 py-1 rounded-full text-[#E2E2E8] transition-colors ${notifications.email ? 'bg-[#A855F7] text-white' : 'bg-[#2D2D44] text-[#A8B3CF]'}`}
+                className={`px-3 py-1 rounded-full text-sm transition-colors ${notifications.email ? 'bg-[#A855F7] text-white' : 'bg-[#2D2D44] text-[#A8B3CF]'}`}
               >
                 {notifications.email ? 'Ativado' : 'Desativado'}
               </button>
@@ -243,11 +243,11 @@ export function SettingsPage() {
           <div className="mt-2">
             <div className="space-y-2">
               {recipients.length === 0 ? (
-                <p className="text-sm crow-text-secondary py-2 text-center">Nenhum destinatário configurado.</p>
+                <p className="text-sm text-[#A8B3CF] py-2 text-center">Nenhum destinatário configurado.</p>
               ) : (
                 recipients.map((email) => (
                   <div key={email} className="flex justify-between items-center px-3 py-2 rounded-lg border border-[#1A2A4A]">
-                    <span className="text-sm crow-text-primary">{email}</span>
+                    <span className="text-sm text-[#E2E2E8]">{email}</span>
                     <button
                       onClick={() => removeEmail(email)}
                       className="text-red-500 hover:text-red-400 text-sm"
@@ -280,16 +280,33 @@ export function SettingsPage() {
         {/* Card Sobre */}
         <Card
           title="Sobre"
-          value="Monitoramento P2"
+          value="Munynn System"
           unit=""
           iconName="info"
           color="purple"
-          subtitle="Sistema de monitoramento de endpoints"
+          subtitle="Sistema Integrado de Monitoramento em Servidor Linux"
         >
-          <div className="mt-2 space-y-1 text-sm crow-text-secondary">
-            <p>Versão: 2.0.0</p>
-            <p>Frontend: React + Vite + Tailwind</p>
-            <p className="text-xs pt-2">© 2026 - Projeto de Monitoramento</p>
+          <div className="mt-2 space-y-3 text-sm text-[#A8B3CF]">
+            <p>
+              Projeto Interdisciplinar de Análise de Sistemas — curso de Análise e
+              Desenvolvimento de Sistemas, Universidade Tuiuti do Paraná.
+            </p>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#8B8B9D] mb-1">Equipe</p>
+              <ul className="text-xs leading-relaxed grid grid-cols-1 sm:grid-cols-2 gap-x-3">
+                <li>Beatriz Pimentel de Mello</li>
+                <li>Caio Federico Esquivel Lovera Arze</li>
+                <li>Denyse Panza Clemente Ferreira</li>
+                <li>Douglas Clayton da Silva</li>
+                <li>Fernando Bach</li>
+                <li>Larissa Quirino dos Santos</li>
+                <li>Lucas Toterol Rodrigues</li>
+              </ul>
+            </div>
+            <div className="border-t border-[#2D2D44] pt-2 text-xs">
+              <p>Versão: 2.0.0 · Frontend: React + Vite + Tailwind</p>
+              <p className="pt-1">© 2026 — Munynn System</p>
+            </div>
           </div>
         </Card>
 
