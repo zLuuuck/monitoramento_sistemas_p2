@@ -60,11 +60,17 @@ export function Sidebar({ activeTab }) {
   };
 
   return (
-    <aside
-      className={`flex flex-col transition-all duration-300 ease-in-out ${isMinimized ? 'w-20' : 'w-72'
-        }`}
-      style={{ backgroundColor: 'var(--bg-secondary)', borderRight: '1px solid var(--border-subtle)' }}
-    >
+      <aside
+  className={`flex flex-col transition-all duration-300 ease-in-out ${
+    isMinimized ? 'w-20' : 'w-72'
+  }`}
+  style={{
+    background:
+      'linear-gradient(180deg, #0B0B12 0%, #080810 100%)',
+    borderRight: '1px solid rgba(255,255,255,0.05)',
+    boxShadow: 'inset -1px 0 0 rgba(255,255,255,0.03)',
+  }}
+>
       {/* Logo Munynn */}
       <div className="relative border-b p-5" style={{ borderColor: 'var(--border-subtle)' }}>
         <button
@@ -111,10 +117,10 @@ export function Sidebar({ activeTab }) {
               {group.items.map((item) => {
                 const isActive = activeTab === item.id;
                 return (
-                  <li key={item.id}>
+                  <li key={item.id} className="relative">
                     <Link
                       to={item.path}
-                      className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${isMinimized ? 'justify-center' : ''}`}
+                      className={`relative overflow-hidden group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${isMinimized ? 'justify-center' : ''}`}
                       title={isMinimized ? item.name : ''}
                       style={{
                         background: isActive
@@ -125,21 +131,40 @@ export function Sidebar({ activeTab }) {
                       }}
                       onMouseEnter={(e) => {
                         if (!isActive) {
-                          e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
+                          e.currentTarget.style.background =
+                          'linear-gradient(90deg, rgba(139,92,246,.12), transparent)';
                           e.currentTarget.style.color = 'var(--text-primary)';
+                          e.currentTarget.style.transform = 'translateX(4px)';
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (!isActive) {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                          e.currentTarget.style.color = 'var(--text-secondary)';
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = 'var(--text-secondary)';
+                        e.currentTarget.style.transform = 'translateX(0)';
                         }
                       }}
                     >
                       <span
-                        className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0"
-                        style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.15)' : 'transparent' }}
+                        className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
+                        style={{
+                        backgroundColor: isActive
+                        ? 'rgba(255,255,255,0.15)'
+                        : 'rgba(139,92,246,0.08)',
+                        border: isActive
+                        ? 'none'
+                        : '1px solid rgba(139,92,246,0.12)'
+                        }}
                       >
+                    {isActive && (
+                      <span
+                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full"
+                        style={{
+                        background: 'var(--raven-purple-light)',
+                        boxShadow: '0 0 12px var(--raven-purple-light)',
+      }}
+    />
+  )}
                         <Icon name={item.icon} size="text-base" />
                       </span>
                       {!isMinimized && <span className="text-sm font-medium">{item.name}</span>}
@@ -165,15 +190,19 @@ export function Sidebar({ activeTab }) {
       </nav>
 
       {/* Footer */}
-      <div className="border-t p-4 text-center" style={{ borderColor: 'var(--border-subtle)' }}>
-        {!isMinimized ? (
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            © 2026 Munynn System
-          </p>
-        ) : (
-          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>©</p>
-        )}
-      </div>
+      <div
+      className="border-t p-4 text-center"
+      style={{ borderColor: 'var(--border-subtle)' }}
+    >
+      {!isMinimized && (
+      <p
+      className="text-[11px]"
+      style={{ color: 'var(--text-muted)' }}
+    >
+      Munynn System v1.0
+    </p>
+  )}
+</div>
     </aside>
   );
 }
