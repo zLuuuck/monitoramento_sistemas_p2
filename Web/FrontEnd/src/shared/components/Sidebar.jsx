@@ -82,20 +82,103 @@ export function Sidebar({ activeTab }) {
           <Icon name={isMinimized ? 'expand' : 'minimize'} size="text-base" />
         </button>
 
-        <div className="flex flex-col items-center gap-3">
-          <img
-            src="/logo-Munynn.jpeg"
-            alt="Munynn"
-            className={`rounded-2xl object-cover shadow-lg transition-all duration-300 ${isMinimized ? 'w-12 h-12' : 'w-28 h-28'}`}
-            style={{ boxShadow: '0 0 24px var(--raven-purple-glow)' }}
-          />
-          {!isMinimized && (
-            <div className="text-center leading-tight">
-              <p className="font-extrabold text-2xl tracking-wide" style={{ color: 'var(--text-primary)' }}>MUNYNN</p>
-              <p className="font-semibold text-base tracking-[0.3em]" style={{ color: 'var(--text-secondary)' }}>SYSTEM</p>
-            </div>
-          )}
-        </div>
+<div className="flex flex-col items-center gap-3">
+  <div className="relative flex items-center justify-center">
+{!isMinimized && (
+  <svg
+    viewBox="0 0 200 200"
+    className="absolute pointer-events-none"
+    style={{ width: '180px', height: '180px' }}
+  >
+    <defs>
+      <radialGradient id="radar-sweep" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stopColor="rgba(139,92,246,0)" />
+        <stop offset="100%" stopColor="rgba(139,92,246,0)" />
+      </radialGradient>
+      <filter id="radar-glow">
+        <feGaussianBlur stdDeviation="2" result="blur" />
+        <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+    </defs>
+
+    {/* Círculo base do radar */}
+    <circle cx="100" cy="100" r="88" fill="none" stroke="rgba(139,92,246,0.2)" strokeWidth="1" />
+    <circle cx="100" cy="100" r="60" fill="none" stroke="rgba(139,92,246,0.12)" strokeWidth="1" strokeDasharray="4 6" />
+    <circle cx="100" cy="100" r="32" fill="none" stroke="rgba(139,92,246,0.12)" strokeWidth="1" strokeDasharray="4 6" />
+
+    {/* Cruz de mira */}
+    <line x1="100" y1="14" x2="100" y2="30" stroke="rgba(139,92,246,0.3)" strokeWidth="1" />
+    <line x1="100" y1="170" x2="100" y2="186" stroke="rgba(139,92,246,0.3)" strokeWidth="1" />
+    <line x1="14" y1="100" x2="30" y2="100" stroke="rgba(139,92,246,0.3)" strokeWidth="1" />
+    <line x1="170" y1="100" x2="186" y2="100" stroke="rgba(139,92,246,0.3)" strokeWidth="1" />
+
+    {/* Linha de varredura girando */}
+    <g style={{ transformOrigin: '100px 100px', animation: 'radar-spin 3s linear infinite' }}>
+      <line x1="100" y1="100" x2="100" y2="14" stroke="var(--raven-purple-light)" strokeWidth="1.5" filter="url(#radar-glow)" opacity="0.9" />
+      {/* Cone de sweep */}
+      <path
+        d="M 100 100 L 100 14 A 86 86 0 0 1 148 148 Z"
+        fill="url(#sweep-gradient)"
+        opacity="0"
+      />
+    </g>
+
+    {/* Rastro do sweep (gradiente em arco) */}
+    <g style={{ transformOrigin: '100px 100px', animation: 'radar-spin 3s linear infinite' }}>
+      <path
+        d="M 100 14 A 86 86 0 0 1 170 130"
+        fill="none"
+        stroke="var(--raven-purple-light)"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        opacity="0.15"
+        filter="url(#radar-glow)"
+      />
+    </g>
+
+    <style>{`
+      @keyframes radar-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+    `}</style>
+  </svg>
+)}
+<div className="relative flex flex-col items-center">
+      <div
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: isMinimized ? '70px' : '150px',
+          height: isMinimized ? '70px' : '150px',
+          background: 'radial-gradient(circle, rgba(139,92,246,0.5) 0%, rgba(91,33,182,0.28) 40%, transparent 70%)',
+          filter: 'blur(14px)',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 0,
+        }}
+      />
+      <img
+        src="/logo-Munynn.jpeg"
+        alt="Munynn"
+        className={`relative rounded-2xl object-cover shadow-lg transition-all duration-300 ${isMinimized ? 'w-12 h-12' : 'w-28 h-28'}`}
+        style={{
+          boxShadow: '0 0 32px var(--raven-purple-glow), 0 0 10px rgba(139,92,246,0.55)',
+          zIndex: 1,
+        }}
+      />
+    </div>
+  </div>
+  {!isMinimized && (
+    <div className="text-center leading-tight">
+      <p className="font-extrabold text-2xl tracking-wide" style={{ color: 'var(--text-primary)' }}>MUNYNN</p>
+      <p className="font-semibold text-base tracking-[0.3em]" style={{ color: 'var(--text-secondary)' }}>SYSTEM</p>
+    </div>
+  )}
+</div>
 
         {!isMinimized && (
 <div className="relative mt-4 h-px flex items-center">
