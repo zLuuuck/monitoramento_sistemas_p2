@@ -15,6 +15,7 @@ import {
   faCloud,            // Virtualizado
   faChevronLeft,      // Minimizar (<)
   faChevronRight,     // Expandir (>)
+  faChevronDown,      // Seta divisória (v)
   faBars,             // Menu hambúrguer
   faCog,              // Configurações
   faNetworkWired,     // Rede
@@ -54,6 +55,7 @@ const icons = {
   external: faExternalLinkAlt,
   minimize: faChevronLeft,
   expand: faChevronRight,
+  'chevron-down': faChevronDown,
   menu: faBars,
   email: faAt,
   

@@ -71,8 +71,8 @@ export function Sidebar({ activeTab }) {
       boxShadow: '1px 0 14px 0 var(--raven-purple-glow), inset -1px 0 0 rgba(255,255,255,0.03)',
   }}
 >
-      {/* Logo Munynn */}
-      <div className="relative border-b p-5" style={{ borderColor: 'var(--border-subtle)' }}>
+  {/* Logo Munynn */}
+      <div className="relative p-5">
         <button
           onClick={toggleSidebar}
           className="absolute top-2 right-2 transition-colors p-1 rounded z-10"
@@ -96,6 +96,34 @@ export function Sidebar({ activeTab }) {
             </div>
           )}
         </div>
+
+        {!isMinimized && (
+<div className="relative mt-4 h-px flex items-center">
+  <div
+                className="flex-1 h-px"
+                style={{
+                background: 'linear-gradient(90deg, transparent 0%, var(--raven-purple-light) 100%)',
+                boxShadow: '0 0 8px var(--raven-purple-light)',
+              }}
+            />
+  <span
+                className="flex items-center justify-center shrink-0 px-2"
+                style={{
+                color: 'var(--raven-purple-light)',
+                filter: 'drop-shadow(0 0 6px var(--raven-purple-light))',
+              }}
+            >
+                <Icon name="chevron-down" size="text-xs" />
+  </span>
+  <div
+                className="flex-1 h-px"
+                style={{
+                background: 'linear-gradient(90deg, var(--raven-purple-light) 0%, transparent 100%)',
+                boxShadow: '0 0 8px var(--raven-purple-light)',
+    }}
+  />
+</div>
+        )}
       </div>
 
       {/* Menu */}
