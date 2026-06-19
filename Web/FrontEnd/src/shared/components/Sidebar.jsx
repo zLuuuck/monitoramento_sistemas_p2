@@ -67,8 +67,8 @@ export function Sidebar({ activeTab }) {
   style={{
     background:
       'linear-gradient(180deg, #0B0B12 0%, #080810 100%)',
-    borderRight: '1px solid rgba(255,255,255,0.05)',
-    boxShadow: 'inset -1px 0 0 rgba(255,255,255,0.03)',
+      borderRight: '1px solid var(--raven-purple-light)',
+      boxShadow: '1px 0 14px 0 var(--raven-purple-glow), inset -1px 0 0 rgba(255,255,255,0.03)',
   }}
 >
       {/* Logo Munynn */}
@@ -99,7 +99,7 @@ export function Sidebar({ activeTab }) {
       </div>
 
       {/* Menu */}
-      <nav className="flex-1 py-6 overflow-y-auto">
+      <nav className="flex-1 py-6 overflow-hidden">
         {MENU_GROUPS.map((group) => (
           <div key={group.label} className="mb-5">
             {!isMinimized && (
@@ -124,22 +124,31 @@ export function Sidebar({ activeTab }) {
                       title={isMinimized ? item.name : ''}
                       style={{
                         background: isActive
-                          ? 'linear-gradient(135deg, var(--raven-purple), var(--raven-purple-light))'
+                          ? 'linear-gradient(135deg, #3D245A, #56317E)'
                           : 'transparent',
                         color: isActive ? 'white' : 'var(--text-secondary)',
-                        boxShadow: isActive ? '0 4px 14px var(--raven-purple-glow)' : 'none',
+                        boxShadow: isActive   ? `
+                        0 0 0 1px rgba(139,92,246,.15),
+                        0 8px 24px rgba(91,33,182,.20)
+                        ` : 'none',
                       }}
                       onMouseEnter={(e) => {
                         if (!isActive) {
                           e.currentTarget.style.background =
-                          'linear-gradient(90deg, rgba(139,92,246,.12), transparent)';
-                          e.currentTarget.style.color = 'var(--text-primary)';
-                          e.currentTarget.style.transform = 'translateX(4px)';
+                          'linear-gradient(90deg, rgba(139,92,246,.10), rgba(139,92,246,.03))';
+
+                          e.currentTarget.style.boxShadow =
+                          '0 0 20px rgba(139,92,246,.08)';
+
+                          e.currentTarget.style.color = 'white';
+
+                          e.currentTarget.style.transform = 'translateX(6px)';
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (!isActive) {
                         e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.boxShadow = 'none';
                         e.currentTarget.style.color = 'var(--text-secondary)';
                         e.currentTarget.style.transform = 'translateX(0)';
                         }
@@ -150,10 +159,10 @@ export function Sidebar({ activeTab }) {
                         style={{
                         backgroundColor: isActive
                         ? 'rgba(255,255,255,0.15)'
-                        : 'rgba(139,92,246,0.08)',
+                        : 'rgba(139,92,246,0.05)',
                         border: isActive
                         ? 'none'
-                        : '1px solid rgba(139,92,246,0.12)'
+                        : '1px solid rgba(139,92,246,.08)'
                         }}
                       >
                     {isActive && (
@@ -199,7 +208,7 @@ export function Sidebar({ activeTab }) {
       className="text-[11px]"
       style={{ color: 'var(--text-muted)' }}
     >
-      Munynn System v1.0
+      © 2026 Munynn System
     </p>
   )}
 </div>
