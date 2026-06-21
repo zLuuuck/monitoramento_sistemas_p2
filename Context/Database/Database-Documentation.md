@@ -1,6 +1,6 @@
 # Banco de Dados — Documentação Técnica
 
-**Versão 1.1 | Junho 2026**
+**Versão 1.4 | Junho 2026**
 
 | Campo          | Valor                                                       |
 |----------------|-------------------------------------------------------------|
@@ -136,7 +136,7 @@ CREATE TABLE host_discovery (
 
 **Coluna gerada:** `cpu_ghz = cpu_clock_base_mhz / 1000.0` — calculada e armazenada automaticamente pelo PostgreSQL.
 
-> As colunas `os_name`, `os_version`, `kernel_release`, `uptime_seconds` e `motherboard` não estão no `init.sql` original — são adicionadas por `garantir_schema_discovery()` no startup do backend.
+> As colunas `os_name`, `os_version`, `kernel_release`, `uptime_seconds` e `motherboard` já fazem parte do `init.sql` consolidado (criadas diretamente na `CREATE TABLE`). A função `garantir_schema_discovery()` continua existindo no backend (`ADD COLUMN IF NOT EXISTS`) apenas para atualizar volumes antigos criados antes da consolidação — em um ambiente novo ela não tem efeito (colunas já existem).
 
 ---
 
@@ -171,7 +171,7 @@ CREATE TABLE metrics (
 
 **Crescimento estimado:** ~17.280 linhas/dia por host com ciclo de 5s. Sem retenção ativa, a tabela cresce indefinidamente.
 
-> As colunas de `memory_*_mb`, `disk_*_mb` e `*_iops`, `*_bytes_per_sec` foram adicionadas por `garantir_schema_metrics()` e `garantir_schema_iops()`.
+> As colunas de `memory_*_mb`, `disk_*_mb` e `*_iops`, `*_bytes_per_sec` já fazem parte do `init.sql` consolidado. `garantir_schema_metrics()` e `garantir_schema_iops()` continuam no backend apenas para atualizar volumes antigos pré-consolidação.
 
 ---
 
@@ -230,7 +230,7 @@ CREATE TABLE alerts (
 );
 ```
 
-> **Atenção:** o `init.sql` declara `source_ip INET NOT NULL`. A migração `garantir_schema_alerts_source_ip()` converte para `VARCHAR(45)` e remove o NOT NULL no startup do backend.
+> **Atenção:** o `init.sql` consolidado já declara `source_ip VARCHAR(45)` nullable diretamente — o tipo `INET NOT NULL` só existia em versões anteriores (pré-consolidação) do arquivo. A migração `garantir_schema_alerts_source_ip()` permanece no backend apenas para corrigir volumes antigos que ainda tenham a coluna no formato original.
 
 **Valores de alert_type:**
 
@@ -270,7 +270,9 @@ CREATE TABLE alerts (
 Configurações do sistema persistidas no banco. Não tem FK com nenhuma outra tabela.
 
 ```sql
--- Criada por garantir_schema_settings() — não está no init.sql:
+-- Já criada diretamente no init.sql consolidado (CREATE TABLE public.app_settings).
+-- garantir_schema_settings() permanece no backend como CREATE TABLE IF NOT EXISTS,
+-- só tem efeito em volumes antigos pré-consolidação:
 CREATE TABLE IF NOT EXISTS app_settings (
     key        VARCHAR(100) PRIMARY KEY,
     value      TEXT,
@@ -515,7 +517,8 @@ Campos adicionados após a criação inicial do banco são aplicados pelo backen
 
 ---
 
-*Documentação atualizada em 05/06/2026 — v1.3*  
+*Documentação atualizada em 21/06/2026 — v1.4*  
 *Adições v1.1: app_settings, migrações de tipo IP (INET → VARCHAR(45)), nullable source_ip, deduplicação por cooldown de port scan, alertas de recurso (cpu_high/mem_high/disk_high).*  
 *Adições v1.2: app_settings agora armazena `email_recipients` (JSON array de destinatários para notificações por email); query de exemplo adicionada.*  
-*Adições v1.3 (05/06/2026): tabela `active_connections` removida do diagrama e da documentação; `cleanup_old_data()` atualizada (remove active_connections); app_settings com chaves completas (notify_*, threshold_*); `garantir_schema_connections_ip()` removida; `garantir_schema_notifications/thresholds()` adicionadas; retenção automática via APScheduler documentada; init.sql marcado como consolidado; seção 10 (Evolução) adicionada.*
+*Adições v1.3 (05/06/2026): tabela `active_connections` removida do diagrama e da documentação; `cleanup_old_data()` atualizada (remove active_connections); app_settings com chaves completas (notify_*, threshold_*); `garantir_schema_connections_ip()` removida; `garantir_schema_notifications/thresholds()` adicionadas; retenção automática via APScheduler documentada; init.sql marcado como consolidado; seção 10 (Evolução) adicionada.*  
+*Adições v1.4 (21/06/2026 — esta revisão, sem mudança de schema): corrigidas quatro notas que ainda diziam que certas colunas/tabelas "não estão no init.sql" — confirmado lendo o `init.sql` atual que `os_name/os_version/kernel_release/uptime_seconds/motherboard` (host_discovery), as colunas `memory_*_mb`/`disk_*_mb`/`*_iops`/`*_bytes_per_sec` (metrics), `source_ip VARCHAR(45)` nullable (alerts) e a tabela `app_settings` já vêm criadas diretamente no dump consolidado; as funções `garantir_schema_*` correspondentes seguem no backend só para compatibilidade com volumes antigos pré-consolidação.*

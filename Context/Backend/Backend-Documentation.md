@@ -33,17 +33,17 @@ O Backend Monitor é uma **API REST** desenvolvida em Python/Flask que atua como
 [Agentes Linux]
       │
       │  HTTP POST (push — agente inicia)
-      │  Authorization: Bearer {API_KEY}
+      │  X-API-Key: {API_KEY}
       ▼
 [Nginx :80]
-      │
-      ├─ /api/*  → backend Flask :5000
-      └─ /*      → frontend React/Vite :5173
+      │  roteia por server_name (virtual host), não por path
+      ├─ api.monitoramento.lan     → backend Flask :5000
+      └─ painel.monitoramento.lan  → frontend Vite :5173
 
 [Frontend React]
       │
-      │  HTTP GET  (com API key em sessionStorage)
-      └─ /api/*  → backend Flask :5000
+      │  HTTP GET  (com API key em localStorage)
+      └─ api.monitoramento.lan → backend Flask :5000
 ```
 
 O backend **nunca** inicia conexão com os agentes. Toda comunicação é iniciada pelo agente (modelo push).
@@ -80,7 +80,7 @@ O backend **nunca** inicia conexão com os agentes. Toda comunicação é inicia
 |------------|----------------|
 | PostgreSQL | 15 — banco relacional principal |
 | Docker Compose | Orquestra 4 containers |
-| Nginx (alpine) | Proxy reverso — roteia `/api/*` → backend, `/*` → frontend |
+| Nginx (alpine) | Proxy reverso — roteia por **virtual host** (`server_name`): `api.monitoramento.lan` → backend, `painel.monitoramento.lan` → frontend (não por prefixo de path) |
 
 ### Variáveis de ambiente (`.env`)
 
@@ -228,7 +228,7 @@ ENTRYPOINT ["./entrypoint.sh"]
 2. Cria instância `Flask` com `CORS` habilitado globalmente
 3. Configura `SQLALCHEMY_DATABASE_URI` via `DATABASE_URL`
 4. Inicializa `SQLAlchemy(app)`
-5. Chama `registrar_modelos(db)` — instancia todos os 7 modelos
+5. Chama `registrar_modelos(db)` — instancia todos os 6 modelos
 6. Executa as 8 funções de migração de schema
 7. Chama `_notificar_alertas_ativos()` — notifica Teams sobre alertas ativos no startup
 8. Carrega API key do banco via `_load_api_key_from_db()`
@@ -299,7 +299,7 @@ Os blueprints recebem funções de detecção por parâmetro para evitar import 
 | Endpoint | Método | Auth | Resposta |
 |----------|--------|------|----------|
 | `/health` | GET | Não | `{"status": "ok"}` — 200 |
-| `/api/status` | GET | Não | `{"status": "online", "version": "5.0.0", "timestamp": "..."}` — 200 |
+| `/api/status` | GET | Não | `{"status": "online", "service": "API Monitoramento", "version": "4.0.0", "timestamp": "..."}` — 200 |
 | `/api/hello` | GET | Não | `{"message": "Olá do BackEnd Flask!"}` — 200 |
 | `/api/hosts` | GET | Sim | Lista de hosts com status online/offline |
 | `/api/heartbeat` | POST | Sim | `{"status": "ok"}` — atualiza `last_seen` do host |
@@ -452,6 +452,8 @@ Recebe e persiste o inventário de hardware do agente.
 
 Retorna dados de discovery para o frontend. Parâmetro opcional: `?host_id=N`.
 
+Cada item retornado inclui `agent_id` no nível raiz do dict — resolvido via `AgentModel.query.filter_by(host_id=...)` em `_discovery_to_response()` (não vem apenas do registro original de discovery, é buscado a cada chamada).
+
 ---
 
 ### 7.2 metrics.py
@@ -501,7 +503,9 @@ Recebe uma linha de log por requisição, persiste e detecta brute force.
 
 #### GET /api/logs
 
-Parâmetros: `host_id` (obrigatório), `limit`, `offset`, `log_type` (opcional).
+Parâmetros: `host_id` (**opcional** — quando ausente, retorna logs agregados de **todos os hosts**), `limit`, `offset`, `log_type` (opcional).
+
+Quando `host_id` é omitido, cada entrada do array `logs` ganha um campo extra `hostname` (resolvido em lote via `HostModel.query.filter(HostModel.id.in_(ids))` a partir dos `host_id` presentes na página retornada), para a visão geral do frontend conseguir identificar a origem de cada log sem uma consulta por linha. Os campos `host_id` e `hostname` de nível raiz da resposta ficam `null` nesse modo.
 
 ---
 
@@ -588,12 +592,12 @@ def endpoint():
 2. Compara com `app.config['API_KEY']` (carregado do banco no startup)
 3. Se inválido ou ausente: retorna 401
 
-> **Mudança de protocolo:** o header foi alterado de `Authorization: Bearer {token}` para `X-API-Key: {token}`. O agente envia os dois headers (suporte a `MONITOR_TOKEN` via `Authorization` legado + `API_KEY` via `X-API-Key`). O backend só valida `X-API-Key`.
+> **Mudança de protocolo:** o header foi alterado de `Authorization: Bearer {token}` para `X-API-Key: {token}`. Desde a Fase A de hardening, o agente envia **exclusivamente** `X-API-Key` — `MONITOR_TOKEN` e o header `Authorization: Bearer` foram removidos do agente (ver `Agent-Documentation.md`, seção 10). O backend só reconhece `X-API-Key`.
 
 **Rotas protegidas (decoradas com `@require_api_key`):**
 - `POST /api/heartbeat`
 - `GET /api/hosts`
-- `POST /api/connections`
+- `POST /api/security/portscan`
 - `GET /api/settings/email-recipients`
 - `POST /api/settings/email-recipients`
 - `DELETE /api/settings/email-recipients/<email>`
@@ -843,11 +847,11 @@ Cria alerta se `valor > limiar` e não houver alerta ativo do mesmo tipo para o 
 | `/api/hosts` | GET | Sim | Frontend | Lista hosts com status online/offline |
 | `/api/heartbeat` | POST | Sim | Agente | Atualiza `last_seen` do host |
 | `/api/discovery` | POST | Sim | Agente | Recebe inventário de hardware |
-| `/api/discovery` | GET | Sim | Frontend | Retorna dados de hardware |
+| `/api/discovery` | GET | Sim | Frontend | Retorna dados de hardware (cada item inclui `agent_id`) |
 | `/api/metrics` | POST | Sim | Agente | Recebe snapshot de métricas (~5s) |
 | `/api/metrics` | GET | Sim | Frontend | Consulta métricas com paginação |
 | `/api/logs` | POST | Sim | Agente | Recebe linha do auth.log + parsing + detecção |
-| `/api/logs` | GET | Sim | Frontend | Consulta logs com filtro e paginação |
+| `/api/logs` | GET | Sim | Frontend | Consulta logs com filtro e paginação — `host_id` opcional (agrega todos os hosts) |
 | `/api/alerts` | GET | Sim | Frontend | Lista alertas de segurança |
 | `/api/alerts/<id>/resolve` | PATCH | Sim | Frontend | Marca alerta como resolvido |
 | `/api/security/portscan` | POST | Sim | Agente | Recebe sinal de port scan (tcpdump) → cria alerta |
@@ -889,13 +893,13 @@ Navegador → POST /api/auth/login { password }
                         │
                         └─ Frontend salva api_key no sessionStorage
                            Inclui em todas as próximas requisições:
-                           Authorization: Bearer {api_key}
+                           X-API-Key: {api_key}
 ```
 
 ### 10.2 Discovery (inicialização do agente)
 
 ```
-Agente → POST /api/discovery { Authorization: Bearer }
+Agente → POST /api/discovery { X-API-Key }
                 │
                 ├─ _extract_discovery_fields()  ← normaliza payload físico/VM
                 │
@@ -912,7 +916,7 @@ Agente → POST /api/discovery { Authorization: Bearer }
 ### 10.3 Métricas + Alertas de Recurso
 
 ```
-Agente → POST /api/metrics { Authorization: Bearer }
+Agente → POST /api/metrics { X-API-Key }
                 │
                 ├─ _normalize_metrics_payload()
                 ├─ _resolve_host()  → retorna objeto host (com .hostname e .ip_address)
@@ -931,7 +935,7 @@ Agente → POST /api/metrics { Authorization: Bearer }
 ### 10.4 Logs + Detecção de Brute Force
 
 ```
-Agente → POST /api/logs { Authorization: Bearer }
+Agente → POST /api/logs { X-API-Key }
                 │
                 ├─ Valida host_id → HostModel.query.get(host_id) → objeto host
                 ├─ parse_auth_log(raw_line)
@@ -1050,10 +1054,11 @@ Cada alerta criado **verifica os toggles** antes de disparar notificações. `_n
 | `POST /api/logs` | `host_id` | Obrigatório, deve ser numérico, host deve existir (404) |
 | `POST /api/logs` | `raw_line` | Obrigatório, não pode ser vazio ou whitespace |
 | `GET /api/metrics` | `host_id` | Obrigatório, deve ser numérico, host deve existir |
+| `GET /api/logs` | `host_id` | **Opcional** — se informado, deve ser numérico e o host deve existir (404); se ausente, retorna logs de todos os hosts |
 | `GET /api/alerts` | `status` | Deve ser `"active"`, `"resolved"` ou `"all"` |
 | `POST /api/security/portscan` | `global.host_id` | Obrigatório, deve ser numérico |
 | `PATCH /api/alerts/<id>/resolve` | alerta | Deve existir (404); se já resolvido retorna 400 |
-| Todas (exceto auth/login, settings, health) | `Authorization` | `Bearer {api_key}` obrigatório → 401 se ausente/inválido |
+| Todas (exceto auth/login, settings, health) | `X-API-Key` | Obrigatório → 401 se ausente/inválido |
 
 ---
 
@@ -1160,10 +1165,12 @@ Esta seção documenta as principais mudanças de decisão técnica ao longo do 
 | **Startup do container** | `entrypoint.sh` aguardava PostgreSQL com loop `nc -z` | `postgres` healthcheck + `depends_on: service_healthy` | Elimina race condition: backend só sobe após o banco estar de fato pronto |
 | **Armazenamento da API key** | Variável de ambiente `API_KEY` no `.env` | Banco de dados (`app_settings`) com fallback para env | Permite rotação de chave sem redeployar o container |
 | **Modelo de notificação no startup** | Não havia | `_notificar_alertas_ativos()` envia Teams ao inicializar | Garante visibilidade de ameaças ativas após restart inesperado do container |
+| **Consulta de logs (`GET /api/logs`)** | `host_id` obrigatório — só era possível consultar logs de um host por vez | `host_id` opcional — sem ele, retorna logs agregados de todos os hosts, com campo `hostname` por entrada | Dashboard precisava de uma visão geral de logs sem exigir que o operador escolhesse um host primeiro |
+| **`GET /api/discovery`** | Resposta não trazia o agente associado ao host | Cada item inclui `agent_id` (resolvido via `AgentModel.query.filter_by(host_id=...)`) | Frontend precisa relacionar o agente ativo a cada host na tela de discovery |
 
 ---
 
-*Documentação atualizada em 05/06/2026 — v8.0.0*  
+*Documentação atualizada em 21/06/2026 — v8.1.0*  
 *Adições v5.0: autenticação (API key + PANEL_PASSWORD), Teams, alertas de recurso, migrations adicionais, check_port_scan com cooldown temporal, notificação de startup.*  
 *Adições v5.1: DNS explícito no docker-compose (8.8.8.8/8.8.4.4); teams.py com payload completo (icone, timestamp, link), lazy URL loading corrigido, log levels WARNING; hostname e host_ip nos alertas Teams.*  
 *Adições v6.0: notifier.py (email via Gmail/SMTP com HTML dark-mode); endpoints de gerenciamento de destinatários de email (`GET/POST/DELETE /api/settings/email-recipients`); `_get_email_recipients(db)` em detection.py; mudança de header de autenticação de `Authorization: Bearer` para `X-API-Key`; app_settings passa a armazenar `email_recipients`.*  
@@ -1171,4 +1178,5 @@ Esta seção documenta as principais mudanças de decisão técnica ao longo do 
 *Adições v6.2 (Fase B — retenção): APScheduler adicionado; `_executar_cleanup` + `_job_cleanup` + `_iniciar_scheduler` em `app.py`; cron 03:00 UTC; `RETENTION_DAYS` env; endpoint `POST /api/maintenance/cleanup`.*  
 *Adições v6.3 (Fases C/D): thresholds configuráveis (CPU/RAM/disco) via `app_settings`; toggles `notify_teams`/`notify_email`; `NotificationsCard` e `ThresholdsCard` no frontend; Sidebar limpa (badge e dot fixos removidos).*  
 *Adições v7.0 (remoção active_connections): tabela `active_connections` e model `connection.py` removidos — sem tela consumidora no frontend e causava erro 500 por FK. Rota renomeada de `POST /api/connections` para `POST /api/security/portscan`; endpoint não persiste dados, apenas aciona `check_port_scan()`. Agente passa a enviar o sinal somente quando `port_scan_detected=True`, eliminando polling a cada 5s. Fallback legado (IP mais frequente em connections[]) removido; `scan_sources` vazio com flag `True` suprime o alerta (em vez de poluir com o IP da vítima).*  
-*Adições v8.0 (05/06/2026 — esta revisão): seção 13 (Chaves de app_settings) adicionada com lista completa de chaves; migrações `garantir_schema_notifications()` e `garantir_schema_thresholds()` documentadas; endpoints `GET/PATCH /api/settings/thresholds` e `GET/PATCH /api/settings/notifications` adicionados à referência; funções `_load_threshold`, `_load_notify_flag`, `_notificacao_habilitada`, `_get_threshold` documentadas; seção 17 (Evolução do Projeto) adicionada; init.sql corrigido para refletir schema consolidado; política de retenção atualizada como automatizada.*
+*Adições v8.0 (05/06/2026): seção 13 (Chaves de app_settings) adicionada com lista completa de chaves; migrações `garantir_schema_notifications()` e `garantir_schema_thresholds()` documentadas; endpoints `GET/PATCH /api/settings/thresholds` e `GET/PATCH /api/settings/notifications` adicionados à referência; funções `_load_threshold`, `_load_notify_flag`, `_notificacao_habilitada`, `_get_threshold` documentadas; seção 17 (Evolução do Projeto) adicionada; init.sql corrigido para refletir schema consolidado; política de retenção atualizada como automatizada.*  
+*Adições v8.1 (21/06/2026 — esta revisão): `GET /api/discovery` passa a incluir `agent_id` em cada item (resolvido via `AgentModel`); `GET /api/logs` com `host_id` agora opcional — sem ele, agrega logs de todos os hosts e inclui `hostname` por entrada; diagramas e tabelas que ainda citavam `Authorization: Bearer` corrigidos para `X-API-Key` (header já era só X-API-Key desde a Fase A, doc estava desatualizada nesses trechos); referência a `POST /api/connections` (renomeado para `/api/security/portscan` na v7.0) corrigida na lista de rotas protegidas; contagem de modelos corrigida de 7 para 6; diagrama de arquitetura (seção 1) corrigido — o Nginx roteia por `server_name` (`api.monitoramento.lan`/`painel.monitoramento.lan`), não por prefixo de path `/api/*` vs `/*`, conforme `Web/BackEnd/nginx/nginx.conf` (confirmado também ao revisar `Context/Infra`); referência a "API key em sessionStorage" corrigida para `localStorage`, alinhado com `Frontend-Documentation.md`.*

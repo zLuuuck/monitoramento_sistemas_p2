@@ -104,3 +104,5 @@ As principais fragilidades foram tratadas: domínio válido, confiança TLS expl
 - 4 containers Docker Compose (postgres, backend, frontend, nginx)
 - Agentes Python distribuídos como binários PyInstaller
 - Comunicação push — agentes iniciam, backend nunca conecta nos agentes
+
+> **Roteamento do Nginx:** o `nginx.conf` real roteia por **virtual host** (`server_name: api.monitoramento.lan` → backend, `server_name: painel.monitoramento.lan` → frontend), não por prefixo de path (`/api/*` vs `/*`). Essa distinção não estava explícita neste documento e chegou a ser descrita de forma incorreta em `Context/Backend/Backend-Documentation.md` (corrigido nesta revisão). Detalhes completos em `04 - Configuração do Proxy Reverso.md`.
