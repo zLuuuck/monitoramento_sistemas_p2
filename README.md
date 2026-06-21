@@ -37,16 +37,16 @@ A documentação técnica completa de cada módulo (Agente, Backend, Banco de Da
 
 ```
 ┌────────────────────┐       HTTP POST (push)        ┌──────────────────────────────────┐
-│   Agente (Linux)    │ ─────────────────────────────▶│            Nginx :80              │
-│  binário PyInstaller │       X-API-Key header        │  (roteia por server_name / vhost) │
-└────────────────────┘                                └──────────────┬───────────┬────────┘
-                                                                      │           │
-                                                     api.monitoramento.lan   painel.monitoramento.lan
-                                                                      │           │
-                                                                      ▼           ▼
+│   Agente (Linux)   │ ─────────────────────────────>│           Nginx :80              │
+│binário PyInstaller │       X-API-Key header        │ (roteia por server_name / vhost) │
+└────────────────────┘                               └──────────────┬──────────┬────────┘
+                                                                    │          │
+                                                      api.monitoramento.lan   painel.monitoramento.lan
+                                                                    │           │
+                                                                    ▼           ▼
                                                           ┌────────────────┐ ┌──────────────────┐
-                                                          │ Backend Flask  │ │ Frontend React/   │
-                                                          │     :5000      │ │  Vite :5173       │
+                                                          │ Backend Flask  │ │ Frontend React/  │
+                                                          │     :5000      │ │  Vite :5173      │
                                                           └───────┬────────┘ └──────────────────┘
                                                                   │   ▲ HTTP GET (painel web)
                                                                   ▼   │
