@@ -14,9 +14,7 @@ export function MetricsPage() {
   // Pega a última métrica (valor atual)
   const ultimaMetrica = metrics[metrics.length - 1];
 
-  // Valores para Disco e Rede (se não existirem, usa valores mock)
-  const discoPercent = ultimaMetrica?.disk_percent || ultimaMetrica?.disk_io || 35;
-  const redePercent = 25;
+  const discoPercent = ultimaMetrica?.disk_percent || ultimaMetrica?.disk_io || 0;
 
   return (
     <section className="mb-8">
@@ -34,7 +32,7 @@ export function MetricsPage() {
             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
             Status em Tempo Real
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <GaugeCard
               title="CPU"
               value={ultimaMetrica.cpu_percent || 0}
@@ -55,13 +53,6 @@ export function MetricsPage() {
               unit="%"
               icon="disk"
               color="orange"
-            />
-            <GaugeCard
-              title="Rede"
-              value={redePercent}
-              unit="%"
-              icon="network"
-              color="purple"
             />
           </div>
         </div>
