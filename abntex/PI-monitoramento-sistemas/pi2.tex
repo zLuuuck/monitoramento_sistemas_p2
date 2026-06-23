@@ -114,7 +114,7 @@
 
 Atualmente, em ambientes corporativos, servidores desempenham papel essencial na sustentação de aplicações, serviços internos e comunicação em rede. A indisponibilidade de recursos, falhas operacionais ou incidentes de segurança podem impactar diretamente a continuidade dos serviços, tornando necessária a adoção de mecanismos que permitam acompanhar o estado dos sistemas de forma contínua. Nesse contexto, o monitoramento de sistemas possibilita a identificação de falhas, degradações de desempenho e indisponibilidades a partir da coleta e análise de dados operacionais. De acordo com a \citeonline{fortinet_monitoring}, o monitoramento consiste na observação contínua da infraestrutura com o objetivo de detectar problemas e garantir a disponibilidade dos serviços.
 
-Além disso, com o aumento da complexidade dos ambientes computacionais, observa-se a necessidade de ampliar a capacidade de análise desses sistemas, incorporando conceitos como observabilidade. Segundo \citeonline{ibm_observability}, a observabilidade permite compreender o comportamento dos sistemas a partir de dados como métricas e registros de eventos. Nesse cenário, os logs assumem papel relevante na identificação de atividades suspeitas e na análise de incidentes de segurança, sendo considerados componentes fundamentais em processos de monitoramento, conforme destacado pelo \citeonline{nist_sp800_92}.
+Além disso, com o aumento da complexidade dos ambientes computacionais, observa-se a necessidade de ampliar a capacidade de análise desses sistemas, incorporando conceitos como observabilidade. Segundo \citeonline{ibm_observability}, a observabilidade permite compreender o comportamento dos sistemas a partir de dados como métricas e registros de eventos. Nesse cenário, os logs assumem papel relevante na identificação de atividades suspeitas e na análise de incidentes de segurança, sendo considerados componentes fundamentais em processos de monitoramento, conforme destacado por \citeonline{nist_sp800_92}.
 
 Apesar da existência de diversas ferramentas no mercado, muitas soluções apresentam elevado nível de complexidade ou exigem infraestrutura robusta, o que dificulta sua adoção em ambientes de pequeno porte ou em contextos acadêmicos. Dessa forma, torna-se relevante investigar como os conceitos de monitoramento e análise de eventos podem ser aplicados na construção de soluções simplificadas e funcionais.
 
@@ -209,7 +209,7 @@ A correta configuração de alertas é fundamental para evitar problemas como o 
 \chapter{Observabilidade}
 \label{cap:observabilidade}
 
-Diferente do monitoramento, que foca no estado do sistema, a observabilidade é uma característica essencial do mesmo. Conforme \citeonline{majors2022observability}, isso possibilita que o desenvolvedor de software rastreie um problema (o sintoma) até a sua origem, sem necessitar de hipóteses iniciais.
+Diferente do monitoramento, que foca no estado do sistema, a observabilidade é uma propriedade intrínseca dele. Conforme \citeonline{majors2022observability}, isso possibilita que o desenvolvedor de software rastreie um problema (o sintoma) até a sua origem, sem necessitar de hipóteses iniciais.
 
 \section{Diferença entre Monitoramento e Observabilidade}
 
@@ -227,11 +227,11 @@ As métricas são representações numéricas de dados agregados ao longo de int
 
 \subsection{Registros de Eventos (Logs)}
 
-Diferente das métricas, os logs consistem em anotações textuais distintas de ocorrências em um instante determinado. Para \citeonline{majors2022observability}, o log formatado (como no padrão JSON) apresenta maior utilidade, já que possibilita a busca por características particulares dentro da comunicação por meio de aplicativos de análise. Nos aprofundaremos mais nos logs no capitulo~\ref{cap:logs}.
+Diferente das métricas, os logs consistem em anotações textuais distintas de ocorrências em um instante determinado. Para \citeonline{majors2022observability}, o log formatado (como no padrão JSON) apresenta maior utilidade, já que possibilita a busca por características particulares dentro da comunicação por meio de aplicativos de análise. Nos aprofundaremos mais nos logs no capítulo~\ref{cap:logs}.
 
 \subsection{Rastreamento Distribuído (Distributed Tracing)}
 
-O rastreamento é o pilar que conecta os pontos em uma arquitetura de microsserviços, mantendo o registro do caminho de cada solicitação enquanto ela passa por diferentes partes da estrutura. A base técnica para este pilar é o artigo ``Dapper'' \cite{sigelman2010dapper}, que introduziu os conceitos de \textit{span} e \textit{trace ID}. Além disso, \citeonline{cederberg2021observability} ressalta que, em ambientes com microsserviços, o rastreamento distribuído é essencial para enxergar como os serviços autônomos se relacionam no tempo, permitindo a identificação de problemas interligados que passariam despercebidos em registros isolados.
+O rastreamento é o pilar que conecta os pontos em uma arquitetura de microsserviços, mantendo o registro do caminho de cada solicitação enquanto ela passa por diferentes partes da estrutura. A base técnica para este pilar é o artigo ``Dapper'' \cite{sigelman2010dapper}, que introduziu os conceitos de \textit{span} e \textit{trace ID}. Além disso, \citeonline{cederberg2021observability} ressalta que, em ambientes com microsserviços, o rastreamento distribuído é essencial para enxergar como os serviços autônomos se relacionam no tempo, permitindo a identificação de problemas interligados que passariam despercebidos em registros isolados. Cabe ressaltar, contudo, que o rastreamento distribuído é mais relevante em arquiteturas de microsserviços; o sistema implementado neste trabalho adota uma arquitetura centralizada e contempla apenas métricas e \textit{logs}, de modo que esse pilar permanece fora do escopo da solução.
 
 % -------------------------------------------------------------------------------------------------
 % -------------------------------------------------------------------------------------------------
@@ -245,7 +245,7 @@ O rastreamento é o pilar que conecta os pontos em uma arquitetura de microsserv
 \chapter{Coleta de Dados de um Endpoint}
 \label{cap:data-collect}
 
-A coleta de dados de um \textit{endpoint}\footnote{Endpoint refere-se a um ponto final de comunicação em uma rede. O termo pode designar tanto um dispositivo participante, como um servidor ou estação de trabalho, quanto um ponto específico de acesso a um serviço, como uma URL em uma API.} e o modelo de comunicação são etapas fundamentais na arquitetura de sistemas, pois permitem a obtenção contínua de informações e a transferência de dados entre cliente e servidor, que será mais explicado no capitulo~\ref{cap:archteture}. Esses dados representam atualizações e mudanças de estado, sendo essenciais para o gerenciamento em tempo real das aplicações.
+A coleta de dados de um \textit{endpoint}\footnote{Endpoint refere-se a um ponto final de comunicação em uma rede. O termo pode designar tanto um dispositivo participante, como um servidor ou estação de trabalho, quanto um ponto específico de acesso a um serviço, como uma URL em uma API.} e o modelo de comunicação são etapas fundamentais na arquitetura de sistemas, pois permitem a obtenção contínua de informações e a transferência de dados entre cliente e servidor, que será mais explicado no capítulo~\ref{cap:archteture}. Esses dados representam atualizações e mudanças de estado, sendo essenciais para o gerenciamento em tempo real das aplicações.
 
 \section{Coleta de Dados em Sistemas de Monitoramento}
 
@@ -255,7 +255,7 @@ No contexto de monitoramento de redes, o uso de agentes é uma abordagem amplame
 
 Um dos principais protocolos utilizados nesse processo é o SNMP (\textit{Simple Network Management Protocol}), que possibilita a coleta estruturada de informações por meio de objetos organizados em uma base denominada MIB (\textit{Management Information Base}). De acordo com \citeonline{case2002snmp}, o SNMP foi desenvolvido com o objetivo de facilitar o gerenciamento de redes, permitindo a leitura e manipulação de informações de dispositivos de forma padronizada.
 
-Além disso, a arquitetura de monitoramento envolve três componentes principais: o agente (capitulo~\ref{cap:agents}), o dispositivo monitorado (\textit{endpoint}) e o gerenciador(servidor). O agente coleta os dados localmente, enquanto o gerenciador é responsável por centralizar e analisar essas informações. Em sistemas práticos, como os que utilizam ferramentas de monitoramento, essa estrutura é essencial para garantir eficiência e escalabilidade.
+Além disso, a arquitetura de monitoramento envolve três componentes principais: o agente (capítulo~\ref{cap:agents}), o dispositivo monitorado (\textit{endpoint}) e o gerenciador(servidor). O agente coleta os dados localmente, enquanto o gerenciador é responsável por centralizar e analisar essas informações. Em sistemas práticos, como os que utilizam ferramentas de monitoramento, essa estrutura é essencial para garantir eficiência e escalabilidade.
 
 A coleta de dados pode ocorrer por diferentes métodos, sendo os principais o \textit{polling} e o orientado a eventos, que veremos mais adiante. Conforme apontado por \citeonline[p.~6]{souza2020nagios}, “o monitoramento pode ser realizado por verificações periódicas (\textit{polling}) ou por notificações automáticas enviadas pelos dispositivos”. Essa combinação permite maior confiabilidade na detecção de falhas.
 
@@ -289,7 +289,7 @@ Por fim, o correto armazenamento físico e lógico permite a geração de valor,
 
 \section{Tipo de requisição de Coleta de dados}
 
-No contexto de verificação de atualizações, o uso de \textit{polling} é uma abordagem amplamente adotada. Conforme \citeonline{rios2024polling}, o \textit{polling} “refere-se a uma técnica de comunicação onde um cliente solicita regularmente – ou em intervalos regulares – informações de um servidor”. Esse modelo permite que os dados sejam verificados de maneira ativa pela aplicação cliente, por meio de requisições cíclicas.
+No contexto de verificação de atualizações, o uso de \textit{polling} é uma abordagem amplamente adotada. Conforme \citeonline{rios2024polling}, o \textit{polling} “refere-se a uma técnica de comunicação onde um cliente solicita regularmente, ou em intervalos regulares, informações de um servidor”. Esse modelo permite que os dados sejam verificados de maneira ativa pela aplicação cliente, por meio de requisições cíclicas.
 
 Um dos principais modelos utilizados para otimizar esse processo é a arquitetura orientada a eventos (\textit{event-driven}), que possibilita uma comunicação estruturada reagindo a mudanças de estado. De acordo com a \citeonline{aws2025eda}, a arquitetura baseada em eventos “usa eventos para acionar e comunicar entre serviços desacoplados”, permitindo a manipulação de informações de forma assíncrona e independente.
 
@@ -299,9 +299,9 @@ Além disso, a arquitetura orientada a eventos envolve três componentes princip
 
 Para compreender melhor a diferença entre os dois modelos, imagine o controle de acesso a dois edifícios diferentes:
 
-\textbf{Modelo polling – Prédio com detecção facial automática:} O sistema de câmeras e sensores funciona continuamente, verificando o rosto de quem se aproxima a cada fração de segundo. Mesmo quando não há ninguém, o sistema segue “perguntando” ao servidor: “Alguém quer entrar?” – centenas de vezes por minuto. Isso gera muitas verificações desnecessárias (chamadas vazias), mas o acesso é liberado imediatamente quando uma pessoa autorizada é detectada.
+\textbf{Modelo polling, prédio com detecção facial automática:} O sistema de câmeras e sensores funciona continuamente, verificando o rosto de quem se aproxima a cada fração de segundo. Mesmo quando não há ninguém, o sistema segue “perguntando” ao servidor: “Alguém quer entrar?”, centenas de vezes por minuto. Isso gera muitas verificações desnecessárias (chamadas vazias), mas o acesso é liberado imediatamente quando uma pessoa autorizada é detectada.
 
-\textbf{Modelo event-driven – Prédio com porteiro eletrônico:} O sistema fica ocioso até que alguém toque a campainha (o evento). Só então o porteiro (o roteador) é acionado, verifica a autorização e libera a entrada. Nenhuma verificação ocorre enquanto não há um evento. Isso elimina chamadas vazias, mas a resposta depende da ocorrência do evento.
+\textbf{Modelo event-driven, prédio com porteiro eletrônico:} O sistema fica ocioso até que alguém toque a campainha (o evento). Só então o porteiro (o roteador) é acionado, verifica a autorização e libera a entrada. Nenhuma verificação ocorre enquanto não há um evento. Isso elimina chamadas vazias, mas a resposta depende da ocorrência do evento.
 
 Em resumo: no \textit{polling} o cliente pergunta repetidamente (ativo); no \textit{event-driven} o servidor avisa quando algo muda (reativo). A escolha depende do cenário: \textit{polling} é simples e fácil de implementar, enquanto \textit{event-driven} é mais eficiente e escalável para sistemas com muitos eventos esporádicos.
 
@@ -342,7 +342,7 @@ Por fim, destacam-se pela acessibilidade, permitindo que diferentes perfis de us
 \chapter{Agentes de Monitoramento}
 \label{cap:agents}
 
-Conforme falado no capitulo ~\ref{cap:data-collect} agentes de monitoramento são programas instalados nos dispositivos com a finalidade de coletar informações sobre o estado e o desempenho dos sistemas computacionais. Esses agentes atuam diretamente no sistema operacional, capturando métricas como uso de CPU, memória, disco e processos em execução, sendo essenciais para o acompanhamento da infraestrutura de TI.
+Conforme falado no capítulo ~\ref{cap:data-collect} agentes de monitoramento são programas instalados nos dispositivos com a finalidade de coletar informações sobre o estado e o desempenho dos sistemas computacionais. Esses agentes atuam diretamente no sistema operacional, capturando métricas como uso de CPU, memória, disco e processos em execução, sendo essenciais para o acompanhamento da infraestrutura de TI.
 
 De acordo com \citeonline[p.~13]{santos2019monitoramento}, “os agentes de monitoramento são programas executados nos dispositivos que coletam informações e as disponibilizam para sistemas gerenciadores”. Dessa forma, eles funcionam como intermediários entre os dispositivos monitorados e os sistemas centrais, garantindo que os dados sejam coletados de forma organizada e confiável.
 
@@ -355,7 +355,7 @@ Por fim, destaca-se que os agentes frequentemente utilizam protocolos padronizad
 \section{Modelo Agente - Servidor}
 
 
-Enquanto no modelo cliente-servidor o cliente não compartilha nenhum de seus recursos com o servidor, é ele quem inicia a comunicação solicitando alguma função ao servidor que fica aguardando as requisições, com o agente a comunicação passa a ser orientada a eventos: o agente só contacta o servidor quando há algo relevante a reportar.
+Enquanto no modelo cliente-servidor o cliente não compartilha nenhum de seus recursos com o servidor, é ele quem inicia a comunicação solicitando alguma função ao servidor que fica aguardando as requisições, com o agente a iniciativa da comunicação parte dele próprio: o agente pode reportar dados de forma periódica (\textit{push} em intervalos regulares) ou orientada a eventos, contactando o servidor quando há algo relevante a reportar.
 
 \citeonline[p.~116]{wooldridge1995} identificam seis propriedades do agente: a \textbf{autonomia}, em que os agentes operam sem a intervenção direta de humanos ou outros e têm algum tipo de controle sobre suas ações e estado interno; a \textbf{habilidade social}, na qual os agentes interagem com outros agentes ou possivelmente humanos por meio de algum tipo de linguagem de comunicação; a \textbf{reatividade}, onde os agentes percebem seu ambiente, que pode ser o mundo físico, um usuário, uma coleção de outros agentes ou a Internet, e respondem em tempo hábil às mudanças que ocorrem nele; e a \textbf{proatividade}, em que os agentes não agem simplesmente em resposta ao seu ambiente, sendo capazes de exibir comportamento direcionado a objetivos e tomar a iniciativa.
 
@@ -387,7 +387,7 @@ Os logs são registros de eventos gerados por sistemas, aplicações e dispositi
 
 A importância dos logs está relacionada à visibilidade que proporcionam e à capacidade de reconstruir ações dentro do ambiente. \citeonline{todd2017logging} destaca que operar uma rede sem logs limita significativamente a compreensão dos eventos ocorridos, dificultando a identificação de atividades maliciosas. \citeonline{gupta2012logging} complementa que a análise de eventos em tempo quase real é fundamental para minimizar impactos de incidentes e atender a requisitos de conformidade. Para uma gestão eficiente, a infraestrutura de \textit{logging}\footnote{\textit{Logging} refere-se ao processo sistemático de registrar eventos, ações e estados de um sistema em arquivos de log. O termo, derivado do inglês \textit{log} (registro), engloba tanto a geração dos registros pelos sistemas quanto o seu armazenamento, centralização e análise posterior.} deve ser organizada em camadas funcionais.
 
-Conforme o \citeonline{nist_sp800_92}, esse processo envolve a geração de logs por \textit{hosts} e dispositivos, o armazenamento e a análise por servidores responsáveis pela centralização dos dados, e o monitoramento por meio de interfaces que permitem a visualização e interpretação das informações. Os registros podem ser classificados de acordo com sua finalidade.
+Conforme \citeonline{nist_sp800_92}, esse processo envolve a geração de logs por \textit{hosts} e dispositivos, o armazenamento e a análise por servidores responsáveis pela centralização dos dados, e o monitoramento por meio de interfaces que permitem a visualização e interpretação das informações. Os registros podem ser classificados de acordo com sua finalidade.
 
 A \citeonline{ibm_log_analysis} destaca os logs de acesso, que registram o comportamento de usuários; os logs de erro, que documentam falhas e incidentes; e os logs de eventos, que representam mudanças de estado no sistema. Independentemente da origem, a padronização é essencial para garantir interoperabilidade.
 
@@ -450,7 +450,7 @@ Na prática, o invasor envia pacotes especiais para cada porta do alvo e analisa
 
 Detectar varreduras de portas e ataques de força bruta logo no início é essencial para evitar danos maiores. \citeonline{arxiv2301_13581} ressalta que “ao identificar tentativas de varredura de portas, os profissionais de cibersegurança podem tomar medidas proativas para proteger os sistemas e redes antes que um invasor tenha a chance de explorar qualquer vulnerabilidade”. Em outras palavras, a detecção precoce transforma \textit{logs} passivos em uma defesa ativa. Conforme afirmam \citeonline{sbseg2023}, “a varredura de portas é um primeiro passo em diferentes vetores de ataque. Portanto, é essencial detectar essas varreduras para limitar os seus impactos”.
 
-Além da proteção imediata, a análise de \textit{logs} auxilia no cumprimento de regulamentações como a Lei Geral de Proteção de Dados (LGPD) e padrões do setor financeiro, que exigem rastreabilidade e registros de acesso. Como destaca o \citeonline{nist_sp800_92}, a análise regular de \textit{logs} ajuda os profissionais de TI a entender melhor como seus sistemas estão funcionando, melhorar o desempenho e aumentar a segurança. Em resumo, saber detectar esses ataques não é apenas uma questão técnica, é uma necessidade estratégica para qualquer organização que queira proteger seus dados e sua reputação.
+Além da proteção imediata, a análise de \textit{logs} auxilia no cumprimento de regulamentações como a Lei Geral de Proteção de Dados (LGPD) e padrões do setor financeiro, que exigem rastreabilidade e registros de acesso. Como destaca \citeonline{nist_sp800_92}, a análise regular de \textit{logs} ajuda os profissionais de TI a entender melhor como seus sistemas estão funcionando, melhorar o desempenho e aumentar a segurança. Em resumo, saber detectar esses ataques não é apenas uma questão técnica, é uma necessidade estratégica para qualquer organização que queira proteger seus dados e sua reputação.
 % -------------------------------------------------------------------------------------------------
 % -------------------------------------------------------------------------------------------------
 % -------------------------------------------------------------------------------------------------
@@ -467,13 +467,21 @@ Além da proteção imediata, a análise de \textit{logs} auxilia no cumprimento
 
 O modelo cliente-servidor estrutura a comunicação entre programas em dois papéis: o cliente é o responsável por iniciar a requisição e o servidor é responsável por processá-la e retornar uma resposta. Nesse modelo, a comunicação entre cliente e servidor ocorre por meio de uma API que atua como intermediária: quando o cliente quer algo, ele faz uma requisição seguindo as regras definidas pela API, o servidor recebe essa requisição, a processa e devolve uma resposta. Essas regras determinam como os dados devem ser enviados, em qual formato e quais operações são permitidas, garantindo que os dois lados se comuniquem de forma padronizada e organizada.
 
+A Figura~\ref{fig:cliente-servidor} ilustra esse fluxo de comunicação: o cliente envia uma solicitação, a API intermedeia o processamento no servidor e a resposta retorna ao cliente por meio dessa mesma camada.
+
+\begin{figure}[htb]
+\legenda[fig:cliente-servidor]{Fluxo de comunicação no modelo cliente-servidor intermediado por uma API}
+\fig{width=0.95\textwidth}{../img/cliente-servidor.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
 De acordo com \citeonline[p.~24]{oliveira2016}, os principais componentes desse modelo são os servidores, responsáveis por oferecer um conjunto de serviços, como servidores de impressão, de arquivos e com \textit{web services}; os clientes, que usam os serviços disponibilizados nos servidores, sendo tipicamente subsistemas executados independentemente que, embora informados sobre os servidores disponíveis, desconhecem a existência de outros clientes, destacando-se que seus processos são separados; e uma rede que viabilize o acesso por parte dos clientes aos serviços, componente este desnecessário apenas quando cliente e servidor encontram-se na mesma máquina. Ressalta-se, no entanto, que sistemas que fazem uso de uma arquitetura cliente-servidor utilizam um sistema distribuído.
     
 JSON é um formato de texto para organizar dados. Não pertence a nenhuma linguagem de programação (define só estrutura), então qualquer sistema consegue ler o que outro escreveu. Segundo a \citeonline{ibm_json}, os dados ficam em pares de chave e valor, o que facilita tanto a leitura por máquina quanto a interpretação de quem está desenvolvendo. Essa padronização também ajuda na troca de informações entre sistemas diferentes, já que todos seguem a mesma lógica de estrutura.
 
 Sua estrutura leve e compacta o torna mais eficiente que o XML, que carrega mais marcações e ocupa mais espaço para representar a mesma informação. Essa diferença de peso aparece especialmente em sistemas que fazem muitas requisições, onde cada \textit{kilobyte} a menos no \textit{payload} conta. Em aplicações modernas, como APIs e sistemas distribuídos, essa economia de dados contribui diretamente para melhor desempenho e menor consumo de recursos.
 
-HTTP\footnote{O HTTPS (\textit{Hypertext Transfer Protocol Secure}) é a variante segura do HTTP, que adiciona uma camada de cifragem TLS (\textit{Transport Layer Security}), garantindo confidencialidade e integridade na transmissão dos dados. O sistema de monitoramento implementado neste trabalho utiliza HTTP puro — limitação discutida no Capítulo~\ref{cap:limitacoes}.} é o protocolo que move dados na \textit{web}. O modelo é simples: cliente pede, servidor responde. Esse funcionamento é a base da \textit{web}, como destaca a \citeonline{mdn_http}. Cada troca é independente, o que facilita escalar sistemas sem aumentar a complexidade. Isso permite que aplicações atendam um grande número de requisições sem precisar manter informações sobre interações anteriores.
+HTTP\footnote{O HTTPS (\textit{Hypertext Transfer Protocol Secure}) é a variante segura do HTTP, que adiciona uma camada de cifragem TLS (\textit{Transport Layer Security}), garantindo confidencialidade e integridade na transmissão dos dados. O sistema de monitoramento implementado neste trabalho utiliza HTTP puro, limitação discutida no Capítulo~\ref{cap:limitacoes}.} é o protocolo que move dados na \textit{web}. O modelo é simples: cliente pede, servidor responde. Esse funcionamento é a base da \textit{web}, como destaca a \citeonline{mdn_http}. Cada troca é independente, o que facilita escalar sistemas sem aumentar a complexidade. Isso permite que aplicações atendam um grande número de requisições sem precisar manter informações sobre interações anteriores.
 
 Os métodos GET, POST, PUT e DELETE indicam o tipo de operação. Os cabeçalhos carregam informações sobre formato dos dados e autenticação. Os códigos de status (200 para sucesso, 404 para não encontrado) dizem ao cliente o que aconteceu com cada pedido, tornando o diagnóstico de erros mais direto. De acordo com a \citeonline{rfc9110}, esses elementos fazem parte da padronização do protocolo HTTP, garantindo uma comunicação consistente entre sistemas.
 
@@ -512,7 +520,7 @@ No que se refere à comunicação, adotou-se o modelo \textit{push}, no qual os 
 
 \section{Arquitetura Física e Lógica}
 
-A arquitetura física do sistema é composta por um servidor central e sete clientes, todos conectados a um \textit{switch} não gerenciável em topologia estrela. A rede utiliza a faixa \texttt{10.10.10.0/26} (máscara \texttt{255.255.255.192}), permitindo até 62 endereços IP utilizáveis, com atribuição dinâmica realizada por meio de um serviço DHCP executado no próprio servidor.
+A arquitetura física do sistema é composta por um servidor central e seis clientes, todos conectados a um \textit{switch} não gerenciável em topologia estrela. A rede utiliza a faixa \texttt{10.10.10.0/26} (máscara \texttt{255.255.255.192}), permitindo até 62 endereços IP utilizáveis, com atribuição dinâmica realizada por meio de um serviço DHCP executado no próprio servidor.
 
 Essa configuração simplifica o gerenciamento da rede, mas limita a capacidade de controle sobre o tráfego, uma vez que o \textit{switch} utilizado não permite segmentação ou priorização de pacotes, o que pode impactar o desempenho em cenários de maior carga.
 
@@ -533,7 +541,7 @@ Os principais componentes do servidor são:
     \item \textbf{Nginx}: atua como \textit{proxy} reverso, recebendo requisições HTTP e encaminhando‑as ao \textit{backend}. Essa camada permite futura adoção de HTTPS e centraliza o controle de acesso.
     \item \textbf{Backend (Python/Flask)}: responsável por expor a API REST, validar requisições e processar os dados recebidos. A autenticação é realizada por meio de uma chave de API dinâmica (\textit{API key}), gerada pelo painel e armazenada no banco de dados.
     \item \textbf{PostgreSQL}: utilizado para armazenamento de métricas e \textit{logs}. A escolha por um banco relacional se deve à necessidade de consultas estruturadas, embora isso possa limitar a escalabilidade em cenários com alto volume de escrita contínua.
-    \item \textbf{Frontend (React 18 + Vite + TailwindCSS + react-chartjs-2)}: responsável pela visualização dos dados, consumindo informações via API REST.
+    \item \textbf{Frontend (React 19 + Vite + TailwindCSS + react-chartjs-2 + react-gauge-component)}: responsável pela visualização dos dados, consumindo informações via API REST.
 \end{itemize}
 
 \section{Coleta de Dados e Agentes de Monitoramento}
@@ -542,7 +550,7 @@ A coleta de dados implementada pelos agentes segue dois modelos distintos: colet
 
 A coleta inicial tem como objetivo estabelecer uma linha de base do sistema monitorado, incluindo informações de \textit{hardware}, sistema operacional e \textit{software} instalado. Essa etapa é essencial para contextualizar as métricas coletadas posteriormente.
 
-Já a coleta contínua ocorre em intervalos de 5 a 10 segundos, capturando métricas como uso de CPU, memória, disco e rede. A escolha desse intervalo reflete um compromisso entre granularidade dos dados e sobrecarga no sistema, conforme discutido no Capítulo~\ref{cap:mon-sys}.
+Já a coleta contínua ocorre em intervalos de aproximadamente 5 segundos, capturando métricas como uso de CPU, memória, disco e rede. A escolha desse intervalo reflete um compromisso entre granularidade dos dados e sobrecarga no sistema, conforme discutido no Capítulo~\ref{cap:mon-sys}.
 
 A seleção das métricas baseia-se no método USE (\textit{Utilization, Saturation, Errors}), proposto por \citeonline{gregg2013use}, que orienta a análise de desempenho a partir da utilização de recursos, níveis de saturação e ocorrência de erros.
 
@@ -603,48 +611,63 @@ desenvolvimento do sistema, as ferramentas utilizadas e o cronograma de execuç�
 \section{Abordagem e Organização do Projeto}
 
 O desenvolvimento foi conduzido por uma equipe de sete integrantes, com divisão de
-responsabilidades orientada por componente: infraestrutura de rede e configuração do
-ambiente, desenvolvimento do agente coletor, desenvolvimento do \textit{backend}
-(API REST e lógica de detecção), desenvolvimento do \textit{frontend}, modelagem do
-banco de dados e documentação técnica.
-% TODO: detalhar papéis individuais: Beatriz, Caio, Denyse, Douglas, Fernando, Larissa, Lucas
+responsabilidades orientada por componente. A infraestrutura de rede e do ambiente
+(contêineres Docker, DNS e DHCP) e a coordenação geral do projeto ficaram a cargo de
+Lucas Toterol Rodrigues, que também desenvolveu o agente coletor, com o apoio de Caio
+Federico Esquivel Lovera Arze, responsável ainda pela redação técnica do documento. O
+desenvolvimento do \textit{backend} (API REST e lógica de detecção) coube a Douglas
+Clayton da Silva e Fernando Bach; o do \textit{frontend}, a Denyse Panza Clemente Ferreira
+e Larissa Quirino dos Santos; e a modelagem do banco de dados, a Beatriz Pimentel de Mello.
 
 A metodologia adotada foi o desenvolvimento iterativo e incremental. O grupo organizou
 o trabalho em ciclos semanais de entrega, nos quais cada membro contribuía com
-incrementos ao repositório compartilhado.
-% TODO: confirmar se havia reuniões periódicas e com qual frequência
+incrementos ao repositório compartilhado. As reuniões de equipe ocorriam, em geral, aos
+fins de semana, nem sempre com a presença de todos os integrantes.
 
 O controle de versão foi realizado integralmente por meio do Git, com repositório
-hospedado no GitHub. O histórico de \textit{commits} registra 172 revisões ao longo
+hospedado no GitHub. O histórico de \textit{commits} registra 202 revisões ao longo
 do período de desenvolvimento, refletindo a evolução incremental de todos os
 componentes do sistema.
 
 \section{Cronograma e Fases}
 \label{sec:cronograma}
 
-% TODO: informar duração total e datas de início/fim do projeto (ex.: "quatro meses,
-% de fevereiro a junho de 2026").
+O desenvolvimento ocorreu entre março e junho de 2026, totalizando 202 \textit{commits}
+no repositório. Por se tratar de um processo iterativo e incremental, as fases a seguir
+não são estritamente sequenciais: houve sobreposição entre elas, em especial entre a
+implementação dos componentes e o refinamento subsequente. O recorte abaixo, reconstituído
+a partir do histórico de \textit{commits}, organiza o trabalho pela ênfase predominante em
+cada período.
 
-O desenvolvimento pode ser dividido nas seguintes fases, reconstituídas a partir do
-histórico de \textit{commits}:
+O trabalho foi norteado por um cronograma inicial de sete semanas (21 de abril a 5 de
+junho de 2026), organizado por entregas semanais e por componente. A execução acompanhou
+esse planejamento em linhas gerais, porém com desvios: o arranque efetivo da implementação
+ocorreu no início de maio, cerca de uma semana após o previsto, e os refinamentos do
+\textit{frontend} estenderam-se até meados de junho, ultrapassando o congelamento planejado
+do MVP (5 de junho). Em decorrência desses ajustes, a apresentação final do projeto foi
+realizada em 26 de junho de 2026.
 
 \begin{itemize}
-    \item \textbf{Fase 1 — Pesquisa e Especificação}: levantamento bibliográfico,
-          definição da arquitetura e elaboração dos Capítulos 1 a 10 deste documento.
-    \item \textbf{Fase 2 — Infraestrutura e Prova de Conceito}: configuração do
+    \item \textbf{Fase 1: Pesquisa e Especificação}: levantamento bibliográfico,
+          definição da arquitetura e elaboração da fundamentação teórica (Capítulos 1 a
+          10). Essa etapa corresponde à fase inicial do projeto e antecede o versionamento
+          contínuo do código no repositório atual.
+    \item \textbf{Fase 2: Infraestrutura e Prova de Conceito}: configuração do
           servidor Ubuntu, rede local \texttt{10.10.10.0/26}, DHCP e DNS, e primeiros
-          contêineres Docker.
-    \item \textbf{Fase 3 — Implementação dos Componentes}: desenvolvimento paralelo do
+          contêineres Docker (março e abril de 2026).
+    \item \textbf{Fase 3: Implementação dos Componentes}: desenvolvimento paralelo do
           agente coletor, do \textit{backend} e do \textit{frontend}, com integração
-          progressiva (maio de 2026).
-    \item \textbf{Fase 4 — Refinamento e Endurecimento}: migração para autenticação por
+          progressiva (do final de abril a maio de 2026, período de maior concentração de
+          \textit{commits}). O refinamento da interface do \textit{frontend} prosseguiu
+          até meados de junho.
+    \item \textbf{Fase 4: Refinamento e Endurecimento}: migração para autenticação por
           chave de API dinâmica, remoção de tabelas obsoletas, redução da superfície de
           ataque e adição do agendador de limpeza automática (início de junho de 2026).
-    \item \textbf{Fase 5 — Validação}: execução dos cenários de teste e documentação
-          dos resultados.
+    \item \textbf{Fase 5: Validação}: execução dos cenários de teste de detecção
+          (força bruta e varredura de portas) em rede local controlada, realizada ao final
+          do ciclo de desenvolvimento. A consolidação dos resultados é apresentada no
+          Capítulo~\ref{cap:resultados}.
 \end{itemize}
-
-% TODO: complementar com datas específicas de início de cada fase
 
 \section{Ferramentas e Ambiente de Desenvolvimento}
 \label{sec:ferramentas}
@@ -664,17 +687,17 @@ As ferramentas utilizadas no desenvolvimento estão distribuídas por camada do 
           nos clientes Linux.
     \item \textbf{Serviço de inicialização do agente}: systemd
           (\texttt{linux-agent.service}).
-    \item \textbf{Linguagem do \textit{frontend}}: JavaScript com React 18, Vite
-          (\textit{build tool}), TailwindCSS e react-chartjs-2.
+    \item \textbf{Linguagem do \textit{frontend}}: JavaScript com React 19, Vite
+          (\textit{build tool}), TailwindCSS, react-router-dom 7 (roteamento),
+          react-chartjs-2 (gráficos de linha) e react-gauge-component (medidores).
     \item \textbf{Banco de dados}: PostgreSQL 15.
     \item \textbf{Proxy reverso}: Nginx.
     \item \textbf{Infraestrutura de rede}: Ubuntu Server como hospedeiro físico, com
           \texttt{isc-dhcp-server} e \texttt{dnsmasq} instalados diretamente no sistema
           operacional do servidor.
-    % TODO: informar IDE(s) utilizadas — descomente e preencha:
-    % \item \textbf{IDE}: VS Code / PyCharm / outro
-    % TODO: informar ferramentas de gestão — descomente e preencha:
-    % \item \textbf{Ferramentas de gestão}: GitHub Projects / Notion / WhatsApp / outro
+    \item \textbf{Ambiente de desenvolvimento (IDE)}: Visual Studio Code.
+    \item \textbf{Gestão e documentação}: Jira (gestão de tarefas) e Confluence
+          (documentação técnica colaborativa).
 \end{itemize}
 
 % =================================================================================================
@@ -697,7 +720,21 @@ servidor central executa quatro contêineres Docker orquestrados pelo Docker Com
 serviço systemd. Toda a comunicação entre agente e servidor ocorre via HTTP,
 endereçada ao nome \texttt{api.monitoramento.lan}, resolvido pelo DNS local.
 
-% TODO: inserir figura da arquitetura implementada (diagrama de blocos)
+A Figura~\ref{fig:arquitetura} apresenta o diagrama de arquitetura do sistema, com os
+componentes e suas conexões; a Figura~\ref{fig:fluxograma} ilustra o fluxo de dados desde
+a coleta no agente até a geração de alertas e o envio de notificações.
+
+\begin{figure}[htb]
+\legenda[fig:arquitetura]{Diagrama de arquitetura do sistema implementado}
+\fig{width=1.00\textwidth}{../img/arquitetura.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\begin{figure}[htb]
+\legenda[fig:fluxograma]{Fluxograma do fluxo de dados da aplicação}
+\fig{width=1.00\textwidth}{../img/fluxograma.png}
+\fonte{Os autores (2026).}
+\end{figure}
 
 \section{Infraestrutura de Rede e Servidores}
 \label{sec:infra}
@@ -722,10 +759,13 @@ decisão de endurecimento reduz a superfície de ataque ao mínimo necessário.
 
 \subsection{Proxy Reverso (Nginx)}
 
-O Nginx atua como ponto de entrada único: requisições ao caminho \texttt{/api/*} são
-encaminhadas ao contêiner \textit{backend}, enquanto as demais são servidas pelo
-contêiner \textit{frontend}. O servidor responde exclusivamente em HTTP, sem
-terminação TLS — limitação discutida no Capítulo~\ref{cap:limitacoes}.
+O Nginx atua como ponto de entrada único e roteia as requisições por nome de
+domínio (\textit{server\_name}), e não por prefixo de caminho: as requisições
+destinadas a \texttt{api.monitoramento.lan} são encaminhadas ao contêiner
+\textit{backend}, e as destinadas a \texttt{painel.monitoramento.lan}, ao contêiner
+\textit{frontend}. Ambos os nomes resolvem para o endereço do servidor por meio do
+DNS local (\texttt{dnsmasq}). O servidor responde exclusivamente em HTTP, sem
+terminação TLS, limitação discutida no Capítulo~\ref{cap:limitacoes}.
 
 \section{Agente Coletor}
 \label{sec:agente}
@@ -736,6 +776,20 @@ lógica principal é um laço de 5 segundos que executa, em ordem: \textit{flush
 fila de \textit{retry}, envio de \textit{heartbeat}, coleta e envio de métricas,
 coleta de linhas novas do \texttt{auth.log} e envio de detecção de
 \textit{port scan} (quando detectada).
+
+A instalação do agente nos clientes monitorados é automatizada pelo script \texttt{install.sh}, que compila o binário, cria o serviço systemd e o habilita. As Figuras~\ref{fig:install-1} e~\ref{fig:install-2} apresentam, respectivamente, o início do processo de instalação e sua conclusão, com o serviço \texttt{linux-agent.service} registrado e iniciado no host.
+
+\begin{figure}[htb]
+\legenda[fig:install-1]{Início da instalação do agente coletor pelo script \texttt{install.sh}}
+\fig{width=1.00\textwidth}{../img/instalacao-1.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\begin{figure}[htb]
+\legenda[fig:install-2]{Conclusão da instalação, com o serviço systemd habilitado e iniciado}
+\fig{width=1.00\textwidth}{../img/instalacao-2.png}
+\fonte{Os autores (2026).}
+\end{figure}
 
 \subsection{Discovery: Físico versus Virtual}
 \label{subsec:discovery}
@@ -798,8 +852,8 @@ a lista de IPs. Ciclos sem detecção não geram tráfego de rede.
 
 A ausência do \texttt{tcpdump} é tratada com degradação graciosa: o módulo emite
 aviso no \textit{log} e desabilita a detecção silenciosamente. Para contornar uma
-limitação do PyInstaller ao invocar subprocessos — que sobrescreve
-\texttt{LD\_LIBRARY\_PATH} — o agente a restaura explicitamente antes de chamar
+limitação do PyInstaller ao invocar subprocessos, que sobrescreve
+\texttt{LD\_LIBRARY\_PATH}, o agente a restaura explicitamente antes de chamar
 \texttt{tcpdump}.
 
 O Código~\ref{cod:tcpdump-filtro} apresenta o filtro BPF (\textit{Berkeley Packet
@@ -821,7 +875,7 @@ tcpdump -n -l -i any \
 \label{sec:backend}
 
 O \textit{backend} é uma aplicação Flask organizada em \textit{blueprints}. Na
-inicialização, executa 8 funções \texttt{garantir\_schema\_*()} que realizam migrações
+inicialização, executa 9 funções \texttt{garantir\_schema\_*()} que realizam migrações
 idempotentes de esquema (\texttt{ALTER TABLE ... ADD COLUMN IF NOT EXISTS}), permitindo
 que contêineres recriados a partir de volumes antigos sejam atualizados sem intervenção
 manual. Um agendador APScheduler (\textit{BackgroundScheduler}) é iniciado na mesma
@@ -888,6 +942,14 @@ inclui em todas as requisições autenticadas. Esse mecanismo substituiu o
 \textit{token} estático com cabeçalho \texttt{Authorization: Bearer} utilizado em
 versões anteriores do sistema.
 
+A Figura~\ref{fig:apikey} apresenta a tela de gerenciamento da chave de API no painel, na qual o operador pode gerar uma nova chave diretamente no servidor e configurá-la no navegador para autenticar as requisições.
+
+\begin{figure}[htb]
+\legenda[fig:apikey]{Tela de gerenciamento da chave de API no painel}
+\fig{width=1.00\textwidth}{../img/tela-config-2-apiKEY.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
 \section{Detecção de Eventos e Geração de Alertas}
 \label{sec:deteccao}
 
@@ -902,7 +964,7 @@ o \textit{backend} invoca \texttt{check\_brute\_force()}, que consulta a tabela
 \texttt{logs} contando registros com \texttt{log\_type = 'auth'},
 \texttt{status = 'failed'} e o mesmo IP de origem dentro de uma janela temporal de
 60 segundos. Se o contador atingir ou superar 5 ocorrências, um alerta do tipo
-\texttt{brute\_force} é criado — a menos que já exista um alerta ativo não resolvido
+\texttt{brute\_force} é criado, a menos que já exista um alerta ativo não resolvido
 para o mesmo par (host, IP), evitando duplicações.
 
 O Código~\ref{cod:bruteforce-query} apresenta o SQL equivalente executado para a
@@ -929,8 +991,7 @@ WHERE host_id      = :host_id
 O \textit{endpoint} \texttt{POST /api/security/portscan} recebe a lista de IPs
 classificados como fontes de varredura pelo agente. Para cada IP,
 \texttt{check\_port\_scan()} verifica se já existe um alerta ativo com
-\textit{timestamp} nos últimos 2 minutos para o mesmo par (host, IP) —
-o \textit{cooldown} — evitando alertas repetidos em varreduras prolongadas.
+\textit{timestamp} nos últimos 2 minutos para o mesmo par (host, IP), o chamado \textit{cooldown}, evitando alertas repetidos em varreduras prolongadas.
 
 Os dados de \textit{port scan} não são persistidos em tabela própria: o
 \textit{endpoint} é estritamente sinalizador. A decisão de não persistir foi tomada
@@ -965,40 +1026,73 @@ reinicialização do contêiner.
 \label{sec:frontend}
 
 O \textit{frontend} é uma SPA (\textit{Single Page Application}) desenvolvida em
-React 18 com Vite como ferramenta de \textit{build} e TailwindCSS para estilização.
-A interface exibe dados em seis telas: Dashboard, Métricas, Logs, Alertas,
-Endpoints e Configurações.
+React 19 com Vite e TailwindCSS para estilização.
+A interface exibe dados em sete telas: Dashboard, Detalhes, Métricas, Logs, Alertas,
+Endpoints e Configurações. No ambiente implantado, o \textit{frontend} é servido pelo
+servidor de desenvolvimento do Vite (porta 5173, interna ao Docker), e não por um
+\textit{build} estático otimizado servido por um servidor web, decisão que simplifica
+a implantação no contexto acadêmico, mas é registrada como limitação no
+Capítulo~\ref{cap:limitacoes}.
 
 O fluxo de \textit{login} envia \texttt{POST /api/auth/login} com a senha do painel;
 o servidor devolve a chave de API, que é armazenada no \texttt{localStorage} do
 navegador e incluída como cabeçalho \texttt{X-API-Key} em todas as requisições
 subsequentes.
 
-As telas de Alertas e Logs realizam atualizações automáticas a cada 15 e 10
-segundos, respectivamente, por meio de \texttt{setInterval}. As demais telas exibem
-os dados carregados no momento da navegação ou da troca de \textit{host} selecionado.
+As telas de Logs, Alertas e Métricas realizam atualizações automáticas periódicas
+por meio de \texttt{setInterval}, a cada 10, 15 e 10 segundos, respectivamente. O
+gráfico histórico de métricas e as demais telas são carregados no momento da
+navegação ou da troca de \textit{host} selecionado.
+
+As Figuras~\ref{fig:tela-endpoints} e~\ref{fig:tela-config} ilustram duas dessas telas. A tela de Endpoints lista os hosts monitorados com seus identificadores, endereço IP primário e estado de conexão (\textit{online}/\textit{offline}). A tela de Configurações reúne os ajustes do sistema: os limiares de alerta de CPU, memória e disco, os interruptores dos canais de notificação (Teams e e-mail) e a lista de destinatários.
+
+\begin{figure}[htb]
+\legenda[fig:tela-endpoints]{Tela de Endpoints com a relação dos hosts monitorados}
+\fig{width=1.00\textwidth}{../img/tela-endpoints.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\begin{figure}[htb]
+\legenda[fig:tela-config]{Tela de Configurações: limiares de alerta, canais de notificação e destinatários}
+\fig{width=1.00\textwidth}{../img/tela-config-1.png}
+\fonte{Os autores (2026).}
+\end{figure}
 
 \section{Banco de Dados}
 \label{sec:banco}
+
+Esta seção descreve a estrutura de persistência do sistema, apresentando o modelo conceitual (entidade-relacionamento), o modelo lógico com as tabelas e seus respectivos tipos de dados, e as estratégias de consulta e de retenção adotadas no PostgreSQL.
 
 \subsection{Modelo Conceitual}
 \label{subsec:modelo-conceitual}
 
 O banco de dados é composto por sete tabelas: \texttt{host}, \texttt{agents},
 \texttt{host\_discovery}, \texttt{metrics}, \texttt{logs}, \texttt{alerts} e
-\texttt{app\_settings}. As cinco primeiras mantêm relação de 1 para N com a tabela
-\texttt{host}. A tabela \texttt{app\_settings} é global, armazenando configurações do
-sistema independentemente de \textit{host}.
+\texttt{app\_settings}. A tabela \texttt{host} é a entidade central: relaciona-se em
+1:1 com \texttt{host\_discovery} e \texttt{agents} e em 1:N com \texttt{metrics},
+\texttt{logs} e \texttt{alerts}. A tabela \texttt{app\_settings} é global, armazenando
+configurações do sistema (chave de API, destinatários de e-mail, limiares de alerta e
+\textit{toggles} de notificação) independentemente de \textit{host}. A
+Figura~\ref{fig:modelo-conceitual} apresenta o modelo conceitual do banco no formato
+entidade-relacionamento.
+
+\begin{figure}[htb]
+\legenda[fig:modelo-conceitual]{Modelo conceitual (entidade-relacionamento) do banco de dados}
+\fig{width=1.00\textwidth}{../img/modelo-conceitual-db.png}
+\fonte{Os autores (2026).}
+\end{figure}
 
 \subsection{Modelo Lógico}
 \label{subsec:modelo-logico}
 
-% TODO: inserir figura do modelo lógico gerado externamente a partir do init.sql
-% \begin{figure}[htb]
-% \legenda[fig:modelo-logico]{Modelo lógico do banco de dados}
-% \fig{width=1.00\textwidth}{../img/modelo-logico.png}
-% \fonte{Os autores (2026).}
-% \end{figure}
+A Figura~\ref{fig:modelo-logico} apresenta o modelo lógico do banco, detalhando as
+tabelas, suas colunas e os respectivos tipos de dados.
+
+\begin{figure}[htb]
+\legenda[fig:modelo-logico]{Modelo lógico do banco de dados}
+\fig{width=1.00\textwidth}{../img/modelo-logico-db.jpeg}
+\fonte{Os autores (2026).}
+\end{figure}
 
 A tabela \texttt{metrics} registra 20 colunas de séries temporais: além de
 \texttt{id}, \texttt{host\_id} e \texttt{timestamp}, armazena percentuais de CPU,
@@ -1030,215 +1124,191 @@ pode ser acionada manualmente via \texttt{POST /api/maintenance/cleanup}.
 \chapter{Resultados e Validação}
 \label{cap:resultados}
 
-% ATENÇÃO: Este capítulo deve ser preenchido após a execução do checklist de testes.
-% Nenhum número, gráfico ou tabela de resultado deve ser adicionado sem dados reais medidos.
-% A latência de detecção é sempre medida pela coluna alerts."timestamp" do banco de dados,
-% NÃO pelo momento em que o alerta aparece no painel (que tem polling de 10–15 s e
-% introduz atraso artificial na medição).
+Este capítulo apresenta a validação funcional do sistema implementado, conduzida em ambiente de rede local controlado. Cada seção verifica um componente específico da solução: a coleta de métricas, o inventário de \textit{hardware} (\textit{discovery}), a coleta de \textit{logs} de autenticação, a detecção de força bruta e de varredura de portas, e a geração de alertas com as respectivas notificações. O objetivo é demonstrar, por meio de evidências capturadas durante a execução, que o sistema opera de ponta a ponta conforme especificado.
 
-\section{Ambiente e Cenários de Teste}
+\section{Ambiente de Teste}
 \label{sec:ambiente-teste}
 
-Os resultados apresentados neste capítulo foram obtidos em um ambiente de rede local
-controlado, com configuração descrita no Capítulo~\ref{cap:implementacao}.
-A correta interpretação dos dados de latência pressupõe que os relógios de todos os
-hosts estejam sincronizados; o desvio máximo aceitável é inferior a 1 segundo.
+A validação foi conduzida no mesmo ambiente de rede local descrito no Capítulo~\ref{cap:implementacao}: um servidor central e seis clientes Linux conectados em topologia estrela. Para os testes de segurança, utilizou-se um host atacante na mesma sub-rede, executando as ferramentas \texttt{hydra} (força bruta SSH) e \texttt{nmap} (varredura de portas). O objetivo desta etapa foi verificar, de forma funcional, que cada componente opera conforme especificado e que a solução funciona de ponta a ponta, e não a aferição de métricas de desempenho. A Figura~\ref{fig:val-dashboard} apresenta a visão geral do painel, com os hosts monitorados. Cabe um esclarecimento sobre os endereços exibidos: cada máquina de teste possuía duas interfaces de rede: uma conectada ao \textit{switch} da rede de monitoramento (\texttt{10.10.10.0/26}) e outra à rede doméstica com acesso à internet (\texttt{192.168.0.0/24}), utilizada para baixar o agente. Como o agente reporta o IP primário do host, isto é, o associado à rota padrão (\textit{default route}) obtida via \texttt{ip route}, o endereço apresentado no painel corresponde à interface de internet (\texttt{192.168.0.x}). O tráfego de ataque (força bruta e varredura), por sua vez, percorre a rede de monitoramento, o que explica o IP atacante \texttt{10.10.10.x} observado nos alertas.
 
-\begin{enumerate}
-    \item \textbf{Topologia dos hosts monitorados}\\
-          Número de hosts monitorados: \textbf{[A PREENCHER]}\ \_\_\_ \\
-          Sistema operacional dos alvos: \textbf{[A PREENCHER]}\ \_\_\_ \\
-          % TODO: alvo — 7 VMs + 1 servidor físico Ubuntu Server
-    \item \textbf{Host atacante}\\
-          Sistema operacional e versão: \textbf{[A PREENCHER]}\ \_\_\_ \\
-          Posição na rede (mesma sub-rede / roteada): \textbf{[A PREENCHER]}\ \_\_\_
-    \item \textbf{Versões das ferramentas de ataque}\\
-          \texttt{hydra}: \textbf{[A PREENCHER]}\ \_\_\_ \quad
-          \texttt{nmap}: \textbf{[A PREENCHER]}\ \_\_\_ \quad
-          \texttt{stress}: \textbf{[A PREENCHER]}\ \_\_\_
-    \item \textbf{Sincronização de relógios (NTP)}\\
-          Resultado de \texttt{timedatectl} no servidor e em um cliente:\\
-          \textbf{[A PREENCHER]}\ \_\_\_
-\end{enumerate}
+\begin{figure}[htb]
+\legenda[fig:val-dashboard]{Painel principal exibindo os hosts monitorados}
+\fig{width=1.00\textwidth}{../img/dashboard-pos-instalacao.png}
+\fonte{Os autores (2026).}
+\end{figure}
 
-\section{Validação da Coleta de Métricas}
+\section{Coleta de Métricas}
 \label{sec:valid-metricas}
 
-Esta seção valida se os valores reportados pelo agente correspondem ao estado real do
-sistema monitorado. Para cada métrica, compara-se a leitura do agente com a de uma
-ferramenta nativa do sistema operacional coletada simultaneamente. A latência de
-chegada ao banco é medida como a diferença entre o \textit{timestamp} do ciclo do
-agente e o \textit{timestamp} do registro gravado na tabela \texttt{metrics}.
+Com o agente instalado e ativo em um cliente, verificou-se no painel a exibição contínua das métricas de CPU, memória e disco, atualizadas automaticamente. Os valores reportados pelo agente foram conferidos contra as ferramentas nativas do sistema operacional (\texttt{top}, \texttt{free -m} e \texttt{df -h}), confirmando que correspondem ao estado real do host monitorado. As Figuras~\ref{fig:val-metricas-1} e~\ref{fig:val-metricas-2} apresentam a tela de métricas: a primeira exibe os medidores de status em tempo real de CPU, memória e disco, acompanhados do gráfico de evolução; a segunda detalha o histórico das métricas e os cartões com o uso atual de cada recurso.
 
-\begin{enumerate}
-    \item \textbf{CPU (\texttt{cpu\_percent} vs. \texttt{top}/\texttt{htop})}\\
-          Hosts testados: \textbf{[A PREENCHER]}\ \_\_\_ \\
-          Valor reportado pelo agente (\%): \textbf{[A PREENCHER]}\ \_\_\_ \\
-          Valor nativo (\%): \textbf{[A PREENCHER]}\ \_\_\_ \\
-          Diferença absoluta / percentual: \textbf{[A PREENCHER]}\ \_\_\_
-    \item \textbf{Memória (\texttt{memory\_percent} vs. \texttt{free -m})}\\
-          Valor reportado / nativo / diferença: \textbf{[A PREENCHER]}\ \_\_\_
-    \item \textbf{Disco (\texttt{disk\_percent} vs. \texttt{df -h})}\\
-          Valor reportado / nativo / diferença: \textbf{[A PREENCHER]}\ \_\_\_
-    \item \textbf{Latência de chegada ao banco}\\
-          Média ± faixa (N medições): \textbf{[A PREENCHER]}\ \_\_\_ ms
-\end{enumerate}
+\begin{figure}[htb]
+\legenda[fig:val-metricas-1]{Tela de métricas: medidores em tempo real e gráfico de evolução}
+\fig{width=1.00\textwidth}{../img/metricas-host-1.png}
+\fonte{Os autores (2026).}
+\end{figure}
 
-\section{Validação da Detecção de Força Bruta}
+\begin{figure}[htb]
+\legenda[fig:val-metricas-2]{Tela de métricas: histórico detalhado e cartões de uso atual}
+\fig{width=1.00\textwidth}{../img/metricas-host-2.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\section{Coleta de Inventário (Discovery): Físico \textit{versus} Virtual}
+\label{sec:valid-discovery}
+
+Na primeira execução, o agente realiza a coleta de inventário (\textit{discovery}) do host, distinguindo máquinas físicas de virtuais conforme a lógica descrita na Seção~\ref{subsec:discovery}. As Figuras~\ref{fig:val-vhost-1} e~\ref{fig:val-vhost-2} apresentam os detalhes de um host virtual, e as Figuras~\ref{fig:val-fisico-1} a~\ref{fig:val-fisico-3}, os de um host físico. Observa-se que o host físico expõe informações de hardware mais detalhadas (modelo de CPU, \textit{clock}, discos, slots e fabricante dos módulos de memória e dados da placa-mãe), enquanto no host virtual parte desses dados é omitida ou reportada de forma genérica, comportamento esperado, já que o ambiente virtualizado não dá acesso ao hardware real.
+
+\begin{figure}[htb]
+\legenda[fig:val-vhost-1]{Host virtual: visão geral de CPU, memória, disco e sistema}
+\fig{width=1.00\textwidth}{../img/detalhes-vhost-1.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\begin{figure}[htb]
+\legenda[fig:val-vhost-2]{Host virtual: discos e interfaces de rede}
+\fig{width=1.00\textwidth}{../img/detalhes-vhost-2.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\begin{figure}[htb]
+\legenda[fig:val-fisico-1]{Host físico: visão geral de hardware e sistema}
+\fig{width=1.00\textwidth}{../img/detalhes-hostFisico-1.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\begin{figure}[htb]
+\legenda[fig:val-fisico-2]{Host físico: detalhes de discos e interfaces de rede}
+\fig{width=1.00\textwidth}{../img/detalhes-hostFisico-2.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\begin{figure}[htb]
+\legenda[fig:val-fisico-3]{Host físico: módulos de memória RAM e placa-mãe}
+\fig{width=1.00\textwidth}{../img/detalhes-hostFisico-3.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\section{Coleta de Logs de Autenticação}
+\label{sec:valid-logs}
+
+Para validar a coleta de logs, foram realizadas tentativas de acesso SSH ao cliente monitorado, uma malsucedida e uma bem-sucedida. Ambas foram lidas pelo agente a partir do arquivo \texttt{/var/log/auth.log} e exibidas na tela de Logs do painel, com os campos relevantes (origem, usuário e resultado) corretamente extraídos. A Figura~\ref{fig:val-logs} mostra os eventos registrados.
+
+\begin{figure}[htb]
+\legenda[fig:val-logs]{Tela de Logs exibindo os eventos de autenticação coletados}
+\fig{width=1.00\textwidth}{../img/logs-gerais.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\section{Detecção de Força Bruta SSH}
 \label{sec:valid-bruteforce}
 
-Esta seção valida a regra de detecção de força bruta SSH: 5 ou mais tentativas
-malsucedidas do mesmo IP em uma janela de 60 segundos devem gerar exatamente um
-alerta. A latência de detecção é medida como a diferença entre o campo
-\texttt{alerts."timestamp"} no banco e o \textit{timestamp} da 5ª tentativa
-malsucedida registrada — \textbf{não} pelo momento em que o alerta aparece no painel.
-Ferramenta utilizada: \texttt{hydra -l root -P <wordlist> ssh://10.10.10.X}.
+Simulou-se um ataque de força bruta com a ferramenta \texttt{hydra}, gerando múltiplas tentativas de autenticação SSH malsucedidas a partir do host atacante. Ao ultrapassar o limiar de cinco falhas do mesmo endereço em uma janela de 60 segundos, o \textit{backend} gerou automaticamente um alerta do tipo \texttt{brute\_force} e o encaminhou aos canais de notificação. A Figura~\ref{fig:val-bf-cmd} mostra o comando \texttt{hydra} em execução contra o cliente; as Figuras~\ref{fig:val-bf-teams} e~\ref{fig:val-bf-email} apresentam, respectivamente, a notificação do alerta recebida no Microsoft \textit{Teams} e por e-mail.
 
-\begin{enumerate}
-    \item \textbf{Teste de fronteira inferior (4 falhas em 60 s — sem alerta)}\\
-          Resultado esperado: nenhum alerta criado.\\
-          \textbf{[A PREENCHER]} resultado observado: \_\_\_
-    \item \textbf{Teste de fronteira superior (5 falhas em 60 s — alerta disparado)}\\
-          Resultado esperado: alerta do tipo \texttt{brute\_force} criado.\\
-          \textbf{[A PREENCHER]} resultado observado: \_\_\_
-    \item \textbf{Latência de detecção} (5 execuções independentes, aguardar resolução
-          manual entre cada uma)\\
-          Latência$_i$ = \texttt{alerts.timestamp}$_i$ $-$ $t_{\text{disparo},i}$\\
-          Execuções (ms): \textbf{[A PREENCHER]}\ \_\_\_ ; \_\_\_ ; \_\_\_ ; \_\_\_ ; \_\_\_ \\
-          Média ± faixa: \textbf{[A PREENCHER]}\ \_\_\_
-    \item \textbf{Deduplicação} (tentativas contínuas com alerta ativo)\\
-          Resultado esperado: segundo alerta \textbf{não} criado enquanto o primeiro
-          permanecer ativo.\\
-          \textbf{[A PREENCHER]} resultado observado: \_\_\_
-    \item \textbf{Falso positivo} (login legítimo com sucesso)\\
-          Resultado esperado: nenhum alerta.\\
-          \textbf{[A PREENCHER]} resultado observado: \_\_\_
-    \item \textbf{Latência das notificações} (executar após confirmar alerta no banco)\\
-          Latência Teams = \texttt{timestamp\_mensagem} $-$ \texttt{alerts.timestamp}:\\
-          \textbf{[A PREENCHER]}\ \_\_\_ ms\\
-          Latência e-mail = \texttt{timestamp\_recebimento} $-$ \texttt{alerts.timestamp}:\\
-          \textbf{[A PREENCHER]}\ \_\_\_ ms
-\end{enumerate}
+\begin{figure}[htb]
+\legenda[fig:val-bf-cmd]{Execução do ataque de força bruta com \texttt{hydra}}
+\fig{width=1.00\textwidth}{../img/brute-force-1-comandoHYDRA.png}
+\fonte{Os autores (2026).}
+\end{figure}
 
-\section{Validação da Detecção de Port Scan}
+\begin{figure}[htb]
+\legenda[fig:val-bf-teams]{Notificação do alerta de força bruta no Microsoft Teams}
+\fig{width=0.65\textwidth}{../img/brute-force-2-alertaTeams.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\begin{figure}[htb]
+\legenda[fig:val-bf-email]{Notificação do alerta de força bruta por e-mail}
+\fig{width=0.85\textwidth}{../img/brute-force-3-alertaEmail.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\section{Detecção de Port Scan}
 \label{sec:valid-portscan}
 
-Esta seção valida a detecção de varredura de portas no agente: 10 ou mais portas
-distintas de um mesmo IP dentro de uma janela de 60 segundos devem gerar um alerta.
-O \textit{cooldown} de 2 minutos impede alertas repetidos para o mesmo IP; os testes
-de latência devem ser espaçados por pelo menos 3 minutos para evitar supressão.
-A latência é medida pelo campo \texttt{alerts."timestamp"} no banco. Ferramenta
-utilizada: \texttt{nmap}.
+A detecção de varredura de portas foi validada executando-se o \texttt{nmap} contra o cliente monitorado. O agente, por meio da captura de pacotes com \texttt{tcpdump}, identificou o acesso a múltiplas portas distintas a partir de um mesmo endereço e sinalizou o evento ao \textit{backend}, que gerou um alerta do tipo \texttt{port\_scan}. A Figura~\ref{fig:val-ps-cmd} mostra o \texttt{nmap} em execução; a Figura~\ref{fig:val-ps-painel} apresenta o alerta de \texttt{port\_scan} no painel; e as Figuras~\ref{fig:val-ps-email} e~\ref{fig:val-ps-teams} mostram as notificações correspondentes por e-mail e no \textit{Teams}. Vale observar que o \texttt{nmap}, em sua varredura padrão, acessou cerca de mil portas distintas (número muito acima do limiar de detecção de dez portas distintas em 60 segundos definido na Seção~\ref{subsec:portscan-agente}), de modo que o disparo do alerta era esperado.
 
-\begin{enumerate}
-    \item \textbf{Teste de fronteira inferior (9 portas em 60 s — sem alerta)}\\
-          Comando: \texttt{nmap -sS -{}-top-ports 9 10.10.10.X}\\
-          Resultado esperado: nenhum alerta.\\
-          \textbf{[A PREENCHER]} resultado observado: \_\_\_
-    \item \textbf{Teste de fronteira superior (11 portas em 60 s — alerta disparado)}\\
-          Comando: \texttt{nmap -sS -{}-top-ports 11 10.10.10.X}\\
-          Resultado esperado: alerta do tipo \texttt{port\_scan} criado.\\
-          \textbf{[A PREENCHER]} resultado observado: \_\_\_
-    \item \textbf{Latência de detecção} (5 execuções, intervalo $>$ 3 min entre cada)\\
-          Latência$_i$ = \texttt{alerts.timestamp}$_i$ $-$ $t_{\text{disparo},i}$\\
-          Execuções (ms): \textbf{[A PREENCHER]}\ \_\_\_ ; \_\_\_ ; \_\_\_ ; \_\_\_ ; \_\_\_ \\
-          Média ± faixa: \textbf{[A PREENCHER]}\ \_\_\_
-    \item \textbf{Cooldown} (segundo scan imediato após alerta)\\
-          Resultado esperado: segundo alerta \textbf{não} criado dentro de 2 minutos.\\
-          \textbf{[A PREENCHER]} resultado observado: \_\_\_
-    \item \textbf{Tipos de scan} (\texttt{-sS}, \texttt{-sT}, \texttt{-sF})\\
-          \begin{tabular}{lc}
-          \hline
-          Tipo & Detectado? (s/n) \\
-          \hline
-          \texttt{nmap -sS} (SYN scan) & \textbf{[A PREENCHER]}\ \_\_\_ \\
-          \texttt{nmap -sT} (Connect scan) & \textbf{[A PREENCHER]}\ \_\_\_ \\
-          \texttt{nmap -sF} (FIN scan) & \textbf{[A PREENCHER]}\ \_\_\_ \\
-          \hline
-          \end{tabular}
-    \item \textbf{Degradação graciousa — sem \texttt{tcpdump}}\\
-          Remover \texttt{tcpdump} temporariamente e reiniciar o agente.\\
-          Resultado esperado: agente continua em execução; nenhum erro fatal no \textit{log}.\\
-          \textbf{[A PREENCHER]} resultado observado: \_\_\_
-    \item \textbf{Falso positivo} (tráfego SYN legítimo, ex.: navegação web)\\
-          Resultado esperado: nenhum alerta gerado.\\
-          \textbf{[A PREENCHER]} resultado observado: \_\_\_
-\end{enumerate}
+\begin{figure}[htb]
+\legenda[fig:val-ps-cmd]{Execução da varredura de portas com \texttt{nmap}}
+\fig{width=1.00\textwidth}{../img/port-scan-1-comandoNMAP.png}
+\fonte{Os autores (2026).}
+\end{figure}
 
-\section{Validação do Pipeline de Alertas e Notificações}
-\label{sec:valid-alertas}
+\begin{figure}[htb]
+\legenda[fig:val-ps-painel]{Alerta de varredura de portas exibido no painel}
+\fig{width=1.00\textwidth}{../img/port-scan-2-alertaGeral.png}
+\fonte{Os autores (2026).}
+\end{figure}
 
-Esta seção valida o caminho completo de um alerta: do evento disparador até a
-notificação ao operador. A latência fim-a-fim é decomposta em dois segmentos:
-(a) detecção (evento $\rightarrow$ \texttt{alerts.timestamp}), medida nas seções
-anteriores; e (b) notificação (\texttt{alerts.timestamp} $\rightarrow$ recebimento
-da mensagem). Os testes de notificação verificam também a funcionalidade dos
-\textit{toggles} de canais na tabela \texttt{app\_settings}.
+\begin{figure}[htb]
+\legenda[fig:val-ps-email]{Notificação do alerta de varredura de portas por e-mail}
+\fig{width=0.85\textwidth}{../img/port-scan-3-alertaEmail.png}
+\fonte{Os autores (2026).}
+\end{figure}
 
-\begin{enumerate}
-    \item \textbf{Teams habilitado — alerta \texttt{brute\_force}}\\
-          Latência Teams = \texttt{timestamp\_mensagem} $-$ \texttt{alerts.timestamp}:\\
-          \textbf{[A PREENCHER]}\ \_\_\_ ms
-    \item \textbf{E-mail habilitado — alerta \texttt{brute\_force}}\\
-          Latência e-mail = \texttt{timestamp\_recebimento} $-$ \texttt{alerts.timestamp}:\\
-          \textbf{[A PREENCHER]}\ \_\_\_ ms
-    \item \textbf{Toggle \texttt{notify\_email = false}}\\
-          Resultado esperado: alerta gravado no banco; e-mail \textbf{não} enviado.\\
-          \textbf{[A PREENCHER]} resultado observado: \_\_\_
-    \item \textbf{Toggle \texttt{notify\_teams = false}}\\
-          Resultado esperado: alerta gravado; mensagem Teams \textbf{não} recebida.\\
-          \textbf{[A PREENCHER]} resultado observado: \_\_\_
-    \item \textbf{Latência fim-a-fim (força bruta, Teams habilitado)}\\
-          Latência total = \texttt{timestamp\_mensagem} $-$ $t_{\text{disparo}}$:\\
-          \textbf{[A PREENCHER]}\ \_\_\_ ms
-\end{enumerate}
+\begin{figure}[htb]
+\legenda[fig:val-ps-teams]{Notificação do alerta de varredura de portas no Microsoft Teams}
+\fig{width=0.65\textwidth}{../img/port-scan-4-alertaTeams.png}
+\fonte{Os autores (2026).}
+\end{figure}
 
-\section{Desempenho e Overhead do Agente}
-\label{sec:overhead}
+\section{Geração de Alertas e Notificações}
+\label{sec:valid-notificacoes}
 
-Esta seção quantifica o impacto do agente sobre o sistema monitorado. As medições
-de CPU e memória utilizam \texttt{psutil} no próprio host e são coletadas durante
-operação em regime estacionário (após o primeiro ciclo completo de \textit{discovery}).
-São realizadas duas séries: com \texttt{tcpdump} ativo e sem \texttt{tcpdump}, para
-isolar a contribuição da captura de pacotes.
+Além dos alertas de segurança apresentados nas seções anteriores, o sistema gera alertas de recurso quando o uso de CPU, memória ou disco de um host ultrapassa o limiar configurado. Para validar esse mecanismo, induziu-se carga em um cliente até que o uso de CPU e de memória excedesse os limiares definidos, observando-se a geração automática dos alertas correspondentes.
 
-\begin{enumerate}
-    \item \textbf{CPU do processo agente em regime normal}\\
-          Com \texttt{tcpdump}: \textbf{[A PREENCHER]}\ \_\_\_ \% \\
-          Sem \texttt{tcpdump}: \textbf{[A PREENCHER]}\ \_\_\_ \%
-    \item \textbf{Memória RSS do processo agente}\\
-          Com \texttt{tcpdump}: \textbf{[A PREENCHER]}\ \_\_\_ MB \\
-          Sem \texttt{tcpdump}: \textbf{[A PREENCHER]}\ \_\_\_ MB
-    \item \textbf{Tempo médio de ciclo de 5 s}\\
-          Medido entre início e fim do laço principal (N amostras):\\
-          \textbf{[A PREENCHER]}\ \_\_\_ ms (média) ± \_\_\_ ms (desvio)
-    \item \textbf{Tamanho médio do \textit{payload} de métricas (JSON)}\\
-          \textbf{[A PREENCHER]}\ \_\_\_ KB
-    \item \textbf{Comportamento da fila de \textit{retry} após queda do \textit{backend}}\\
-          Procedimento: derrubar o contêiner \textit{backend} por 30 s e restaurar.\\
-          Resultado esperado: agente enfileira requisições; envia ao recuperar.\\
-          \textbf{[A PREENCHER]} resultado observado: \_\_\_ ; itens na fila: \_\_\_
-\end{enumerate}
+Todos os alertas, de segurança e de recurso, são consolidados na tela de Alertas Gerais do painel. As Figuras~\ref{fig:val-alertas-1} e~\ref{fig:val-alertas-2} apresentam essa tela: primeiro com um único alerta de CPU e, em seguida, com múltiplos alertas de tipos distintos (força bruta, CPU e varredura de portas) registrados simultaneamente.
 
-\section{Discussão dos Resultados}
+Com os canais habilitados, cada alerta é encaminhado por e-mail e ao Microsoft \textit{Teams}. As Figuras~\ref{fig:val-cpu-email} e~\ref{fig:val-cpu-teams} mostram a notificação de um alerta de CPU alta nos dois canais, e as Figuras~\ref{fig:val-mem-email} e~\ref{fig:val-mem-teams}, a de um alerta de memória alta. Verificou-se também que, ao desabilitar um canal nas configurações, a respectiva notificação deixa de ser enviada, embora o alerta continue registrado no painel.
+
+\begin{figure}[htb]
+\legenda[fig:val-alertas-1]{Tela de Alertas Gerais com um alerta de recurso (CPU)}
+\fig{width=1.00\textwidth}{../img/alertas-gerais.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\begin{figure}[htb]
+\legenda[fig:val-alertas-2]{Tela de Alertas Gerais com múltiplos alertas de tipos distintos}
+\fig{width=1.00\textwidth}{../img/alertas-gerais-2-comMaisAlertas.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\begin{figure}[htb]
+\legenda[fig:val-cpu-email]{Notificação de alerta de CPU alta por e-mail}
+\fig{width=0.85\textwidth}{../img/alertaEmail-CPU.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\begin{figure}[htb]
+\legenda[fig:val-cpu-teams]{Notificação de alerta de CPU alta no Microsoft Teams}
+\fig{width=0.65\textwidth}{../img/alertaTeams-CPU.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\begin{figure}[htb]
+\legenda[fig:val-mem-email]{Notificação de alerta de memória alta por e-mail}
+\fig{width=0.85\textwidth}{../img/alertaEmail-Memoria.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\begin{figure}[htb]
+\legenda[fig:val-mem-teams]{Notificação de alerta de memória alta no Microsoft Teams}
+\fig{width=0.65\textwidth}{../img/alertaTeams-Memoria.png}
+\fonte{Os autores (2026).}
+\end{figure}
+
+\section{Síntese da Validação}
 \label{sec:discussao}
 
-% TODO: redigir após consolidar os dados das Seções 13.1–13.6.
-% Estrutura sugerida:
-%  - Confrontar cada objetivo específico do Cap. 1 com os resultados:
-%    (i)  coleta de métricas  — Seção~\ref{sec:valid-metricas}
-%    (ii) processamento/armazenamento — inferido dos testes anteriores
-%    (iii) detecção de força bruta e port scan — Seções~\ref{sec:valid-bruteforce}
-%          e~\ref{sec:valid-portscan}
-%    (iv) visualização — painel funcional, cf. Cap. 12
-%  - Discutir overhead observado, falsos positivos e limitações práticas dos testes.
-%  - Indicar se algum resultado foi inesperado e como isso impacta as conclusões.
+Os testes confirmam que o sistema atende aos objetivos definidos no Capítulo~\ref{cap:introducao}: o agente coleta métricas de infraestrutura, inventário de \textit{hardware} e logs de autenticação; o \textit{backend} processa esses dados, detecta tentativas de força bruta e varreduras de portas e gera os alertas correspondentes; e o painel apresenta as informações ao operador, que ainda é notificado por \textit{Teams} e e-mail. A validação teve caráter funcional, demonstrando o funcionamento de ponta a ponta da solução em ambiente real; a aferição quantitativa de desempenho, como latência de detecção e sobrecarga do agente, não fez parte do escopo deste trabalho.
 
 % =================================================================================================
 % 14. LIMITAÇÕES E TRABALHOS FUTUROS
 % =================================================================================================
 \chapter{Limitações e Trabalhos Futuros}
 \label{cap:limitacoes}
+
+Este capítulo discute as limitações da solução desenvolvida, decorrentes das escolhas arquiteturais e do escopo acadêmico do projeto, e apresenta, a partir delas, um conjunto de trabalhos futuros que apontam caminhos para a evolução do sistema.
 
 \section{Limitações da Solução}
 \label{sec:limitacoes}
@@ -1268,10 +1338,20 @@ arquiteturais e do escopo do projeto:
           \texttt{LIMIAR\_BRUTE\_FORCE} (5 tentativas) está definido como constante
           no código-fonte, diferentemente dos limiares de CPU, memória e disco que são
           configuráveis via painel.
-    \item \textbf{Lacunas no frontend}: três comportamentos estão identificados como
-          pendentes de correção: falha ao clicar em sub-abas; contador de alertas
-          na barra lateral com valor fixo; métricas sem atualização automática
-          periódica.
+    \item \textbf{\textit{Frontend} em modo de desenvolvimento}: o contêiner do
+          \textit{frontend} executa o servidor de desenvolvimento do Vite
+          (\texttt{NODE\_ENV=development}, com observadores de arquivos ativos), em vez
+          de um \textit{build} estático otimizado servido por um servidor web. A escolha
+          simplifica a implantação, mas não é adequada a um ambiente de produção.
+    \item \textbf{Dependência do arquivo \texttt{/var/log/auth.log}}: a coleta de logs
+          de autenticação e, por consequência, a detecção de força bruta dependem da
+          existência do arquivo \texttt{/var/log/auth.log}, populado por um \textit{daemon}
+          de \textit{syslog} (como o \texttt{rsyslog}). Em distribuições configuradas apenas
+          com o \texttt{systemd-journald}, sem \texttt{rsyslog} (situação observada em um
+          cliente Kali Linux durante os testes), esse arquivo não é gerado e tais
+          funcionalidades ficam indisponíveis no host. As demais funcionalidades (métricas,
+          \textit{discovery} e detecção de \textit{port scan}, que não dependem do
+          \texttt{auth.log}) permanecem operacionais.
 \end{itemize}
 
 \section{Trabalhos Futuros}
@@ -1304,10 +1384,70 @@ seguintes trabalhos futuros são propostos:
           falha.
     \item \textbf{Correção das lacunas do frontend}: resolver os comportamentos
           pendentes identificados no painel web.
+    \item \textbf{Leitura do \textit{journal} do \textit{systemd} e detecção de
+          distribuição}: ler o \texttt{systemd-journald} (via \texttt{journalctl}) quando o
+          \texttt{/var/log/auth.log} não existir e identificar a distribuição do host para
+          adaptar as fontes de \textit{log}, removendo a dependência de um \textit{daemon}
+          de \textit{syslog}.
 \end{itemize}
 
 % =================================================================================================
-% 15. CONSIDERAÇÕES FINAIS
+% 15. USO DE INTELIGÊNCIA ARTIFICIAL NO TRABALHO
+% NOTA: confirmar com orientador se vai como capítulo numerado ou apêndice.
+% =================================================================================================
+\chapter{Uso de Inteligência Artificial no Trabalho}
+\label{cap:ia}
+
+Durante o desenvolvimento deste projeto, a equipe fez uso de uma ferramenta de
+inteligência artificial generativa como recurso de apoio. Este capítulo descreve
+de forma transparente o escopo e os limites desse uso, em conformidade com as
+diretrizes de integridade acadêmica.
+
+\section{Ferramenta Utilizada}
+\label{sec:ia-ferramenta}
+
+Foi utilizado o assistente Claude (Anthropic), acessado entre maio e junho de 2026
+por meio da interface web e da interface de linha de comando Claude Code. Nenhuma
+outra ferramenta de inteligência artificial generativa foi empregada no projeto.
+
+\section{Finalidades do Uso}
+\label{sec:ia-finalidades}
+
+O assistente foi utilizado exclusivamente nas seguintes finalidades:
+
+\begin{itemize}
+    \item \textbf{Compreensão de código}: análise e explicação de trechos do
+          código-fonte implementado pela equipe, auxiliando no entendimento de
+          comportamentos e interações entre componentes;
+    \item \textbf{Resolução de problemas técnicos}: apoio na identificação de causas
+          de erros e na busca de abordagens de solução, sempre verificadas pela
+          equipe contra o código real;
+    \item \textbf{Validação de ideias}: discussão de decisões de projeto para
+          verificar consistência lógica e identificar possíveis lacunas, antes de
+          a equipe tomar a decisão final;
+    \item \textbf{Sugestão de caminhos de investigação}: indicação de arquivos e
+          funções relevantes a inspecionar durante o processo de desenvolvimento e
+          documentação;
+    \item \textbf{Redação de base e revisão do texto}: geração de versões iniciais
+          (rascunhos) de trechos deste documento e apoio na revisão de redação,
+          consistência e formatação, posteriormente reescritos e ajustados pela equipe.
+\end{itemize}
+
+\section{Responsabilidade e Autoria}
+\label{sec:ia-responsabilidade}
+
+Todas as decisões de arquitetura, infraestrutura e implementação foram tomadas
+integralmente pela equipe. Nenhuma decisão técnica foi delegada à ferramenta de
+inteligência artificial. Os trechos de texto elaborados com o auxílio do assistente
+serviram como base inicial e foram posteriormente reescritos e ajustados pelos autores,
+de forma que a autoria final do documento é da equipe. Todo o conteúdo foi revisado
+criticamente e verificado contra o código-fonte do repositório antes de ser incorporado
+a este documento. Os autores assumem responsabilidade integral pelo conteúdo aqui
+apresentado.
+
+
+% =================================================================================================
+% 16. CONSIDERAÇÕES FINAIS
 % =================================================================================================
 \chapter{Considerações Finais}
 \label{cap:conclusao}
@@ -1352,93 +1492,6 @@ projeto e apontam caminhos claros para evolução futura.
 Dessa forma, o trabalho cumpre seu papel ao integrar pesquisa teórica, planejamento e
 implementação prática de um sistema de monitoramento funcional, contribuindo como
 referência para projetos similares em ambientes acadêmicos e de pequeno porte.
-
-% =================================================================================================
-% 16. USO DE INTELIGÊNCIA ARTIFICIAL NO TRABALHO
-% NOTA: confirmar com orientador se vai como capítulo numerado ou apêndice.
-% =================================================================================================
-\chapter{Uso de Inteligência Artificial no Trabalho}
-\label{cap:ia}
-
-Durante o desenvolvimento deste projeto, a equipe fez uso de uma ferramenta de
-inteligência artificial generativa como recurso de apoio. Este capítulo descreve
-de forma transparente o escopo e os limites desse uso, em conformidade com as
-diretrizes de integridade acadêmica.
-
-\section{Ferramenta Utilizada}
-\label{sec:ia-ferramenta}
-
-Foi utilizado o assistente Claude (Anthropic), acessado entre maio e junho de 2026
-por meio da interface web e da interface de linha de comando Claude Code. Nenhuma
-outra ferramenta de inteligência artificial generativa foi empregada no projeto.
-
-\section{Finalidades do Uso}
-\label{sec:ia-finalidades}
-
-O assistente foi utilizado exclusivamente nas seguintes finalidades:
-
-\begin{itemize}
-    \item \textbf{Compreensão de código}: análise e explicação de trechos do
-          código-fonte implementado pela equipe, auxiliando no entendimento de
-          comportamentos e interações entre componentes;
-    \item \textbf{Resolução de problemas técnicos}: apoio na identificação de causas
-          de erros e na busca de abordagens de solução, sempre verificadas pela
-          equipe contra o código real;
-    \item \textbf{Validação de ideias}: discussão de decisões de projeto para
-          verificar consistência lógica e identificar possíveis lacunas, antes de
-          a equipe tomar a decisão final;
-    \item \textbf{Sugestão de caminhos de investigação}: indicação de arquivos e
-          funções relevantes a inspecionar durante o processo de desenvolvimento e
-          documentação.
-\end{itemize}
-
-\section{Responsabilidade e Autoria}
-\label{sec:ia-responsabilidade}
-
-Todas as decisões de arquitetura, infraestrutura e implementação foram tomadas
-integralmente pela equipe. Nenhuma decisão técnica foi delegada à ferramenta de
-inteligência artificial. Todo conteúdo gerado pelo assistente foi revisado
-criticamente pelos autores e verificado contra o código-fonte do repositório antes
-de ser incorporado a este documento. Os autores assumem responsabilidade integral
-pelo conteúdo aqui apresentado.
-
-% =================================================================================================
-% APÊNDICE A — USO DE FERRAMENTAS DE IA NO PROJETO
-% CONDICIONAL: incluir somente após confirmação da política da Universidade Tuiuti
-% do Paraná e do orientador sobre uso de IA generativa em projetos interdisciplinares.
-% =================================================================================================
-%
-% \begin{apendicesenv}
-% \partapendices
-%
-% \chapter{Uso de Ferramentas de Inteligência Artificial no Projeto}
-% \label{ap:ia}
-%
-% Durante o desenvolvimento deste projeto, foram utilizadas ferramentas de
-% inteligência artificial generativa como auxílio à documentação técnica e à
-% elaboração deste documento. O presente apêndice descreve o escopo desse uso.
-%
-% \section{Ferramentas Utilizadas}
-%
-% O assistente Claude Code (Anthropic) foi utilizado nas seguintes atividades:
-%
-% \begin{itemize}
-%     \item Análise e verificação de consistência entre o código-fonte implementado
-%           e o texto acadêmico;
-%     \item Geração de rascunhos dos Capítulos 11--15, revisados pelos autores;
-%     \item Identificação de contradições entre o planejamento (Caps. 1--10) e a
-%           implementação real.
-% \end{itemize}
-%
-% \section{Limites do Uso}
-%
-% Todo conteúdo técnico foi verificado contra o código-fonte do repositório.
-% Nenhuma referência bibliográfica foi inventada; todas as citações utilizam
-% exclusivamente entradas pré-existentes em \texttt{referencias.bib}. Os resultados
-% do Capítulo~\ref{cap:resultados} são baseados exclusivamente em dados medidos
-% pela equipe.
-%
-% \end{apendicesenv}
 
 \postextual
 
