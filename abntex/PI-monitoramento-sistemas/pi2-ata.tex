@@ -56,7 +56,7 @@
 \imprimirfolhaderosto
 
 \begin{resumo}
-    A crescente dependência de ambientes computacionais torna a indisponibilidade e os incidentes de segurança fatores críticos para a continuidade dos serviços. Este trabalho apresenta a fundamentação teórica, o planejamento arquitetural e a implementação de um sistema de monitoramento para servidores Linux, com foco na coleta de métricas de infraestrutura e na detecção de eventos básicos de segurança por meio da análise de logs. A solução foi construída sobre uma arquitetura cliente-servidor: agentes instalados nos dispositivos coletam dados de CPU, memória, disco e rede e os enviam a um servidor central via API REST. No servidor, as informações são processadas, armazenadas em banco de dados relacional e exibidas em um painel \textit{web}. O sistema também identifica padrões suspeitos,  como tentativas de autenticação malsucedidas e varreduras de portas, e envia alertas automáticos por Microsoft Teams e e-mail. O sistema foi operado em rede local controlada com múltiplos clientes Linux reais, demonstrando a viabilidade prática da integração entre monitoramento de infraestrutura e análise de eventos de segurança.
+    A crescente dependência de ambientes computacionais torna a indisponibilidade e os incidentes de segurança fatores críticos para a continuidade dos serviços. Este trabalho apresenta a fundamentação teórica, o planejamento arquitetural e a implementação de um sistema de monitoramento para servidores Linux, com foco na coleta de métricas de infraestrutura e na detecção de eventos básicos de segurança por meio da análise de logs. Com base em conceitos de monitoramento, observabilidade e segurança da informação, foi implementada uma arquitetura cliente-servidor na qual agentes coletores instalados nos dispositivos monitorados capturam dados de CPU, memória, disco e rede e os enviam a um servidor central para processamento e armazenamento. A solução inclui mecanismos de ingestão via API REST, persistência em banco de dados relacional, painel \textit{web} para visualização e regras de detecção de padrões como tentativas de autenticação malsucedidas e varreduras de portas, com notificação automática por Microsoft Teams e e-mail. O sistema foi operado em rede local controlada com múltiplos clientes Linux reais, demonstrando a viabilidade prática da integração entre monitoramento de infraestrutura e análise de eventos de segurança.
 
     \palavraschave{Monitoramento de Sistemas; Servidores Linux; Análise de Logs; Observabilidade; Arquitetura de Software}
 \end{resumo}
@@ -112,7 +112,7 @@
 \chapter{Introdução}
 \label{cap:introducao}
 
-Atualmente, em ambientes corporativos, servidores desempenham papel essencial na sustentação de aplicações, serviços internos e comunicação em rede. A indisponibilidade de recursos, falhas operacionais ou incidentes de segurança podem impactar diretamente a continuidade dos serviços, tornando necessária a adoção de mecanismos que permitam acompanhar o estado dos sistemas de forma contínua. Nesse contexto, o monitoramento de sistemas permite identificar falhas, quedas de desempenho e indisponibilidades antes que causem impacto nos usuários. Segundo a \citeonline{fortinet_monitoring}, isso se consiste da observação contínua da infraestrutura com o objetivo de detectar problemas e garantir a disponibilidade dos serviços.
+Atualmente, em ambientes corporativos, servidores desempenham papel essencial na sustentação de aplicações, serviços internos e comunicação em rede. A indisponibilidade de recursos, falhas operacionais ou incidentes de segurança podem impactar diretamente a continuidade dos serviços, tornando necessária a adoção de mecanismos que permitam acompanhar o estado dos sistemas de forma contínua. Nesse contexto, o monitoramento de sistemas possibilita a identificação de falhas, degradações de desempenho e indisponibilidades a partir da coleta e análise de dados operacionais. De acordo com a \citeonline{fortinet_monitoring}, o monitoramento consiste na observação contínua da infraestrutura com o objetivo de detectar problemas e garantir a disponibilidade dos serviços.
 
 Além disso, com o aumento da complexidade dos ambientes computacionais, observa-se a necessidade de ampliar a capacidade de análise desses sistemas, incorporando conceitos como observabilidade. Segundo \citeonline{ibm_observability}, a observabilidade permite compreender o comportamento dos sistemas a partir de dados como métricas e registros de eventos. Nesse cenário, os logs assumem papel relevante na identificação de atividades suspeitas e na análise de incidentes de segurança, sendo considerados componentes fundamentais em processos de monitoramento, conforme destacado por \citeonline{nist_sp800_92}.
 
@@ -122,7 +122,7 @@ Diante desse contexto, este trabalho tem como problema de pesquisa a seguinte qu
 
 O objetivo geral deste projeto é desenvolver um sistema de monitoramento para ambientes Linux, capaz de coletar métricas operacionais e identificar eventos de segurança a partir da análise de logs. Como objetivos específicos, destacam-se: (i) implementar mecanismos de coleta de dados nos dispositivos monitorados; (ii) desenvolver um servidor central para processamento e armazenamento das informações; (iii) identificar eventos de segurança com base em padrões conhecidos, como tentativas de autenticação malsucedidas e varreduras de rede; e (iv) disponibilizar uma interface para visualização dos dados e geração de alertas.
 
-Para atingir esses objetivos, o sistema foi construído sobre uma arquitetura cliente-servidor: agentes instalados nos dispositivos coletam os dados localmente e os enviam a um servidor central, responsável pelo processamento e armazenamento.
+Para atingir esses objetivos, foi adotada uma abordagem baseada em arquitetura cliente-servidor, com coleta de dados realizada por agentes e envio das informações a um servidor central para processamento e armazenamento.
 
 Este trabalho está organizado da seguinte forma: os capítulos iniciais apresentam a fundamentação teórica relacionada ao tema. Em seguida, são descritos o planejamento e a metodologia de desenvolvimento. Os capítulos finais detalham a implementação do sistema, os resultados de validação e as considerações acerca das limitações e trabalhos futuros.
 
@@ -357,7 +357,7 @@ Por fim, destaca-se que os agentes frequentemente utilizam protocolos padronizad
 
 Enquanto no modelo cliente-servidor o cliente não compartilha nenhum de seus recursos com o servidor, é ele quem inicia a comunicação solicitando alguma função ao servidor que fica aguardando as requisições, com o agente a iniciativa da comunicação parte dele próprio: o agente pode reportar dados de forma periódica (\textit{push} em intervalos regulares) ou orientada a eventos, contactando o servidor quando há algo relevante a reportar.
 
-\citeonline[p.~116]{wooldridge1995} ) descrevem algumas propriedades centrais dos agentes de monitoramento. A \textbf{autonomia}, em que os agentes operam sem a intervenção direta de humanos ou outros e têm algum tipo de controle sobre suas ações e estado interno; a \textbf{habilidade social}, na qual os agentes interagem com outros agentes ou possivelmente humanos por meio de algum tipo de linguagem de comunicação; a \textbf{reatividade}, onde os agentes percebem seu ambiente, que pode ser o mundo físico, um usuário, uma coleção de outros agentes ou a Internet, e respondem em tempo hábil às mudanças que ocorrem nele; e a \textbf{proatividade}, em que os agentes não agem simplesmente em resposta ao seu ambiente, sendo capazes de exibir comportamento direcionado a objetivos e tomar a iniciativa.
+\citeonline[p.~116]{wooldridge1995} identificam seis propriedades do agente: a \textbf{autonomia}, em que os agentes operam sem a intervenção direta de humanos ou outros e têm algum tipo de controle sobre suas ações e estado interno; a \textbf{habilidade social}, na qual os agentes interagem com outros agentes ou possivelmente humanos por meio de algum tipo de linguagem de comunicação; a \textbf{reatividade}, onde os agentes percebem seu ambiente, que pode ser o mundo físico, um usuário, uma coleção de outros agentes ou a Internet, e respondem em tempo hábil às mudanças que ocorrem nele; e a \textbf{proatividade}, em que os agentes não agem simplesmente em resposta ao seu ambiente, sendo capazes de exibir comportamento direcionado a objetivos e tomar a iniciativa.
 
 \section{Ferramentas de Monitoramento: Zabbix e Nagios}
 
@@ -574,7 +574,7 @@ O processamento dos dados ocorre por meio de regras definidas no \textit{backend
 
 No contexto de monitoramento de infraestrutura, são utilizados limiares (\textit{thresholds}) para geração de alertas, como uso elevado de CPU ou baixo espaço em disco. Essa abordagem é simples e eficaz, mas depende de calibração adequada para evitar excesso de notificações.
 
-Para a detecção de eventos de segurança, o sistema utiliza regras fixas sobre os \textit{logs}, como múltiplas tentativas de autenticação malsucedidas (indicando possível ataque de força bruta) ou conexões em múltiplas portas (indicando varredura de portas). Como foi discutido no Capítulo~\ref{cap:detection}, essa abordagem é eficaz contra ataques conhecidos, mas não detecta comportamentos inéditos. A opção por essa abordagem simplificada é algo exclusivo apenas à esse trabalho e seus objetivos, com o objetivo de reduzir a complexidade de implementação sem comprometer a validação dos princípios de detecção estudados.
+No que se refere à segurança, a análise baseia-se em padrões conhecidos identificados nos \textit{logs}, como múltiplas tentativas de autenticação malsucedidas (indicando possível ataque de força bruta) ou conexões em múltiplas portas (indicando varredura de portas). Conforme discutido no Capítulo~\ref{cap:detection}, sistemas baseados exclusivamente em regras são eficazes contra ameaças conhecidas, mas podem falhar na identificação de comportamentos inéditos. A opção por essa abordagem simplificada é compatível com o objetivo de prova de conceito do presente trabalho, reduzindo a complexidade de implementação sem comprometer a validação dos princípios de detecção estudados.
 
 \section{Visualização e Dashboard}
 
@@ -605,25 +605,53 @@ O planejamento aqui descrito evidencia que cada componente do sistema de monitor
 \chapter{Metodologia de Desenvolvimento}
 \label{cap:metodologia}
 
-Este capítulo descreve a abordagem adotada pelo grupo para organizar e conduzir o desenvolvimento do sistema, as ferramentas utilizadas e o cronograma de execução.
+Este capítulo descreve a abordagem adotada pelo grupo para organizar e conduzir o
+desenvolvimento do sistema, as ferramentas utilizadas e o cronograma de execução.
 
 \section{Abordagem e Organização do Projeto}
 
-O desenvolvimento foi conduzido por uma equipe de sete integrantes, com divisão de responsabilidades orientada por componente. A infraestrutura de rede e do ambiente (contêineres Docker, DNS e DHCP) e a coordenação geral do projeto ficaram a cargo de Lucas Toterol Rodrigues, que também desenvolveu o agente coletor, com o apoio de Caio Federico Esquivel Lovera Arze, responsável ainda pela redação técnica do documento. O desenvolvimento do \textit{backend} (API REST e lógica de detecção) coube a Douglas Clayton da Silva e Fernando Bach; o do \textit{frontend}, a Denyse Panza Clemente Ferreira e Larissa Quirino dos Santos; e a modelagem do banco de dados, a Beatriz Pimentel de Mello.
+O desenvolvimento foi conduzido por uma equipe de sete integrantes, com divisão de
+responsabilidades orientada por componente. A infraestrutura de rede e do ambiente
+(contêineres Docker, DNS e DHCP) e a coordenação geral do projeto ficaram a cargo de
+Lucas Toterol Rodrigues, que também desenvolveu o agente coletor, com o apoio de Caio
+Federico Esquivel Lovera Arze, responsável ainda pela redação técnica do documento. O
+desenvolvimento do \textit{backend} (API REST e lógica de detecção) coube a Douglas
+Clayton da Silva e Fernando Bach; o do \textit{frontend}, a Denyse Panza Clemente Ferreira
+e Larissa Quirino dos Santos; e a modelagem do banco de dados, a Beatriz Pimentel de Mello.
 
-A metodologia adotada foi o desenvolvimento iterativo e incremental. O grupo organizou o trabalho em ciclos semanais de entrega, nos quais cada membro contribuía com incrementos ao repositório compartilhado. As reuniões de equipe ocorriam, em geral, aos fins de semana, nem sempre com a presença de todos os integrantes.
+A metodologia adotada foi o desenvolvimento iterativo e incremental. O grupo organizou
+o trabalho em ciclos semanais de entrega, nos quais cada membro contribuía com
+incrementos ao repositório compartilhado. As reuniões de equipe ocorriam, em geral, aos
+fins de semana, nem sempre com a presença de todos os integrantes.
 
-O controle de versão foi realizado integralmente por meio do Git, com repositório hospedado no GitHub. O histórico de \textit{commits} registra 202 revisões ao longo do período de desenvolvimento, refletindo a evolução incremental de todos os componentes do sistema.
+O controle de versão foi realizado integralmente por meio do Git, com repositório
+hospedado no GitHub. O histórico de \textit{commits} registra 202 revisões ao longo
+do período de desenvolvimento, refletindo a evolução incremental de todos os
+componentes do sistema.
 
 \section{Cronograma e Fases}
 \label{sec:cronograma}
 
-O desenvolvimento ocorreu entre março e junho de 2026. Por se tratar de um processo iterativo e incremental, as fases a seguir não são estritamente sequenciais: houve sobreposição entre elas, em especial entre a implementação dos componentes e o refinamento subsequente. O recorte abaixo, reconstituído  partir do histórico de \textit{commits}, organiza o trabalho pela ênfase predominante e cada período.
+O desenvolvimento ocorreu entre março e junho de 2026, totalizando 202 \textit{commits}
+no repositório. Por se tratar de um processo iterativo e incremental, as fases a seguir
+não são estritamente sequenciais: houve sobreposição entre elas, em especial entre a
+implementação dos componentes e o refinamento subsequente. O recorte abaixo, reconstituído
+a partir do histórico de \textit{commits}, organiza o trabalho pela ênfase predominante em
+cada período.
 
-O trabalho foi norteado por um cronograma inicial de sete semanas (21 de abril a 5 de junho de 2026), organizado por entregas semanais e por componente. A execução acompanhou esse planejamento em linhas gerais, porém com desvios: o arranque efetivo da implementação ocorreu no início de maio, cerca de uma semana após o previsto, e os refinamentos do \textit{frontend} estenderam-se até meados de junho, ultrapassando o congelamento planejado do MVP (5 de junho). Em decorrência desses ajustes, a apresentação final do projeto foi realizada em 26 de junho de 2026.
+O trabalho foi norteado por um cronograma inicial de sete semanas (21 de abril a 5 de
+junho de 2026), organizado por entregas semanais e por componente. A execução acompanhou
+esse planejamento em linhas gerais, porém com desvios: o arranque efetivo da implementação
+ocorreu no início de maio, cerca de uma semana após o previsto, e os refinamentos do
+\textit{frontend} estenderam-se até meados de junho, ultrapassando o congelamento planejado
+do MVP (5 de junho). Em decorrência desses ajustes, a apresentação final do projeto foi
+realizada em 26 de junho de 2026.
 
 \begin{itemize}
-    \item \textbf{Fase 1: Pesquisa e Especificação}: levantamento bibliográfico, definição da arquitetura e elaboração da fundamentação teórica (Capítulos 1 a 10). Essa etapa corresponde à fase inicial do projeto e antecede o versionamento contínuo do código no repositório atual.
+    \item \textbf{Fase 1: Pesquisa e Especificação}: levantamento bibliográfico,
+          definição da arquitetura e elaboração da fundamentação teórica (Capítulos 1 a
+          10). Essa etapa corresponde à fase inicial do projeto e antecede o versionamento
+          contínuo do código no repositório atual.
     \item \textbf{Fase 2: Infraestrutura e Prova de Conceito}: configuração do
           servidor Ubuntu, rede local \texttt{10.10.10.0/26}, DHCP e DNS, e primeiros
           contêineres Docker (março e abril de 2026).
@@ -1272,7 +1300,7 @@ Com os canais habilitados, cada alerta é encaminhado por e-mail e ao Microsoft 
 \section{Síntese da Validação}
 \label{sec:discussao}
 
-Os testes confirmam que o sistema atende aos objetivos definidos no Capítulo~\ref{cap:introducao}: o agente coleta métricas de infraestrutura, inventário de \textit{hardware} e logs de autenticação; o \textit{backend} processa esses dados, detecta tentativas de força bruta e varreduras de portas e gera os alertas correspondentes; e o painel apresenta as informações ao operador, que ainda é notificado por \textit{Teams} e e-mail. A validação realizada tem caráter funcional: o objetivo foi confirmar que cada componente faz o que deveria fazer, e não medir com precisão o quanto de CPU o agente consome ou em quantos segundos um alerta chega após o início de um ataque. Essas métricas de desempenho são relevantes para uma implantação em produção e estão listadas como trabalhos futuros.
+Os testes confirmam que o sistema atende aos objetivos definidos no Capítulo~\ref{cap:introducao}: o agente coleta métricas de infraestrutura, inventário de \textit{hardware} e logs de autenticação; o \textit{backend} processa esses dados, detecta tentativas de força bruta e varreduras de portas e gera os alertas correspondentes; e o painel apresenta as informações ao operador, que ainda é notificado por \textit{Teams} e e-mail. A validação teve caráter funcional, demonstrando o funcionamento de ponta a ponta da solução em ambiente real; a aferição quantitativa de desempenho, como latência de detecção e sobrecarga do agente, não fez parte do escopo deste trabalho.
 
 % =================================================================================================
 % 14. LIMITAÇÕES E TRABALHOS FUTUROS
@@ -1371,12 +1399,14 @@ seguintes trabalhos futuros são propostos:
 \label{cap:ia}
 
 Durante o desenvolvimento deste projeto, a equipe fez uso de uma ferramenta de
-inteligência artificial generativa como recurso de apoio de desenvolvimento (não de pesquisa). Este capítulo descreve de forma transparente o escopo e os limites desse uso, em conformidade com as diretrizes de integridade acadêmica.
+inteligência artificial generativa como recurso de apoio. Este capítulo descreve
+de forma transparente o escopo e os limites desse uso, em conformidade com as
+diretrizes de integridade acadêmica.
 
 \section{Ferramenta Utilizada}
 \label{sec:ia-ferramenta}
 
-Foi utilizado os assistentes Claude (Anthropic) e DeepSeek, acessado entre maio e junho de 2026
+Foi utilizado o assistente Claude (Anthropic), acessado entre maio e junho de 2026
 por meio da interface web e da interface de linha de comando Claude Code. Nenhuma
 outra ferramenta de inteligência artificial generativa foi empregada no projeto.
 
@@ -1456,12 +1486,12 @@ monitoramento distribuído em rede local.
 
 O sistema apresenta limitações reais, discutidas no Capítulo~\ref{cap:limitacoes},
 com destaque para a ausência de comunicação segura (HTTP puro) e o ponto único de
-falha na arquitetura centralizada. Essas limitações evidenciam o escopo acadêmico do
-projeto e mostram claramente o ponto de foco para futuras melhorias do sistema.
+falha na arquitetura centralizada. Essas limitações refletem o escopo acadêmico do
+projeto e apontam caminhos claros para evolução futura.
 
 Dessa forma, o trabalho cumpre seu papel ao integrar pesquisa teórica, planejamento e
-implementação prática de um sistema de monitoramento funcional, servindo como base bem 
-estruturada para projetos similares em ambientes acadêmicos e de pequeno porte.
+implementação prática de um sistema de monitoramento funcional, contribuindo como
+referência para projetos similares em ambientes acadêmicos e de pequeno porte.
 
 \postextual
 
