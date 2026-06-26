@@ -9,6 +9,7 @@
     % Carrega o pacote da abnt com as adapatções para normas da Tuiuti
 \usepackage{../packages/abnt-UTP}
 \usepackage[alf]{abntex2cite}
+\usepackage{float}
 
 \renewcommand{\tt}{\ttfamily}
 
@@ -342,11 +343,11 @@ Por fim, destacam-se pela acessibilidade, permitindo que diferentes perfis de us
 \chapter{Agentes de Monitoramento}
 \label{cap:agents}
 
-Conforme falado no capítulo ~\ref{cap:data-collect} agentes de monitoramento são programas instalados nos dispositivos com a finalidade de coletar informações sobre o estado e o desempenho dos sistemas computacionais. Esses agentes atuam diretamente no sistema operacional, capturando métricas como uso de CPU, memória, disco e processos em execução, sendo essenciais para o acompanhamento da infraestrutura de TI.
+Conforme falado no capítulo~\ref{cap:data-collect} agentes de monitoramento são programas instalados nos dispositivos visando a coleta de informações sobre o dispositivo. Esses agentes atuam diretamente no sistema operacional, capturando métricas como uso de CPU, memória, disco e processos em execução, sendo essenciais para o acompanhamento da infraestrutura de TI.
 
-De acordo com \citeonline[p.~13]{santos2019monitoramento}, “os agentes de monitoramento são programas executados nos dispositivos que coletam informações e as disponibilizam para sistemas gerenciadores”. Dessa forma, eles funcionam como intermediários entre os dispositivos monitorados e os sistemas centrais, garantindo que os dados sejam coletados de forma organizada e confiável.
+\citeonline[p.~13]{santos2019monitoramento}, afirma “os agentes de monitoramento são programas executados nos dispositivos que coletam informações e as disponibilizam para sistemas gerenciadores”. Conforme, eles funcionam como intermediários entre os dispositivos monitorados e os sistemas centrais, garantindo que os dados sejam coletados de forma organizada e confiável.
 
-O funcionamento desses agentes baseia-se na coleta contínua ou sob demanda de dados, que são posteriormente enviados para um servidor central para análise. Conforme destacado por \citeonline[p.~21]{ferreira2020monitoramento}, “os agentes realizam a coleta contínua de dados do sistema e os encaminham para análise”, permitindo o acompanhamento do comportamento dos recursos ao longo do tempo e a identificação de possíveis falhas.
+O funcionamento desses agentes baseia-se na coleta contínua ou sob demanda de dados, que são posteriormente enviados para um servidor central para análise. \citeonline[p.~21]{ferreira2020monitoramento}, destaca “os agentes realizam a coleta contínua de dados do sistema e os encaminham para análise”, permitindo o acompanhamento do comportamento dos recursos ao longo do tempo e a identificação de possíveis falhas.
 
 Além disso, os agentes podem operar em diferentes modos, como ativo e passivo. No modo passivo, respondem a requisições do sistema gerenciador (\textit{polling}), enquanto no modo ativo enviam informações automaticamente quando ocorrem eventos relevantes. Segundo \citeonline[p.~5]{souza2020nagios}, “os sistemas de monitoramento podem operar com verificações periódicas ou envio automático de alertas”, o que aumenta a eficiência na detecção de problemas.
 
@@ -357,13 +358,13 @@ Por fim, destaca-se que os agentes frequentemente utilizam protocolos padronizad
 
 Enquanto no modelo cliente-servidor o cliente não compartilha nenhum de seus recursos com o servidor, é ele quem inicia a comunicação solicitando alguma função ao servidor que fica aguardando as requisições, com o agente a iniciativa da comunicação parte dele próprio: o agente pode reportar dados de forma periódica (\textit{push} em intervalos regulares) ou orientada a eventos, contactando o servidor quando há algo relevante a reportar.
 
-\citeonline[p.~116]{wooldridge1995} ) descrevem algumas propriedades centrais dos agentes de monitoramento. A \textbf{autonomia}, em que os agentes operam sem a intervenção direta de humanos ou outros e têm algum tipo de controle sobre suas ações e estado interno; a \textbf{habilidade social}, na qual os agentes interagem com outros agentes ou possivelmente humanos por meio de algum tipo de linguagem de comunicação; a \textbf{reatividade}, onde os agentes percebem seu ambiente, que pode ser o mundo físico, um usuário, uma coleção de outros agentes ou a Internet, e respondem em tempo hábil às mudanças que ocorrem nele; e a \textbf{proatividade}, em que os agentes não agem simplesmente em resposta ao seu ambiente, sendo capazes de exibir comportamento direcionado a objetivos e tomar a iniciativa.
+\citeonline[p.~116]{wooldridge1995} descrevem algumas propriedades centrais dos agentes de monitoramento. A \textbf{autonomia}, em que os agentes operam sem a intervenção direta de humanos ou outros e têm algum tipo de controle sobre suas ações e estado interno; a \textbf{habilidade social}, na qual os agentes interagem com outros agentes ou possivelmente humanos por meio de algum tipo de linguagem de comunicação; a \textbf{reatividade}, onde os agentes percebem seu ambiente, que pode ser o mundo físico, um usuário, uma coleção de outros agentes ou a Internet, e respondem em tempo hábil às mudanças que ocorrem nele; e a \textbf{proatividade}, em que os agentes não agem simplesmente em resposta ao seu ambiente, sendo capazes de exibir comportamento direcionado a objetivos e tomar a iniciativa.
 
 \section{Ferramentas de Monitoramento: Zabbix e Nagios}
 
-Diversas ferramentas utilizam agentes de monitoramento para coletar dados e acompanhar o funcionamento dos sistemas, sendo o Zabbix e o Nagios duas das soluções mais utilizadas tanto no meio acadêmico quanto no mercado. Essas ferramentas exemplificam, na prática, a aplicação dos conceitos de monitoramento em ambientes reais.
+Diversas ferramentas utilizam agentes de monitoramento para coletar dados e acompanhar os sistemas, sendo o Zabbix e o Nagios duas das soluções mais utilizadas tanto no meio acadêmico quanto no mercado. Essas ferramentas exemplificam, na prática, a aplicação dos conceitos de monitoramento em ambientes reais.
 
-O Nagios é uma ferramenta consolidada que permite monitorar \textit{hosts}, serviços e dispositivos de rede por meio de agentes e \textit{plugins}. Conforme afirmam \citeonline[p.~7]{souza2020nagios}, “o Nagios permite o monitoramento de \textit{hosts} e serviços, utilizando \textit{plugins} e agentes para coleta de dados em diferentes ambientes”, o que demonstra sua flexibilidade e ampla aplicabilidade.
+O Nagios é uma ferramenta consolidada que permite monitorar \textit{hosts}, serviços e dispositivos de rede por meio de agentes e \textit{plugins}. \citeonline[p.~7]{souza2020nagios}, apontam “o Nagios permite o monitoramento de \textit{hosts} e serviços, utilizando \textit{plugins} e agentes para coleta de dados em diferentes ambientes”, o que demonstra sua flexibilidade e ampla aplicabilidade.
 
 Uma característica importante do Nagios é a possibilidade de operar com verificações ativas e passivas, permitindo adaptar o monitoramento conforme as necessidades do ambiente. Essa abordagem possibilita tanto a coleta periódica de dados quanto o envio de alertas automáticos, contribuindo para a rápida identificação de falhas.
 
@@ -398,7 +399,7 @@ De acordo com o \citeonline{gupta2012logging}, essa etapa permite a correlação
 Como exemplo prático, considere o seguinte registro de um dispositivo de segurança:
 
 
-\begin{codigo}[htb]
+\begin{codigo}[H]
 \legenda[exemplo_log]{Exemplo de um log gerado por um Firewall}
 \begin{lstlisting}
     date=2026-04-05 time=14:32:10 devname=FW-01 type=traffic 
@@ -469,7 +470,7 @@ O modelo cliente-servidor estrutura a comunicação entre programas em dois pap�
 
 A Figura~\ref{fig:cliente-servidor} ilustra esse fluxo de comunicação: o cliente envia uma solicitação, a API intermedeia o processamento no servidor e a resposta retorna ao cliente por meio dessa mesma camada.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:cliente-servidor]{Fluxo de comunicação no modelo cliente-servidor intermediado por uma API}
 \fig{width=0.95\textwidth}{../img/cliente-servidor.png}
 \fonte{Os autores (2026).}
@@ -479,7 +480,7 @@ De acordo com \citeonline[p.~24]{oliveira2016}, os principais componentes desse 
     
 JSON é um formato de texto para organizar dados. Não pertence a nenhuma linguagem de programação (define só estrutura), então qualquer sistema consegue ler o que outro escreveu. Segundo a \citeonline{ibm_json}, os dados ficam em pares de chave e valor, o que facilita tanto a leitura por máquina quanto a interpretação de quem está desenvolvendo. Essa padronização também ajuda na troca de informações entre sistemas diferentes, já que todos seguem a mesma lógica de estrutura.
 
-Sua estrutura leve e compacta o torna mais eficiente que o XML, que carrega mais marcações e ocupa mais espaço para representar a mesma informação. Essa diferença de peso aparece especialmente em sistemas que fazem muitas requisições, onde cada \textit{kilobyte} a menos no \textit{payload} conta. Em aplicações modernas, como APIs e sistemas distribuídos, essa economia de dados contribui diretamente para melhor desempenho e menor consumo de recursos.
+Sua estrutura leve e compacta o torna mais eficiente que o XML, que carrega mais marcações e ocupa mais espaço para representar a mesma informação. Essa diferença de peso aparece em sistemas que fazem muitas requisições, onde cada \textit{kilobyte} a menos no \textit{payload} conta. Em aplicações modernas, como APIs e sistemas distribuídos, essa economia de dados contribui diretamente para melhor desempenho e menor consumo de recursos.
 
 HTTP\footnote{O HTTPS (\textit{Hypertext Transfer Protocol Secure}) é a variante segura do HTTP, que adiciona uma camada de cifragem TLS (\textit{Transport Layer Security}), garantindo confidencialidade e integridade na transmissão dos dados. O sistema de monitoramento implementado neste trabalho utiliza HTTP puro, limitação discutida no Capítulo~\ref{cap:limitacoes}.} é o protocolo que move dados na \textit{web}. O modelo é simples: cliente pede, servidor responde. Esse funcionamento é a base da \textit{web}, como destaca a \citeonline{mdn_http}. Cada troca é independente, o que facilita escalar sistemas sem aumentar a complexidade. Isso permite que aplicações atendam um grande número de requisições sem precisar manter informações sobre interações anteriores.
 
@@ -526,7 +527,7 @@ Essa configuração simplifica o gerenciamento da rede, mas limita a capacidade 
 
 A Figura~\ref{fig:topologia-pkt} ilustra a disposição dos componentes na rede local. O servidor central (\texttt{10.10.10.1}) executa os serviços de \textit{backend}, banco de dados, DHCP e \textit{proxy} reverso. Os clientes recebem endereços dinamicamente pelo DHCP na faixa \texttt{10.10.10.10}--\texttt{10.10.10.50} e executam o agente coletor. Todos os dispositivos são interligados por um \textit{switch} não gerenciável, caracterizando uma topologia estrela.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:topologia-pkt]{Topologia lógica do sistema de monitoramento}
 \fig{width=1.00\textwidth}{../img/topologia.png}
 \fonte{Os autores (2026).}
@@ -696,13 +697,13 @@ A Figura~\ref{fig:arquitetura} apresenta o diagrama de arquitetura do sistema, c
 componentes e suas conexões; a Figura~\ref{fig:fluxograma} ilustra o fluxo de dados desde
 a coleta no agente até a geração de alertas e o envio de notificações.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:arquitetura]{Diagrama de arquitetura do sistema implementado}
 \fig{width=1.00\textwidth}{../img/arquitetura.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:fluxograma]{Fluxograma do fluxo de dados da aplicação}
 \fig{width=1.00\textwidth}{../img/fluxograma.png}
 \fonte{Os autores (2026).}
@@ -751,13 +752,13 @@ coleta de linhas novas do \texttt{auth.log} e envio de detecção de
 
 A instalação do agente nos clientes monitorados é automatizada pelo script \texttt{install.sh}, que compila o binário, cria o serviço systemd e o habilita. As Figuras~\ref{fig:install-1} e~\ref{fig:install-2} apresentam, respectivamente, o início do processo de instalação e sua conclusão, com o serviço \texttt{linux-agent.service} registrado e iniciado no host.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:install-1]{Início da instalação do agente coletor pelo script \texttt{install.sh}}
 \fig{width=1.00\textwidth}{../img/instalacao-1.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:install-2]{Conclusão da instalação, com o serviço systemd habilitado e iniciado}
 \fig{width=1.00\textwidth}{../img/instalacao-2.png}
 \fonte{Os autores (2026).}
@@ -834,7 +835,7 @@ pacotes TCP que têm o bit SYN ativo e o bit ACK inativo, padrão dos pacotes de
 abertura de conexão sem confirmação, predominante em ferramentas de varredura de
 portas.
 
-\begin{codigo}[htb]
+\begin{codigo}[H]
 \legenda[cod:tcpdump-filtro]{Filtro BPF para captura de pacotes TCP SYN no agente}
 \begin{lstlisting}
 tcpdump -n -l -i any \
@@ -916,7 +917,7 @@ versões anteriores do sistema.
 
 A Figura~\ref{fig:apikey} apresenta a tela de gerenciamento da chave de API no painel, na qual o operador pode gerar uma nova chave diretamente no servidor e configurá-la no navegador para autenticar as requisições.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:apikey]{Tela de gerenciamento da chave de API no painel}
 \fig{width=1.00\textwidth}{../img/tela-config-2-apiKEY.png}
 \fonte{Os autores (2026).}
@@ -944,7 +945,7 @@ contagem de falhas. A consulta utiliza operadores JSONB nativos do PostgreSQL
 (\texttt{->>}), aproveitando os índices parciais definidos sobre o campo
 \texttt{parsed\_data} da tabela \texttt{logs}.
 
-\begin{codigo}[htb]
+\begin{codigo}[H]
 \legenda[cod:bruteforce-query]{SQL de contagem de falhas SSH para detecção de força bruta}
 \begin{lstlisting}
 SELECT COUNT(*) FROM logs
@@ -1018,13 +1019,13 @@ navegação ou da troca de \textit{host} selecionado.
 
 As Figuras~\ref{fig:tela-endpoints} e~\ref{fig:tela-config} ilustram duas dessas telas. A tela de Endpoints lista os hosts monitorados com seus identificadores, endereço IP primário e estado de conexão (\textit{online}/\textit{offline}). A tela de Configurações reúne os ajustes do sistema: os limiares de alerta de CPU, memória e disco, os interruptores dos canais de notificação (Teams e e-mail) e a lista de destinatários.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:tela-endpoints]{Tela de Endpoints com a relação dos hosts monitorados}
 \fig{width=1.00\textwidth}{../img/tela-endpoints.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:tela-config]{Tela de Configurações: limiares de alerta, canais de notificação e destinatários}
 \fig{width=1.00\textwidth}{../img/tela-config-1.png}
 \fonte{Os autores (2026).}
@@ -1048,7 +1049,7 @@ configurações do sistema (chave de API, destinatários de e-mail, limiares de 
 Figura~\ref{fig:modelo-conceitual} apresenta o modelo conceitual do banco no formato
 entidade-relacionamento.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:modelo-conceitual]{Modelo conceitual (entidade-relacionamento) do banco de dados}
 \fig{width=1.00\textwidth}{../img/modelo-conceitual-db.png}
 \fonte{Os autores (2026).}
@@ -1060,7 +1061,7 @@ entidade-relacionamento.
 A Figura~\ref{fig:modelo-logico} apresenta o modelo lógico do banco, detalhando as
 tabelas, suas colunas e os respectivos tipos de dados.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:modelo-logico]{Modelo lógico do banco de dados}
 \fig{width=1.00\textwidth}{../img/modelo-logico-db.png}
 \fonte{Os autores (2026).}
@@ -1103,7 +1104,7 @@ Este capítulo apresenta a validação funcional do sistema implementado, conduz
 
 A validação foi conduzida no mesmo ambiente de rede local descrito no Capítulo~\ref{cap:implementacao}: um servidor central e seis clientes Linux conectados em topologia estrela. Para os testes de segurança, utilizou-se um host atacante na mesma sub-rede, executando as ferramentas \texttt{hydra} (força bruta SSH) e \texttt{nmap} (varredura de portas). O objetivo desta etapa foi verificar, de forma funcional, que cada componente opera conforme especificado e que a solução funciona de ponta a ponta, e não a aferição de métricas de desempenho. A Figura~\ref{fig:val-dashboard} apresenta a visão geral do painel, com os hosts monitorados. Cabe um esclarecimento sobre os endereços exibidos: cada máquina de teste possuía duas interfaces de rede: uma conectada ao \textit{switch} da rede de monitoramento (\texttt{10.10.10.0/26}) e outra à rede doméstica com acesso à internet (\texttt{192.168.0.0/24}), utilizada para baixar o agente. Como o agente reporta o IP primário do host, isto é, o associado à rota padrão (\textit{default route}) obtida via \texttt{ip route}, o endereço apresentado no painel corresponde à interface de internet (\texttt{192.168.0.x}). O tráfego de ataque (força bruta e varredura), por sua vez, percorre a rede de monitoramento, o que explica o IP atacante \texttt{10.10.10.x} observado nos alertas.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-dashboard]{Painel principal exibindo os hosts monitorados}
 \fig{width=1.00\textwidth}{../img/dashboard-pos-instalacao.png}
 \fonte{Os autores (2026).}
@@ -1114,13 +1115,13 @@ A validação foi conduzida no mesmo ambiente de rede local descrito no Capítul
 
 Com o agente instalado e ativo em um cliente, verificou-se no painel a exibição contínua das métricas de CPU, memória e disco, atualizadas automaticamente. Os valores reportados pelo agente foram conferidos contra as ferramentas nativas do sistema operacional (\texttt{top}, \texttt{free -m} e \texttt{df -h}), confirmando que correspondem ao estado real do host monitorado. As Figuras~\ref{fig:val-metricas-1} e~\ref{fig:val-metricas-2} apresentam a tela de métricas: a primeira exibe os medidores de status em tempo real de CPU, memória e disco, acompanhados do gráfico de evolução; a segunda detalha o histórico das métricas e os cartões com o uso atual de cada recurso.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-metricas-1]{Tela de métricas: medidores em tempo real e gráfico de evolução}
 \fig{width=1.00\textwidth}{../img/metricas-host-1.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-metricas-2]{Tela de métricas: histórico detalhado e cartões de uso atual}
 \fig{width=1.00\textwidth}{../img/metricas-host-2.png}
 \fonte{Os autores (2026).}
@@ -1131,31 +1132,31 @@ Com o agente instalado e ativo em um cliente, verificou-se no painel a exibiçã
 
 Na primeira execução, o agente realiza a coleta de inventário (\textit{discovery}) do host, distinguindo máquinas físicas de virtuais conforme a lógica descrita na Seção~\ref{subsec:discovery}. As Figuras~\ref{fig:val-vhost-1} e~\ref{fig:val-vhost-2} apresentam os detalhes de um host virtual, e as Figuras~\ref{fig:val-fisico-1} a~\ref{fig:val-fisico-3}, os de um host físico. Observa-se que o host físico expõe informações de hardware mais detalhadas (modelo de CPU, \textit{clock}, discos, slots e fabricante dos módulos de memória e dados da placa-mãe), enquanto no host virtual parte desses dados é omitida ou reportada de forma genérica, comportamento esperado, já que o ambiente virtualizado não dá acesso ao hardware real.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-vhost-1]{Host virtual: visão geral de CPU, memória, disco e sistema}
 \fig{width=1.00\textwidth}{../img/detalhes-vhost-1.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-vhost-2]{Host virtual: discos e interfaces de rede}
 \fig{width=1.00\textwidth}{../img/detalhes-vhost-2.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-fisico-1]{Host físico: visão geral de hardware e sistema}
 \fig{width=1.00\textwidth}{../img/detalhes-hostFisico-1.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-fisico-2]{Host físico: detalhes de discos e interfaces de rede}
 \fig{width=1.00\textwidth}{../img/detalhes-hostFisico-2.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-fisico-3]{Host físico: módulos de memória RAM e placa-mãe}
 \fig{width=1.00\textwidth}{../img/detalhes-hostFisico-3.png}
 \fonte{Os autores (2026).}
@@ -1166,7 +1167,7 @@ Na primeira execução, o agente realiza a coleta de inventário (\textit{discov
 
 Para validar a coleta de logs, foram realizadas tentativas de acesso SSH ao cliente monitorado, uma malsucedida e uma bem-sucedida. Ambas foram lidas pelo agente a partir do arquivo \texttt{/var/log/auth.log} e exibidas na tela de Logs do painel, com os campos relevantes (origem, usuário e resultado) corretamente extraídos. A Figura~\ref{fig:val-logs} mostra os eventos registrados.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-logs]{Tela de Logs exibindo os eventos de autenticação coletados}
 \fig{width=1.00\textwidth}{../img/logs-gerais.png}
 \fonte{Os autores (2026).}
@@ -1177,19 +1178,19 @@ Para validar a coleta de logs, foram realizadas tentativas de acesso SSH ao clie
 
 Simulou-se um ataque de força bruta com a ferramenta \texttt{hydra}, gerando múltiplas tentativas de autenticação SSH malsucedidas a partir do host atacante. Ao ultrapassar o limiar de cinco falhas do mesmo endereço em uma janela de 60 segundos, o \textit{backend} gerou automaticamente um alerta do tipo \texttt{brute\_force} e o encaminhou aos canais de notificação. A Figura~\ref{fig:val-bf-cmd} mostra o comando \texttt{hydra} em execução contra o cliente; as Figuras~\ref{fig:val-bf-teams} e~\ref{fig:val-bf-email} apresentam, respectivamente, a notificação do alerta recebida no Microsoft \textit{Teams} e por e-mail.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-bf-cmd]{Execução do ataque de força bruta com \texttt{hydra}}
 \fig{width=1.00\textwidth}{../img/brute-force-1-comandoHYDRA.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-bf-teams]{Notificação do alerta de força bruta no Microsoft Teams}
 \fig{width=0.65\textwidth}{../img/brute-force-2-alertaTeams.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-bf-email]{Notificação do alerta de força bruta por e-mail}
 \fig{width=0.85\textwidth}{../img/brute-force-3-alertaEmail.png}
 \fonte{Os autores (2026).}
@@ -1200,25 +1201,25 @@ Simulou-se um ataque de força bruta com a ferramenta \texttt{hydra}, gerando m�
 
 A detecção de varredura de portas foi validada executando-se o \texttt{nmap} contra o cliente monitorado. O agente, por meio da captura de pacotes com \texttt{tcpdump}, identificou o acesso a múltiplas portas distintas a partir de um mesmo endereço e sinalizou o evento ao \textit{backend}, que gerou um alerta do tipo \texttt{port\_scan}. A Figura~\ref{fig:val-ps-cmd} mostra o \texttt{nmap} em execução; a Figura~\ref{fig:val-ps-painel} apresenta o alerta de \texttt{port\_scan} no painel; e as Figuras~\ref{fig:val-ps-email} e~\ref{fig:val-ps-teams} mostram as notificações correspondentes por e-mail e no \textit{Teams}. Vale observar que o \texttt{nmap}, em sua varredura padrão, acessou cerca de mil portas distintas (número muito acima do limiar de detecção de dez portas distintas em 60 segundos definido na Seção~\ref{subsec:portscan-agente}), de modo que o disparo do alerta era esperado.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-ps-cmd]{Execução da varredura de portas com \texttt{nmap}}
 \fig{width=1.00\textwidth}{../img/port-scan-1-comandoNMAP.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-ps-painel]{Alerta de varredura de portas exibido no painel}
 \fig{width=1.00\textwidth}{../img/port-scan-2-alertaGeral.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-ps-email]{Notificação do alerta de varredura de portas por e-mail}
 \fig{width=0.85\textwidth}{../img/port-scan-3-alertaEmail.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-ps-teams]{Notificação do alerta de varredura de portas no Microsoft Teams}
 \fig{width=0.65\textwidth}{../img/port-scan-4-alertaTeams.png}
 \fonte{Os autores (2026).}
@@ -1233,37 +1234,37 @@ Todos os alertas, de segurança e de recurso, são consolidados na tela de Alert
 
 Com os canais habilitados, cada alerta é encaminhado por e-mail e ao Microsoft \textit{Teams}. As Figuras~\ref{fig:val-cpu-email} e~\ref{fig:val-cpu-teams} mostram a notificação de um alerta de CPU alta nos dois canais, e as Figuras~\ref{fig:val-mem-email} e~\ref{fig:val-mem-teams}, a de um alerta de memória alta. Verificou-se também que, ao desabilitar um canal nas configurações, a respectiva notificação deixa de ser enviada, embora o alerta continue registrado no painel.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-alertas-1]{Tela de Alertas Gerais com um alerta de recurso (CPU)}
 \fig{width=1.00\textwidth}{../img/alertas-gerais.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-alertas-2]{Tela de Alertas Gerais com múltiplos alertas de tipos distintos}
 \fig{width=1.00\textwidth}{../img/alertas-gerais-2-comMaisAlertas.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-cpu-email]{Notificação de alerta de CPU alta por e-mail}
 \fig{width=0.85\textwidth}{../img/alertaEmail-CPU.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-cpu-teams]{Notificação de alerta de CPU alta no Microsoft Teams}
 \fig{width=0.65\textwidth}{../img/alertaTeams-CPU.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-mem-email]{Notificação de alerta de memória alta por e-mail}
 \fig{width=0.85\textwidth}{../img/alertaEmail-Memoria.png}
 \fonte{Os autores (2026).}
 \end{figure}
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \legenda[fig:val-mem-teams]{Notificação de alerta de memória alta no Microsoft Teams}
 \fig{width=0.65\textwidth}{../img/alertaTeams-Memoria.png}
 \fonte{Os autores (2026).}
